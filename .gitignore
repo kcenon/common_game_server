@@ -1,0 +1,186 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# Build directories
+build/
+cmake-build-*/
+out/
+bin/
+lib/
+Release/
+Debug/
+x64/
+x86/
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+Makefile
+*.cmake
+!CMakeLists.txt
+
+# IDE files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.project
+.cproject
+.settings/
+*.sublime-*
+*.code-workspace
+
+# Visual Studio
+*.sln
+*.vcxproj*
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+.vs/
+*.opensdf
+*.sdf
+*.VC.db
+*.VC.VC.opendb
+ipch/
+
+# Xcode
+*.xcodeproj/
+*.xcworkspace/
+xcuserdata/
+DerivedData/
+*.moved-aside
+*.pbxuser
+!default.pbxuser
+*.mode1v3
+!default.mode1v3
+*.mode2v3
+!default.mode2v3
+*.perspectivev3
+!default.perspectivev3
+
+# Conan
+conan.lock
+conanbuildinfo.*
+conaninfo.txt
+graph_info.json
+conan/
+
+# vcpkg
+vcpkg_installed/
+
+# Dependencies
+deps/
+third_party/
+external/
+vendor/
+
+# Test outputs
+Testing/
+test_results/
+*.gcov
+*.gcda
+*.gcno
+coverage/
+*.lcov
+
+# Documentation build
+docs/_build/
+doxygen/
+html/
+latex/
+
+# Package files
+*.tar.gz
+*.zip
+*.7z
+*.rar
+
+# Logs
+*.log
+logs/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Environment
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+
+# Temporary files
+*.tmp
+*.temp
+*.bak
+*.swp
+*~
+
+# Core dumps
+core
+core.*
+vgcore.*
+
+# Profiling data
+*.prof
+*.profdata
+perf.data
+perf.data.old
+
+# Kubernetes secrets
+*-secret.yaml
+*.secret.yaml
+secrets/
+
+# Docker
+.docker/
+
+# Node (if using any JS tooling)
+node_modules/
+package-lock.json
+yarn.lock

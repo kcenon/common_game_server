@@ -54,8 +54,8 @@ if(CGS_ENABLE_SANITIZERS)
     endif()
 endif()
 
-# Conan integration (Conan 2.x CMakeDeps generator)
-find_package(yaml-cpp QUIET)
+# External dependencies (via Conan or system packages)
+find_package(yaml-cpp REQUIRED)
 
 # Foundation systems placeholder
 # These will be integrated via Conan packages or FetchContent
@@ -71,7 +71,7 @@ target_link_libraries(cgs_core INTERFACE cgs_warnings)
 
 # Layer targets (libraries built as subsequent issues are implemented)
 # Layer 1-2: Foundation adapters
-# add_subdirectory(src/foundation)
+add_subdirectory(src/foundation)
 
 # Layer 3: Services
 # add_subdirectory(src/services)

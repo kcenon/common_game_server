@@ -1,7 +1,7 @@
 # Test configuration
 include(GoogleTest)
 
-# Unit tests
+# Unit tests - core
 add_executable(cgs_unit_tests
     unit/version_test.cpp
 )
@@ -10,3 +10,13 @@ target_link_libraries(cgs_unit_tests PRIVATE
     GTest::gtest_main
 )
 gtest_discover_tests(cgs_unit_tests)
+
+# Unit tests - foundation common adapter
+add_executable(cgs_foundation_common_tests
+    unit/foundation/common_adapter_test.cpp
+)
+target_link_libraries(cgs_foundation_common_tests PRIVATE
+    cgs::foundation_common
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_foundation_common_tests)

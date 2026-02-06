@@ -2,3 +2,4 @@
 add_subdirectory(common)
 add_subdirectory(thread)
 add_subdirectory(logger)
+add_subdirectory(network)

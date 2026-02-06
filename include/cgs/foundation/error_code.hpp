@@ -60,6 +60,11 @@ enum class ErrorCode : uint32_t {
     JobCancelled = 0x0703,
     JobTimeout = 0x0704,
     JobDependencyFailed = 0x0705,
+
+    // Logger (0x0800 - 0x08FF)
+    LoggerError = 0x0800,
+    LoggerNotInitialized = 0x0801,
+    LoggerFlushFailed = 0x0802,
 };
 
 /// Return the subsystem name for a given error code.
@@ -75,6 +80,7 @@ constexpr std::string_view errorSubsystem(ErrorCode code) {
         case 0x0500: return "Auth";
         case 0x0600: return "Config";
         case 0x0700: return "Thread";
+        case 0x0800: return "Logger";
         default: return "Unknown";
     }
 }

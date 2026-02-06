@@ -52,6 +52,14 @@ enum class ErrorCode : uint32_t {
     ConfigLoadFailed = 0x0600,
     ConfigKeyNotFound = 0x0601,
     ConfigTypeMismatch = 0x0602,
+
+    // Thread (0x0700 - 0x07FF)
+    ThreadError = 0x0700,
+    JobScheduleFailed = 0x0701,
+    JobNotFound = 0x0702,
+    JobCancelled = 0x0703,
+    JobTimeout = 0x0704,
+    JobDependencyFailed = 0x0705,
 };
 
 /// Return the subsystem name for a given error code.
@@ -66,6 +74,7 @@ constexpr std::string_view errorSubsystem(ErrorCode code) {
         case 0x0400: return "Plugin";
         case 0x0500: return "Auth";
         case 0x0600: return "Config";
+        case 0x0700: return "Thread";
         default: return "Unknown";
     }
 }

@@ -59,5 +59,6 @@ function(_cgs_mark_system_includes target)
 endfunction()
 
 # Only apply to real (non-alias) targets
+_cgs_mark_system_includes(common_system)
 _cgs_mark_system_includes(thread_base)
 _cgs_mark_system_includes(thread_core)

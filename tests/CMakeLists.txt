@@ -30,3 +30,14 @@ target_link_libraries(cgs_foundation_thread_tests PRIVATE
     GTest::gtest_main
 )
 gtest_discover_tests(cgs_foundation_thread_tests)
+
+# Unit tests - foundation logger adapter
+add_executable(cgs_foundation_logger_tests
+    unit/foundation/logger_adapter_test.cpp
+)
+target_link_libraries(cgs_foundation_logger_tests PRIVATE
+    cgs::foundation_logger
+    common_system
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_foundation_logger_tests)

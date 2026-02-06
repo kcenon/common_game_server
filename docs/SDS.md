@@ -2,8 +2,8 @@
 
 ## Common Game Server - Unified Game Server Framework
 
-**Version**: 0.1.0.0
-**Last Updated**: 2026-02-03
+**Version**: 0.2.0.0
+**Last Updated**: 2026-02-06
 **Status**: Draft
 **Based On**: SRS v0.1.0.0
 
@@ -147,17 +147,43 @@ common_game_server/
 │   │   │   ├── plugin_interface.hpp
 │   │   │   ├── plugin_manager.hpp
 │   │   │   ├── plugin_context.hpp
-│   │   │   └── event_bus.hpp
+│   │   │   ├── event_bus.hpp
+│   │   │   └── hot_reload.hpp        # Development-only hot reload
 │   │   ├── game/                     # Game logic components
 │   │   │   ├── components/
+│   │   │   │   ├── transform.hpp
+│   │   │   │   ├── identity.hpp
+│   │   │   │   ├── stats.hpp
+│   │   │   │   ├── movement.hpp
+│   │   │   │   ├── combat.hpp
+│   │   │   │   ├── world.hpp
+│   │   │   │   ├── ai_brain.hpp
+│   │   │   │   ├── quest_log.hpp
+│   │   │   │   ├── inventory.hpp
+│   │   │   │   └── equipment.hpp
 │   │   │   ├── systems/
+│   │   │   │   ├── ai_system.hpp
+│   │   │   │   ├── quest_system.hpp
+│   │   │   │   └── inventory_system.hpp
+│   │   │   ├── ai/
+│   │   │   │   ├── behavior_tree.hpp
+│   │   │   │   ├── bt_nodes.hpp
+│   │   │   │   └── blackboard.hpp
 │   │   │   └── events/
 │   │   └── services/                 # Microservices
 │   │       ├── auth/
 │   │       ├── gateway/
 │   │       ├── game/
 │   │       ├── lobby/
+│   │       │   ├── lobby_server.hpp
+│   │       │   ├── matchmaking_engine.hpp
+│   │       │   ├── party_manager.hpp
+│   │       │   └── game_server_allocator.hpp
 │   │       └── dbproxy/
+│   │           ├── dbproxy_server.hpp
+│   │           ├── connection_pool.hpp
+│   │           ├── query_router.hpp
+│   │           └── query_cache.hpp
 │   └── main.cpp
 ├── plugins/                          # Game-specific plugins
 │   └── mmorpg/
@@ -850,6 +876,124 @@ public:
 };
 ```
 
+### 5.4 Plugin Hot Reload Design
+
+| ID | SDS-MOD-023 |
+|----|-------------|
+| **SRS Trace** | SRS-PLG-005.1 ~ SRS-PLG-005.4 |
+| **Description** | Development-time hot reload for plugins |
+
+**Class Diagram**:
+
+```
+┌─────────────────────────────────────────────────────┐
+│               HotReloadManager                       │
+├─────────────────────────────────────────────────────┤
+│ - watcher_: FileWatcher                             │
+│ - pluginManager_: PluginManager&                    │
+│ - stateStore_: map<string, PluginStateSnapshot>     │
+│ - enabled_: bool                                    │
+│ - watchPaths_: vector<fs::path>                     │
+│ - debounceMs_: milliseconds                         │
+├─────────────────────────────────────────────────────┤
+│ + Start(paths) -> GameResult<void>                  │
+│ + Stop()                                            │
+│ + IsEnabled() -> bool                               │
+│ + OnFileChanged(path)                               │
+│ - CaptureState(name) -> PluginStateSnapshot         │
+│ - RestoreState(name, snapshot) -> GameResult<void>  │
+│ - SafeReload(name) -> GameResult<void>              │
+└─────────────────────────────────────────────────────┘
+         │
+         │ uses
+         ▼
+┌─────────────────────────────────────────────────────┐
+│                FileWatcher                            │
+├─────────────────────────────────────────────────────┤
+│ - watchDescriptors_: map<int, fs::path>             │
+│ - running_: atomic<bool>                            │
+│ - callback_: function<void(fs::path, ChangeType)>   │
+├─────────────────────────────────────────────────────┤
+│ + Watch(path, callback)                             │
+│ + Unwatch(path)                                     │
+│ + Poll() -> vector<FileChange>                      │
+│ + Stop()                                            │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│             PluginStateSnapshot                      │
+├─────────────────────────────────────────────────────┤
+│ + pluginName: string                                │
+│ + version: Version                                  │
+│ + serializedState: vector<uint8_t>                  │
+│ + registeredSystems: vector<TypeId>                 │
+│ + subscribedEvents: vector<TypeId>                  │
+│ + capturedAt: time_point                            │
+└─────────────────────────────────────────────────────┘
+```
+
+**Hot Reload Sequence**:
+
+```
+FileWatcher          HotReloadManager       PluginManager        Plugin
+    │                      │                      │                 │
+    │── FileChanged ──────→│                      │                 │
+    │                      │── CaptureState ─────→│                 │
+    │                      │                      │── Serialize ───→│
+    │                      │                      │←── StateData ──│
+    │                      │←── Snapshot ─────────│                 │
+    │                      │                      │                 │
+    │                      │── UnloadPlugin ─────→│                 │
+    │                      │                      │── OnShutdown ──→│
+    │                      │                      │── OnUnload ────→│
+    │                      │                      │                 │
+    │                      │── LoadPlugin ───────→│  (new binary)   │
+    │                      │                      │── OnLoad ──────→│'
+    │                      │                      │── OnInit ──────→│'
+    │                      │                      │                 │'
+    │                      │── RestoreState ─────→│                 │'
+    │                      │                      │── Deserialize ─→│'
+    │                      │                      │                 │'
+```
+
+**State Preservation Interface**:
+
+```cpp
+namespace cgs::plugin {
+    // Plugins opt-in to state preservation by implementing IHotReloadable
+    class IHotReloadable {
+    public:
+        virtual ~IHotReloadable() = default;
+
+        // Serialize plugin state before unload
+        virtual GameResult<std::vector<uint8_t>> SerializeState() const = 0;
+
+        // Restore plugin state after reload
+        virtual GameResult<void> DeserializeState(std::span<const uint8_t> data) = 0;
+
+        // Schema version for state compatibility
+        virtual uint32_t GetStateVersion() const = 0;
+    };
+
+    // Compile-time guard: hot reload is disabled in Release builds
+    #ifdef CGS_DEVELOPMENT
+        constexpr bool HOT_RELOAD_AVAILABLE = true;
+    #else
+        constexpr bool HOT_RELOAD_AVAILABLE = false;
+    #endif
+}
+```
+
+**File Change Detection**:
+
+| Platform | Mechanism | Fallback |
+|----------|-----------|----------|
+| Linux | `inotify` (IN_CLOSE_WRITE, IN_MOVED_TO) | Polling (500ms) |
+| Windows | `ReadDirectoryChangesW` | Polling (500ms) |
+| macOS | `FSEvents` / `kqueue` | Polling (500ms) |
+
+**Debounce Strategy**: File changes within 200ms window are coalesced into a single reload event to handle editors that write multiple times (e.g., save + backup).
+
 ---
 
 ## 6. Game Logic Component Design
@@ -1019,6 +1163,409 @@ private:
 };
 ```
 
+### 6.4 AI System Components
+
+| ID | SDS-MOD-033 |
+|----|-------------|
+| **SRS Trace** | SRS-GML-004.1 ~ SRS-GML-004.4 |
+| **Description** | AI behavior components and systems |
+
+**Class Diagram**:
+
+```
+┌─────────────────────────────────────────────────────┐
+│                   AIBrain                             │
+├─────────────────────────────────────────────────────┤
+│ + behaviorTreeId: uint32_t                          │
+│ + state: AIState                                    │
+│ + blackboard: Blackboard                            │
+│ + updateInterval: milliseconds                      │
+│ + lastUpdate: time_point                            │
+│ + homePosition: Vector3                             │
+│ + aggroRadius: float                                │
+│ + leashRadius: float                                │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│                  Blackboard                          │
+├─────────────────────────────────────────────────────┤
+│ - data_: unordered_map<string, any>                 │
+├─────────────────────────────────────────────────────┤
+│ + Set<T>(key, value)                                │
+│ + Get<T>(key) -> optional<T>                        │
+│ + Has(key) -> bool                                  │
+│ + Remove(key)                                       │
+│ + Clear()                                           │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│               BehaviorTree                           │
+├─────────────────────────────────────────────────────┤
+│ - root_: unique_ptr<BTNode>                         │
+│ - id_: uint32_t                                     │
+├─────────────────────────────────────────────────────┤
+│ + Tick(entity, blackboard, dt) -> BTStatus          │
+│ + Reset()                                           │
+└─────────────────────────────────────────────────────┘
+         │
+         │ tree of
+         ▼
+┌─────────────────────────────────────────────────────┐
+│               BTNode (abstract)                      │
+├─────────────────────────────────────────────────────┤
+│ + Execute(ctx) -> BTStatus                          │
+│ + Reset()                                           │
+└─────────────────────────────────────────────────────┘
+    ▲           ▲            ▲           ▲
+    │           │            │           │
+┌───────┐ ┌─────────┐ ┌──────────┐ ┌─────────┐
+│Sequence│ │Selector │ │Decorator │ │  Leaf   │
+│  Node  │ │  Node   │ │  Node    │ │  Node   │
+└───────┘ └─────────┘ └──────────┘ └─────────┘
+```
+
+**Behavior Tree Node Types**:
+
+```cpp
+namespace cgs::game::ai {
+    enum class BTStatus : uint8_t { Success, Failure, Running };
+    enum class AIState : uint8_t { Idle, Alert, Combat, Returning, Dead };
+
+    struct BTContext {
+        Entity entity;
+        Blackboard& blackboard;
+        World& world;
+        float deltaTime;
+    };
+
+    class BTNode {
+    public:
+        virtual ~BTNode() = default;
+        virtual BTStatus Execute(BTContext& ctx) = 0;
+        virtual void Reset() {}
+    };
+
+    // Composite nodes
+    class SequenceNode : public BTNode { /* runs children in order, fails on first failure */ };
+    class SelectorNode : public BTNode { /* runs children in order, succeeds on first success */ };
+    class ParallelNode : public BTNode { /* runs all children simultaneously */ };
+
+    // Decorator nodes
+    class InverterNode : public BTNode { /* inverts child result */ };
+    class RepeatNode : public BTNode { /* repeats child N times */ };
+    class CooldownNode : public BTNode { /* throttles child execution */ };
+
+    // Leaf nodes (common AI tasks)
+    class MoveToTask : public BTNode { /* pathfind and move to target */ };
+    class AttackTask : public BTNode { /* execute attack on target */ };
+    class PatrolTask : public BTNode { /* patrol along waypoints */ };
+    class FleeTask : public BTNode { /* flee from threat */ };
+    class IdleTask : public BTNode { /* wait for specified duration */ };
+    class FindTargetTask : public BTNode { /* scan for hostile entities */ };
+}
+```
+
+**AI Update Throttling**:
+
+```cpp
+class AISystem : public ISystem {
+    static constexpr int MAX_AI_UPDATES_PER_TICK = 500;
+    uint32_t roundRobinIndex_ = 0;
+
+public:
+    void Update(float deltaTime) override {
+        auto query = world_.Query<AIBrain, Transform, Stats>();
+        int updated = 0;
+
+        query.ForEach([&](Entity e, AIBrain& brain, Transform& tf, Stats& stats) {
+            if (!stats.IsAlive()) { brain.state = AIState::Dead; return; }
+
+            auto now = Clock::now();
+            if (now - brain.lastUpdate < brain.updateInterval) return;
+            if (updated >= MAX_AI_UPDATES_PER_TICK) return;
+
+            brain.lastUpdate = now;
+            auto& tree = GetBehaviorTree(brain.behaviorTreeId);
+            BTContext ctx{e, brain.blackboard, world_, deltaTime};
+            tree.Tick(ctx);
+            ++updated;
+        });
+    }
+
+    SystemStage GetStage() const override { return SystemStage::Update; }
+};
+```
+
+### 6.5 Quest System Components
+
+| ID | SDS-MOD-034 |
+|----|-------------|
+| **SRS Trace** | SRS-GML-005.1 ~ SRS-GML-005.4 |
+| **Description** | Quest tracking and progression components |
+
+**Class Diagram**:
+
+```
+┌─────────────────────────────────────────────────────┐
+│                   QuestLog                           │
+├─────────────────────────────────────────────────────┤
+│ + activeQuests: vector<QuestEntry>                  │
+│ + completedQuests: set<uint32_t>                    │
+│ + maxActiveQuests: uint32_t (default: 25)           │
+├─────────────────────────────────────────────────────┤
+│ + Accept(questId) -> GameResult<void>               │
+│ + Abandon(questId) -> GameResult<void>              │
+│ + Complete(questId) -> GameResult<QuestReward>       │
+│ + GetQuest(questId) -> const QuestEntry*            │
+│ + IsCompleted(questId) -> bool                      │
+│ + CanAccept(questId, template) -> bool              │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│                  QuestEntry                          │
+├─────────────────────────────────────────────────────┤
+│ + questId: uint32_t                                 │
+│ + templateId: uint32_t                              │
+│ + state: QuestState                                 │
+│ + objectives: vector<QuestObjective>                │
+│ + acceptedAt: time_point                            │
+│ + expiresAt: optional<time_point>                   │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│               QuestObjective                         │
+├─────────────────────────────────────────────────────┤
+│ + type: ObjectiveType                               │
+│ + targetId: uint32_t                                │
+│ + current: int32_t                                  │
+│ + required: int32_t                                 │
+│ + completed: bool                                   │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│              QuestTemplate (data)                    │
+├─────────────────────────────────────────────────────┤
+│ + id: uint32_t                                      │
+│ + name: string                                      │
+│ + description: string                               │
+│ + level: uint32_t                                   │
+│ + prerequisites: vector<uint32_t>  // quest IDs     │
+│ + chainNext: optional<uint32_t>    // next in chain │
+│ + objectives: vector<ObjectiveTemplate>             │
+│ + rewards: QuestReward                              │
+│ + flags: QuestFlags                                 │
+└─────────────────────────────────────────────────────┘
+```
+
+**Quest Types and Objectives**:
+
+```cpp
+namespace cgs::game {
+    enum class QuestState : uint8_t {
+        Inactive, Active, ObjectivesComplete, TurnedIn, Failed
+    };
+
+    enum class ObjectiveType : uint8_t {
+        Kill,       // Kill N creatures of type X
+        Collect,    // Collect N items of type X
+        Explore,    // Visit location X
+        Escort,     // Escort NPC to location
+        Interact,   // Interact with object X
+        Custom      // Plugin-defined objective
+    };
+
+    enum class QuestFlags : uint16_t {
+        None        = 0x0000,
+        Repeatable  = 0x0001,
+        Daily       = 0x0002,
+        Weekly      = 0x0004,
+        Shareable   = 0x0008,
+        AutoAccept  = 0x0010,
+        Timed       = 0x0020,
+    };
+
+    struct QuestReward {
+        int64_t experience;
+        int64_t currency;
+        std::vector<std::pair<uint32_t, uint32_t>> items; // {itemId, count}
+        std::optional<uint32_t> titleId;
+    };
+}
+```
+
+**Quest Event Integration**:
+
+```cpp
+// Events published by quest system
+struct QuestAcceptedEvent { Entity player; uint32_t questId; };
+struct QuestCompletedEvent { Entity player; uint32_t questId; QuestReward reward; };
+struct QuestObjectiveProgressEvent { Entity player; uint32_t questId; uint32_t objectiveIndex; };
+
+// Events consumed by quest system (from other systems)
+// - EntityKilledEvent   → updates Kill objectives
+// - ItemPickupEvent     → updates Collect objectives
+// - ZoneEnteredEvent    → updates Explore objectives
+// - InteractionEvent    → updates Interact objectives
+
+class QuestSystem : public ISystem {
+    EventBus& eventBus_;
+
+public:
+    void Update(float deltaTime) override {
+        // Check for expired timed quests
+        auto query = world_.Query<QuestLog>();
+        query.ForEach([&](Entity e, QuestLog& log) {
+            for (auto& quest : log.activeQuests) {
+                if (quest.expiresAt && Clock::now() > *quest.expiresAt) {
+                    quest.state = QuestState::Failed;
+                }
+            }
+        });
+    }
+
+    SystemStage GetStage() const override { return SystemStage::PostUpdate; }
+};
+```
+
+### 6.6 Inventory System Components
+
+| ID | SDS-MOD-035 |
+|----|-------------|
+| **SRS Trace** | SRS-GML-006.1 ~ SRS-GML-006.4 |
+| **Description** | Item management and equipment components |
+
+**Class Diagram**:
+
+```
+┌─────────────────────────────────────────────────────┐
+│                  Inventory                           │
+├─────────────────────────────────────────────────────┤
+│ + slots: vector<InventorySlot>                      │
+│ + capacity: uint32_t                                │
+│ + currency: int64_t                                 │
+├─────────────────────────────────────────────────────┤
+│ + AddItem(itemId, count) -> GameResult<uint32_t>    │
+│ + RemoveItem(slot, count) -> GameResult<void>       │
+│ + MoveItem(fromSlot, toSlot) -> GameResult<void>    │
+│ + SplitStack(slot, count) -> GameResult<uint32_t>   │
+│ + GetItem(slot) -> const InventorySlot*             │
+│ + FindItem(itemId) -> optional<uint32_t>            │
+│ + FreeSlots() -> uint32_t                           │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│               InventorySlot                          │
+├─────────────────────────────────────────────────────┤
+│ + itemId: uint32_t       // 0 = empty               │
+│ + count: uint32_t                                   │
+│ + durability: int32_t    // -1 = indestructible      │
+│ + maxDurability: int32_t                            │
+│ + enchants: vector<Enchant>                         │
+│ + boundTo: optional<PlayerId>                       │
+├─────────────────────────────────────────────────────┤
+│ + IsEmpty() -> bool                                 │
+│ + IsStackable(itemId) -> bool                       │
+│ + CanStack(count) -> bool                           │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│                Equipment                             │
+├─────────────────────────────────────────────────────┤
+│ + slots: array<InventorySlot, EQUIP_SLOT_COUNT>     │
+├─────────────────────────────────────────────────────┤
+│ + Equip(slot, item) -> GameResult<InventorySlot>    │
+│ + Unequip(slot) -> GameResult<InventorySlot>        │
+│ + GetEquipped(slot) -> const InventorySlot*         │
+│ + CalculateStatBonuses() -> StatBonuses             │
+└─────────────────────────────────────────────────────┘
+```
+
+**Item Data and Equipment Slots**:
+
+```cpp
+namespace cgs::game {
+    enum class EquipSlot : uint8_t {
+        Head, Neck, Shoulders, Chest, Waist, Legs, Feet,
+        Wrists, Hands, Finger1, Finger2, Trinket1, Trinket2,
+        MainHand, OffHand, Ranged, Tabard,
+        COUNT  // sentinel
+    };
+    static constexpr size_t EQUIP_SLOT_COUNT = static_cast<size_t>(EquipSlot::COUNT);
+
+    struct ItemTemplate {
+        uint32_t id;
+        std::string name;
+        ItemType type;
+        ItemQuality quality;
+        uint32_t maxStackSize;      // 1 = non-stackable
+        int32_t maxDurability;      // -1 = indestructible
+        EquipSlot equipSlot;        // None if not equippable
+        StatBonuses statBonuses;
+        uint32_t requiredLevel;
+        uint32_t vendorPrice;
+    };
+
+    struct StatBonuses {
+        std::array<int32_t, 32> attributes{};  // matches Stats::attributes
+        int32_t armor = 0;
+        float attackSpeed = 0.0f;
+        int32_t minDamage = 0;
+        int32_t maxDamage = 0;
+
+        StatBonuses operator+(const StatBonuses& other) const;
+    };
+
+    struct Enchant {
+        uint32_t enchantId;
+        StatBonuses bonuses;
+        std::optional<float> durationRemaining;  // nullopt = permanent
+    };
+
+    enum class ItemType : uint8_t {
+        Consumable, Weapon, Armor, Accessory, Material,
+        Quest, Container, Reagent, Miscellaneous
+    };
+
+    enum class ItemQuality : uint8_t {
+        Poor, Common, Uncommon, Rare, Epic, Legendary
+    };
+}
+```
+
+**Inventory System Logic**:
+
+```cpp
+class InventorySystem : public ISystem {
+public:
+    void Update(float deltaTime) override {
+        // Process durability decay for equipped items
+        auto query = world_.Query<Equipment>();
+        query.ForEach([&](Entity e, Equipment& equip) {
+            for (auto& slot : equip.slots) {
+                if (slot.IsEmpty() || slot.durability < 0) continue;
+                // Durability is reduced by combat systems via events, not per-tick
+            }
+        });
+
+        // Process timed enchant expiration
+        auto invQuery = world_.Query<Inventory>();
+        invQuery.ForEach([&](Entity e, Inventory& inv) {
+            for (auto& slot : inv.slots) {
+                auto it = std::remove_if(slot.enchants.begin(), slot.enchants.end(),
+                    [deltaTime](Enchant& enc) {
+                        if (!enc.durationRemaining) return false;
+                        *enc.durationRemaining -= deltaTime;
+                        return *enc.durationRemaining <= 0.0f;
+                    });
+                slot.enchants.erase(it, slot.enchants.end());
+            }
+        });
+    }
+
+    SystemStage GetStage() const override { return SystemStage::PostUpdate; }
+};
+```
+
 ---
 
 ## 7. Microservices Design
@@ -1059,6 +1606,18 @@ service LobbyService {
     rpc JoinQueue(JoinQueueRequest) returns (JoinQueueResponse);
     rpc LeaveQueue(LeaveQueueRequest) returns (LeaveQueueResponse);
     rpc CreateParty(CreatePartyRequest) returns (PartyResponse);
+    rpc InviteToParty(InviteRequest) returns (InviteResponse);
+    rpc GetQueueStatus(QueueStatusRequest) returns (QueueStatusResponse);
+}
+
+// dbproxy.proto
+service DBProxyService {
+    rpc ExecuteQuery(QueryRequest) returns (QueryResponse);
+    rpc ExecuteBatch(BatchQueryRequest) returns (BatchQueryResponse);
+    rpc BeginTransaction(TransactionRequest) returns (TransactionResponse);
+    rpc CommitTransaction(CommitRequest) returns (CommitResponse);
+    rpc RollbackTransaction(RollbackRequest) returns (RollbackResponse);
+    rpc InvalidateCache(InvalidateCacheRequest) returns (Empty);
 }
 ```
 
@@ -1177,6 +1736,334 @@ public:
 };
 ```
 
+### 7.5 Lobby Server Design
+
+| ID | SDS-MOD-044 |
+|----|-------------|
+| **SRS Trace** | SRS-SVC-004.1 ~ SRS-SVC-004.4 |
+| **Description** | Matchmaking, party management, and game server allocation |
+
+**Class Diagram**:
+
+```
+┌─────────────────────────────────────────────────────┐
+│                LobbyServer                           │
+├─────────────────────────────────────────────────────┤
+│ - matchmaker_: MatchmakingEngine                    │
+│ - partyManager_: PartyManager                       │
+│ - serverAllocator_: GameServerAllocator             │
+│ - queues_: map<QueueType, MatchQueue>               │
+├─────────────────────────────────────────────────────┤
+│ + JoinQueue(player, queueType) -> GameResult<void>  │
+│ + LeaveQueue(player) -> GameResult<void>            │
+│ + CreateParty(leader) -> GameResult<PartyId>        │
+│ + InviteToParty(partyId, target) -> GameResult<void>│
+│ + GetQueueStatus(player) -> QueueStatus             │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│             MatchmakingEngine                        │
+├─────────────────────────────────────────────────────┤
+│ - config_: MatchConfig                              │
+│ - tickInterval_: milliseconds (default: 1000)       │
+├─────────────────────────────────────────────────────┤
+│ + ProcessQueue(queue) -> vector<Match>              │
+│ + CalculateMatchQuality(team1, team2) -> float      │
+│ - FindMatch(player, queue) -> optional<Match>       │
+│ - ExpandSearchRange(ticket, elapsed)                │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│               MatchQueue                             │
+├─────────────────────────────────────────────────────┤
+│ + type: QueueType                                   │
+│ + tickets: priority_queue<MatchTicket>              │
+│ + config: QueueConfig                               │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│              MatchTicket                             │
+├─────────────────────────────────────────────────────┤
+│ + playerId: PlayerId                                │
+│ + partyId: optional<PartyId>                        │
+│ + mmr: int32_t                                      │
+│ + searchRange: int32_t                              │
+│ + enqueuedAt: time_point                            │
+│ + expandedAt: time_point                            │
+└─────────────────────────────────────────────────────┘
+```
+
+**Matchmaking Algorithm**:
+
+```cpp
+namespace cgs::service {
+    struct MatchConfig {
+        int32_t initialRange = 100;       // Initial MMR search range
+        int32_t maxRange = 500;           // Maximum expanded range
+        milliseconds expandInterval{10000}; // Expand every 10 seconds
+        int32_t expandStep = 50;          // MMR range increase per step
+        uint32_t teamSize = 5;            // Players per team
+        float maxQualityDiff = 0.3f;      // Max acceptable quality difference
+    };
+
+    enum class QueueType : uint8_t {
+        Casual,           // No MMR restrictions
+        Ranked,           // Strict MMR matching
+        Arena2v2,         // 2v2 PvP
+        Arena3v3,         // 3v3 PvP
+        Dungeon,          // PvE dungeon finder
+        Battleground,     // Large-scale PvP
+    };
+
+    struct Match {
+        std::vector<PlayerId> team1;
+        std::vector<PlayerId> team2;
+        QueueType type;
+        float quality;    // 0.0 (poor) to 1.0 (perfect)
+        uint32_t mapId;
+    };
+
+    // MMR Calculation (Elo-based)
+    struct MmrUpdate {
+        static constexpr int32_t K_FACTOR = 32;
+
+        static int32_t CalculateChange(int32_t playerMmr, int32_t opponentMmr, bool won) {
+            float expected = 1.0f / (1.0f + std::pow(10.0f,
+                (opponentMmr - playerMmr) / 400.0f));
+            float actual = won ? 1.0f : 0.0f;
+            return static_cast<int32_t>(K_FACTOR * (actual - expected));
+        }
+    };
+}
+```
+
+**Party Management**:
+
+```cpp
+namespace cgs::service {
+    using PartyId = uint64_t;
+
+    struct Party {
+        PartyId id;
+        PlayerId leader;
+        std::vector<PlayerId> members;
+        uint32_t maxSize = 5;
+        bool isListed = false;           // Listed in group finder
+        std::optional<QueueType> queued;
+
+        bool IsFull() const { return members.size() >= maxSize; }
+        bool IsMember(PlayerId player) const;
+    };
+
+    class PartyManager {
+        std::unordered_map<PartyId, Party> parties_;
+        std::unordered_map<PlayerId, PartyId> playerParty_;
+
+    public:
+        GameResult<PartyId> Create(PlayerId leader);
+        GameResult<void> Invite(PartyId party, PlayerId target);
+        GameResult<void> Accept(PlayerId player, PartyId party);
+        GameResult<void> Decline(PlayerId player, PartyId party);
+        GameResult<void> Leave(PlayerId player);
+        GameResult<void> Kick(PartyId party, PlayerId target);
+        GameResult<void> PromoteLeader(PartyId party, PlayerId newLeader);
+        const Party* GetParty(PartyId id) const;
+        const Party* GetPlayerParty(PlayerId player) const;
+    };
+}
+```
+
+**Game Server Allocation Flow**:
+
+```
+MatchmakingEngine       GameServerAllocator      K8s API            GameServer
+       │                        │                   │                    │
+       │── Match Found ────────→│                   │                    │
+       │                        │── Find Available ─→│                    │
+       │                        │←── Server List ───│                    │
+       │                        │                   │                    │
+       │                        │ (if no available server)               │
+       │                        │── Create Pod ─────→│                    │
+       │                        │←── Pod Ready ─────│                    │
+       │                        │                   │                    │
+       │                        │── AllocateInstance ────────────────────→│
+       │                        │←── InstanceReady ─────────────────────│
+       │                        │                   │                    │
+       │←── ServerEndpoint ────│                   │                    │
+       │                        │                   │                    │
+```
+
+### 7.6 Database Proxy Server Design
+
+| ID | SDS-MOD-045 |
+|----|-------------|
+| **SRS Trace** | SRS-SVC-005.1 ~ SRS-SVC-005.4 |
+| **Description** | Database connection pooling, query routing, and caching |
+
+**Class Diagram**:
+
+```
+┌─────────────────────────────────────────────────────┐
+│               DBProxyServer                          │
+├─────────────────────────────────────────────────────┤
+│ - primaryPool_: ConnectionPool                      │
+│ - replicaPools_: vector<ConnectionPool>             │
+│ - queryCache_: QueryCache                           │
+│ - router_: QueryRouter                              │
+│ - config_: DBProxyConfig                            │
+├─────────────────────────────────────────────────────┤
+│ + Start(config) -> GameResult<void>                 │
+│ + Stop()                                            │
+│ + ExecuteQuery(request) -> Future<QueryResponse>    │
+│ + GetStats() -> DBProxyStats                        │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│               ConnectionPool                         │
+├─────────────────────────────────────────────────────┤
+│ - connections_: vector<PooledConnection>             │
+│ - available_: queue<Connection*>                    │
+│ - config_: PoolConfig                               │
+│ - activeCount_: atomic<uint32_t>                    │
+├─────────────────────────────────────────────────────┤
+│ + Acquire() -> GameResult<Connection*>              │
+│ + Release(conn)                                     │
+│ + GetActiveCount() -> uint32_t                      │
+│ + GetAvailableCount() -> uint32_t                   │
+│ + HealthCheck() -> bool                             │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│                QueryRouter                           │
+├─────────────────────────────────────────────────────┤
+│ - strategy_: RoutingStrategy                        │
+│ - replicaIndex_: atomic<uint32_t>                   │
+├─────────────────────────────────────────────────────┤
+│ + Route(query) -> RoutingDecision                   │
+│ - IsReadOnly(query) -> bool                         │
+│ - SelectReplica() -> ConnectionPool&                │
+└─────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────┐
+│                QueryCache                            │
+├─────────────────────────────────────────────────────┤
+│ - cache_: LRUCache<string, CachedResult>            │
+│ - maxSize_: size_t                                  │
+│ - defaultTtl_: milliseconds                         │
+│ - invalidationRules_: vector<InvalidationRule>      │
+├─────────────────────────────────────────────────────┤
+│ + Get(queryHash) -> optional<CachedResult>          │
+│ + Put(queryHash, result, ttl)                       │
+│ + Invalidate(table)                                 │
+│ + InvalidateAll()                                   │
+│ + GetHitRate() -> float                             │
+└─────────────────────────────────────────────────────┘
+```
+
+**Query Routing Strategy**:
+
+```cpp
+namespace cgs::service {
+    enum class RoutingStrategy : uint8_t {
+        PrimaryOnly,       // All queries to primary (failsafe)
+        ReadWriteSplit,    // Reads to replicas, writes to primary
+        RoundRobin,        // Distribute reads across replicas
+        LeastConnections,  // Route to least busy replica
+    };
+
+    struct RoutingDecision {
+        enum class Target { Primary, Replica };
+        Target target;
+        uint32_t replicaIndex;  // only valid if target == Replica
+        bool cacheable;
+    };
+
+    struct DBProxyConfig {
+        // Primary
+        std::string primaryHost;
+        uint16_t primaryPort = 5432;
+        std::string database;
+        std::string username;
+
+        // Connection pool
+        uint32_t minConnections = 5;
+        uint32_t maxConnections = 50;
+        milliseconds connectionTimeout{5000};
+        milliseconds idleTimeout{300000};
+
+        // Replicas
+        std::vector<ReplicaConfig> replicas;
+        RoutingStrategy routingStrategy = RoutingStrategy::ReadWriteSplit;
+
+        // Cache
+        bool cacheEnabled = true;
+        size_t cacheMaxEntries = 10000;
+        milliseconds cacheDefaultTtl{60000};
+    };
+
+    struct ReplicaConfig {
+        std::string host;
+        uint16_t port = 5432;
+        uint32_t weight = 1;   // For weighted round-robin
+        milliseconds maxLag{1000}; // Max acceptable replication lag
+    };
+}
+```
+
+**Cache Invalidation Rules**:
+
+```cpp
+namespace cgs::service {
+    // Write queries automatically invalidate related cache entries
+    struct InvalidationRule {
+        std::string tablePattern;           // e.g., "characters", "character_*"
+        std::vector<std::string> affectedTables;  // tables to invalidate
+    };
+
+    // Default invalidation rules for game tables
+    // INSERT/UPDATE/DELETE on "characters" → invalidate "characters", "character_stats"
+    // INSERT/UPDATE/DELETE on "character_inventory" → invalidate "character_inventory"
+    // INSERT/UPDATE/DELETE on "users" → invalidate "users", "refresh_tokens"
+
+    struct CachedResult {
+        QueryResult result;
+        time_point cachedAt;
+        milliseconds ttl;
+        std::string sourceTable;
+
+        bool IsExpired() const {
+            return Clock::now() > cachedAt + ttl;
+        }
+    };
+
+    struct DBProxyStats {
+        uint64_t totalQueries;
+        uint64_t primaryQueries;
+        uint64_t replicaQueries;
+        uint64_t cacheHits;
+        uint64_t cacheMisses;
+        float cacheHitRate;
+        uint32_t activeConnections;
+        milliseconds avgQueryLatency;
+    };
+}
+```
+
+**gRPC Service Definition**:
+
+```protobuf
+// dbproxy.proto
+service DBProxyService {
+    rpc ExecuteQuery(QueryRequest) returns (QueryResponse);
+    rpc ExecuteBatch(BatchQueryRequest) returns (BatchQueryResponse);
+    rpc BeginTransaction(TransactionRequest) returns (TransactionResponse);
+    rpc CommitTransaction(CommitRequest) returns (CommitResponse);
+    rpc RollbackTransaction(RollbackRequest) returns (RollbackResponse);
+    rpc GetStats(Empty) returns (DBProxyStatsResponse);
+    rpc InvalidateCache(InvalidateCacheRequest) returns (Empty);
+}
+```
+
 ---
 
 ## 8. Data Design
@@ -1250,11 +2137,66 @@ CREATE TABLE character_inventory (
     UNIQUE(character_id, slot)
 );
 
+-- Quest progress
+CREATE TABLE character_quests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    character_id UUID REFERENCES characters(id) ON DELETE CASCADE,
+    quest_id INT NOT NULL,
+    state VARCHAR(20) NOT NULL DEFAULT 'active',
+    objectives JSONB NOT NULL DEFAULT '[]',
+    accepted_at TIMESTAMPTZ DEFAULT NOW(),
+    completed_at TIMESTAMPTZ,
+    expires_at TIMESTAMPTZ,
+    UNIQUE(character_id, quest_id)
+);
+
+CREATE TABLE completed_quests (
+    character_id UUID REFERENCES characters(id) ON DELETE CASCADE,
+    quest_id INT NOT NULL,
+    completed_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (character_id, quest_id)
+);
+
+-- Equipment
+CREATE TABLE character_equipment (
+    character_id UUID PRIMARY KEY REFERENCES characters(id) ON DELETE CASCADE,
+    slots JSONB NOT NULL DEFAULT '{}',
+    updated_at TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- Matchmaking
+CREATE TABLE player_mmr (
+    user_id UUID REFERENCES users(id) ON DELETE CASCADE,
+    queue_type VARCHAR(20) NOT NULL,
+    mmr INT NOT NULL DEFAULT 1500,
+    wins INT DEFAULT 0,
+    losses INT DEFAULT 0,
+    updated_at TIMESTAMPTZ DEFAULT NOW(),
+    PRIMARY KEY (user_id, queue_type)
+);
+
+CREATE TABLE match_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    queue_type VARCHAR(20) NOT NULL,
+    map_id INT NOT NULL,
+    team1 JSONB NOT NULL,
+    team2 JSONB NOT NULL,
+    winner_team INT,
+    quality REAL,
+    started_at TIMESTAMPTZ DEFAULT NOW(),
+    ended_at TIMESTAMPTZ,
+    duration_seconds INT
+);
+
 -- Indexes
 CREATE INDEX idx_users_username ON users(username);
 CREATE INDEX idx_characters_user ON characters(user_id);
 CREATE INDEX idx_inventory_character ON character_inventory(character_id);
 CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_id);
+CREATE INDEX idx_character_quests_character ON character_quests(character_id);
+CREATE INDEX idx_completed_quests_character ON completed_quests(character_id);
+CREATE INDEX idx_player_mmr_user ON player_mmr(user_id);
+CREATE INDEX idx_match_history_type ON match_history(queue_type, started_at DESC);
 ```
 
 ---
@@ -1348,28 +2290,32 @@ CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_id);
 | SRS-PLG-002.1 ~ .4 | Plugin Lifecycle | SDS-MOD-021 |
 | SRS-PLG-003.1 ~ .4 | Plugin Communication | SDS-MOD-022 |
 | SRS-PLG-004.1 ~ .4 | Plugin Dependencies | SDS-MOD-021 |
+| SRS-PLG-005.1 ~ .4 | Hot Reload | SDS-MOD-023 |
 | SRS-GML-001.1 ~ .5 | Object System | SDS-MOD-030 |
 | SRS-GML-002.1 ~ .5 | Combat System | SDS-MOD-031 |
 | SRS-GML-003.1 ~ .5 | World System | SDS-MOD-032 |
+| SRS-GML-004.1 ~ .4 | AI System | SDS-MOD-033 |
+| SRS-GML-005.1 ~ .4 | Quest System | SDS-MOD-034 |
+| SRS-GML-006.1 ~ .4 | Inventory System | SDS-MOD-035 |
 | SRS-SVC-001.1 ~ .6 | Authentication Server | SDS-MOD-041, SDS-DAT-001 |
 | SRS-SVC-002.1 ~ .5 | Gateway Server | SDS-MOD-042 |
 | SRS-SVC-003.1 ~ .5 | Game Server | SDS-MOD-043 |
-| SRS-SVC-004.1 ~ .4 | Lobby Server | SDS-MOD-040 |
-| SRS-SVC-005.1 ~ .4 | Database Proxy | SDS-MOD-040 |
+| SRS-SVC-004.1 ~ .4 | Lobby Server | SDS-MOD-044, SDS-DAT-001 |
+| SRS-SVC-005.1 ~ .4 | Database Proxy | SDS-MOD-045 |
 | SRS-NFR-007, SRS-NFR-009 | Scalability | SDS-DEP-001 |
 
 ### 10.2 Coverage Summary
 
 | Category | SRS Requirements | SDS Modules | Coverage |
 |----------|------------------|-------------|----------|
-| Foundation | 26 | 7 | 100% |
-| ECS | 17 | 4 | 100% |
-| Plugin | 17 | 3 | 100% |
-| Game Logic | 23 | 3 | 100% |
-| Services | 24 | 4 | 100% |
-| Data | - | 1 | 100% |
-| Deployment | 3 | 1 | 100% |
-| **Total** | **110+** | **23** | **100%** |
+| Foundation | 26 | 7 (MOD-001~007) | 100% |
+| ECS | 17 | 4 (MOD-010~013) | 100% |
+| Plugin | 21 | 4 (MOD-020~023) | 100% |
+| Game Logic | 23 | 6 (MOD-030~035) | 100% |
+| Services | 24 | 6 (MOD-040~045) | 100% |
+| Data | - | 1 (DAT-001) | 100% |
+| Deployment | 3 | 1 (DEP-001) | 100% |
+| **Total** | **114+** | **29** | **100%** |
 
 ---
 
@@ -1380,6 +2326,7 @@ CREATE INDEX idx_refresh_tokens_user ON refresh_tokens(user_id);
 | Version | Date | Author | Description |
 |---------|------|--------|-------------|
 | 0.1.0.0 | 2026-02-03 | - | Initial draft based on SRS v0.1.0.0 |
+| 0.2.0.0 | 2026-02-06 | - | Added 6 missing modules: SDS-MOD-023 (Hot Reload), SDS-MOD-033 (AI), SDS-MOD-034 (Quest), SDS-MOD-035 (Inventory), SDS-MOD-044 (Lobby), SDS-MOD-045 (DBProxy). Updated database schema and traceability matrix. |
 
 ### 11.2 Related Documents
 

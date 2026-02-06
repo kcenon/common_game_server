@@ -195,12 +195,16 @@ TEST(ServiceLocatorTest, Clear) {
 class ConfigManagerTest : public ::testing::Test {
 protected:
     void SetUp() override {
-        tmpDir_ = std::filesystem::temp_directory_path() / "cgs_test";
+        // Use unique directory per test to avoid races under ctest --parallel
+        auto* info = ::testing::UnitTest::GetInstance()->current_test_info();
+        auto dirname = std::string("cgs_test_") + info->name();
+        tmpDir_ = std::filesystem::temp_directory_path() / dirname;
         std::filesystem::create_directories(tmpDir_);
     }
 
     void TearDown() override {
-        std::filesystem::remove_all(tmpDir_);
+        std::error_code ec;
+        std::filesystem::remove_all(tmpDir_, ec);
     }
 
     std::filesystem::path writeYaml(const std::string& filename,

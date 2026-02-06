@@ -41,3 +41,13 @@ target_link_libraries(cgs_foundation_logger_tests PRIVATE
     GTest::gtest_main
 )
 gtest_discover_tests(cgs_foundation_logger_tests)
+
+# Unit tests - foundation network adapter
+add_executable(cgs_foundation_network_tests
+    unit/foundation/network_adapter_test.cpp
+)
+target_link_libraries(cgs_foundation_network_tests PRIVATE
+    cgs::foundation_network
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_foundation_network_tests)

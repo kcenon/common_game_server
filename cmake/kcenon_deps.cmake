@@ -2,8 +2,11 @@
 #
 # Dependency chain:
 #   common_game_server
-#     +-- thread_system (thread pool, job scheduling)
-#           +-- common_system (header-only: Result<T>, error codes, utilities)
+#     +-- network_system (TCP/UDP/WebSocket, ASIO-based async I/O)
+#     |     +-- thread_system (thread pool, job scheduling)
+#     |     +-- common_system (header-only: Result<T>, error codes, utilities)
+#     +-- thread_system
+#           +-- common_system
 #
 # All kcenon libraries follow the same integration pattern via FetchContent.
 # Pin to 'main' branch initially; switch to commit SHA for reproducible builds.
@@ -29,6 +32,16 @@ FetchContent_Declare(
     GIT_TAG        main
 )
 
+# ── network_system ───────────────────────────────────────────────────────
+# Async TCP/UDP/WebSocket networking with ASIO-based non-blocking I/O.
+# Requires: common_system (Tier 0), thread_system (Tier 1)
+# External: standalone ASIO, OpenSSL 3.x (for TLS/WebSocket)
+FetchContent_Declare(
+    network_system
+    GIT_REPOSITORY https://github.com/kcenon/network_system.git
+    GIT_TAG        main
+)
+
 # Disable dependency tests/samples to speed up configure
 set(BUILD_TESTING_SAVED "${BUILD_TESTING}")
 set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
@@ -41,6 +54,13 @@ set(COMMON_SYSTEM_INCLUDE_DIR "${common_system_SOURCE_DIR}/include"
     CACHE PATH "Path to common_system include directory" FORCE)
 
 FetchContent_MakeAvailable(thread_system)
+
+# network_system options: disable tests/samples/benchmarks for subproject
+set(BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
+set(BUILD_VERIFY_BUILD OFF CACHE BOOL "" FORCE)
+set(NETWORK_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
+set(NETWORK_BUILD_INTEGRATION_TESTS OFF CACHE BOOL "" FORCE)
+FetchContent_MakeAvailable(network_system)
 
 # Restore BUILD_TESTING for our own tests
 set(BUILD_TESTING "${BUILD_TESTING_SAVED}" CACHE BOOL "" FORCE)
@@ -62,3 +82,4 @@ endfunction()
 _cgs_mark_system_includes(common_system)
 _cgs_mark_system_includes(thread_base)
 _cgs_mark_system_includes(thread_core)
+_cgs_mark_system_includes(NetworkSystem)

@@ -26,6 +26,10 @@ enum class ErrorCode : uint32_t {
     ConnectionFailed = 0x0101,
     ConnectionLost = 0x0102,
     Timeout = 0x0103,
+    SendFailed = 0x0104,
+    ListenFailed = 0x0105,
+    SessionNotFound = 0x0106,
+    InvalidMessage = 0x0107,
 
     // Database (0x0200 - 0x02FF)
     DatabaseError = 0x0200,

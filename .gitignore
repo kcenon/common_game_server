@@ -162,7 +162,7 @@ desktop.ini
 *~
 
 # Core dumps
-core
+/core
 core.*
 vgcore.*
 

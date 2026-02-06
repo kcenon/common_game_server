@@ -15,53 +15,57 @@ include(FetchContent)
 
 set(FETCHCONTENT_QUIET ON)
 
-# ── common_system ─────────────────────────────────────────────────────────
-# Header-only foundation: Result<T> pattern, error handling, utilities.
-# Must be fetched before thread_system (transitive dependency).
+# ── Declare all dependencies upfront ──────────────────────────────────────
+
 FetchContent_Declare(
     common_system
     GIT_REPOSITORY https://github.com/kcenon/common_system.git
     GIT_TAG        main
 )
 
-# ── thread_system ─────────────────────────────────────────────────────────
-# Thread pool with adaptive queuing, lock-free structures, priority routing.
 FetchContent_Declare(
     thread_system
     GIT_REPOSITORY https://github.com/kcenon/thread_system.git
     GIT_TAG        main
 )
 
-# ── network_system ───────────────────────────────────────────────────────
-# Async TCP/UDP/WebSocket networking with ASIO-based non-blocking I/O.
-# Requires: common_system (Tier 0), thread_system (Tier 1)
-# External: standalone ASIO, OpenSSL 3.x (for TLS/WebSocket)
 FetchContent_Declare(
     network_system
     GIT_REPOSITORY https://github.com/kcenon/network_system.git
     GIT_TAG        main
 )
 
-# Disable dependency tests/samples to speed up configure
+# ── Populate dependencies in tier order ───────────────────────────────────
+# Disable dependency tests/samples to speed up configure.
 set(BUILD_TESTING_SAVED "${BUILD_TESTING}")
 set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
 
-# Populate common_system first so we can set COMMON_SYSTEM_INCLUDE_DIR
-# before thread_system configures (it requires this variable).
-FetchContent_MakeAvailable(common_system)
+message(STATUS "")
+message(STATUS "========================================")
+message(STATUS " CGS dependency resolution (3 packages)")
+message(STATUS "========================================")
 
+# ── [1/3] common_system (Tier 0) ──────────────────────────────────────────
+message(STATUS "")
+message(STATUS "[1/3] common_system: fetching...")
+FetchContent_MakeAvailable(common_system)
 set(COMMON_SYSTEM_INCLUDE_DIR "${common_system_SOURCE_DIR}/include"
     CACHE PATH "Path to common_system include directory" FORCE)
+message(STATUS "[1/3] common_system: ready (${common_system_SOURCE_DIR})")
 
+# ── [2/3] thread_system (Tier 1) ──────────────────────────────────────────
+message(STATUS "")
+message(STATUS "[2/3] thread_system: fetching...")
 FetchContent_MakeAvailable(thread_system)
-
-# Help network_system find thread_system that we already populated above.
-# Without this, network_system's find_thread_system() searches many local paths.
 set(THREAD_SYSTEM_INCLUDE_DIR "${thread_system_SOURCE_DIR}/include"
     CACHE PATH "Path to thread_system include directory" FORCE)
+message(STATUS "[2/3] thread_system: ready (${thread_system_SOURCE_DIR})")
 
-# network_system options: disable everything unnecessary for subproject build.
-# IMPORTANT: network_system uses BUILD_TESTS (not BUILD_TESTING).
+# ── [3/3] network_system (Tier 4) ─────────────────────────────────────────
+# Pre-set options before configure. network_system uses BUILD_TESTS (not
+# BUILD_TESTING), and enables many optional subsystems by default.
+message(STATUS "")
+message(STATUS "[3/3] network_system: setting options...")
 set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
 set(BUILD_VERIFY_BUILD OFF CACHE BOOL "" FORCE)
@@ -74,10 +78,21 @@ set(NETWORK_BUILD_INTEGRATION_TESTS OFF CACHE BOOL "" FORCE)
 set(NETWORK_ENABLE_GRPC_OFFICIAL OFF CACHE BOOL "" FORCE)
 set(NETWORK_BUILD_MODULES OFF CACHE BOOL "" FORCE)
 set(ENABLE_COVERAGE OFF CACHE BOOL "" FORCE)
+message(STATUS "[3/3] network_system: fetching and configuring (may take ~20s)...")
 FetchContent_MakeAvailable(network_system)
+message(STATUS "[3/3] network_system: ready (${network_system_SOURCE_DIR})")
 
-# Restore BUILD_TESTING for our own tests
+# ── Restore and finalize ──────────────────────────────────────────────────
 set(BUILD_TESTING "${BUILD_TESTING_SAVED}" CACHE BOOL "" FORCE)
+
+message(STATUS "")
+message(STATUS "========================================")
+message(STATUS " CGS dependencies resolved:")
+message(STATUS "   common_system  (Tier 0, header-only)")
+message(STATUS "   thread_system  (Tier 1, thread pool)")
+message(STATUS "   network_system (Tier 4, TCP/UDP/WS)")
+message(STATUS "========================================")
+message(STATUS "")
 
 # Mark kcenon include directories as SYSTEM to suppress third-party warnings.
 # Our strict -Werror flags should not apply to external headers.
@@ -92,7 +107,6 @@ function(_cgs_mark_system_includes target)
     endif()
 endfunction()
 
-# Only apply to real (non-alias) targets
 _cgs_mark_system_includes(common_system)
 _cgs_mark_system_includes(thread_base)
 _cgs_mark_system_includes(thread_core)

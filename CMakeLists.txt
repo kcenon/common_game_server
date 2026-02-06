@@ -57,9 +57,8 @@ endif()
 # External dependencies (via Conan or system packages)
 find_package(yaml-cpp REQUIRED)
 
-# Foundation systems placeholder
-# These will be integrated via Conan packages or FetchContent
-# as defined in conanfile.py
+# kcenon ecosystem libraries (via FetchContent)
+include(cmake/kcenon_deps.cmake)
 
 # Main library target: cgs_core
 add_library(cgs_core INTERFACE)

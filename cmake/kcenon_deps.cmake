@@ -55,11 +55,25 @@ set(COMMON_SYSTEM_INCLUDE_DIR "${common_system_SOURCE_DIR}/include"
 
 FetchContent_MakeAvailable(thread_system)
 
-# network_system options: disable tests/samples/benchmarks for subproject
+# Help network_system find thread_system that we already populated above.
+# Without this, network_system's find_thread_system() searches many local paths.
+set(THREAD_SYSTEM_INCLUDE_DIR "${thread_system_SOURCE_DIR}/include"
+    CACHE PATH "Path to thread_system include directory" FORCE)
+
+# network_system options: disable everything unnecessary for subproject build.
+# IMPORTANT: network_system uses BUILD_TESTS (not BUILD_TESTING).
+set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
 set(BUILD_VERIFY_BUILD OFF CACHE BOOL "" FORCE)
+set(BUILD_MESSAGING_BRIDGE OFF CACHE BOOL "" FORCE)
+set(BUILD_WITH_CONTAINER_SYSTEM OFF CACHE BOOL "" FORCE)
+set(BUILD_WITH_LOGGER_SYSTEM OFF CACHE BOOL "" FORCE)
+set(BUILD_WITH_MONITORING_SYSTEM OFF CACHE BOOL "" FORCE)
 set(NETWORK_BUILD_BENCHMARKS OFF CACHE BOOL "" FORCE)
 set(NETWORK_BUILD_INTEGRATION_TESTS OFF CACHE BOOL "" FORCE)
+set(NETWORK_ENABLE_GRPC_OFFICIAL OFF CACHE BOOL "" FORCE)
+set(NETWORK_BUILD_MODULES OFF CACHE BOOL "" FORCE)
+set(ENABLE_COVERAGE OFF CACHE BOOL "" FORCE)
 FetchContent_MakeAvailable(network_system)
 
 # Restore BUILD_TESTING for our own tests

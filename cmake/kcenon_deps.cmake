@@ -5,6 +5,8 @@
 #     +-- network_system (TCP/UDP/WebSocket, ASIO-based async I/O)
 #     |     +-- thread_system (thread pool, job scheduling)
 #     |     +-- common_system (header-only: Result<T>, error codes, utilities)
+#     +-- database_system (PostgreSQL/MySQL/SQLite DAL)
+#     |     +-- common_system
 #     +-- thread_system
 #           +-- common_system
 #
@@ -35,6 +37,12 @@ FetchContent_Declare(
     GIT_TAG        main
 )
 
+FetchContent_Declare(
+    database_system
+    GIT_REPOSITORY https://github.com/kcenon/database_system.git
+    GIT_TAG        main
+)
+
 # ── Populate dependencies in tier order ───────────────────────────────────
 # Disable dependency tests/samples to speed up configure.
 set(BUILD_TESTING_SAVED "${BUILD_TESTING}")
@@ -42,30 +50,30 @@ set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
 
 message(STATUS "")
 message(STATUS "========================================")
-message(STATUS " CGS dependency resolution (3 packages)")
+message(STATUS " CGS dependency resolution (4 packages)")
 message(STATUS "========================================")
 
-# ── [1/3] common_system (Tier 0) ──────────────────────────────────────────
+# ── [1/4] common_system (Tier 0) ──────────────────────────────────────────
 message(STATUS "")
-message(STATUS "[1/3] common_system: fetching...")
+message(STATUS "[1/4] common_system: fetching...")
 FetchContent_MakeAvailable(common_system)
 set(COMMON_SYSTEM_INCLUDE_DIR "${common_system_SOURCE_DIR}/include"
     CACHE PATH "Path to common_system include directory" FORCE)
-message(STATUS "[1/3] common_system: ready (${common_system_SOURCE_DIR})")
+message(STATUS "[1/4] common_system: ready (${common_system_SOURCE_DIR})")
 
-# ── [2/3] thread_system (Tier 1) ──────────────────────────────────────────
+# ── [2/4] thread_system (Tier 1) ──────────────────────────────────────────
 message(STATUS "")
-message(STATUS "[2/3] thread_system: fetching...")
+message(STATUS "[2/4] thread_system: fetching...")
 FetchContent_MakeAvailable(thread_system)
 set(THREAD_SYSTEM_INCLUDE_DIR "${thread_system_SOURCE_DIR}/include"
     CACHE PATH "Path to thread_system include directory" FORCE)
-message(STATUS "[2/3] thread_system: ready (${thread_system_SOURCE_DIR})")
+message(STATUS "[2/4] thread_system: ready (${thread_system_SOURCE_DIR})")
 
-# ── [3/3] network_system (Tier 4) ─────────────────────────────────────────
+# ── [3/4] network_system (Tier 4) ─────────────────────────────────────────
 # Pre-set options before configure. network_system uses BUILD_TESTS (not
 # BUILD_TESTING), and enables many optional subsystems by default.
 message(STATUS "")
-message(STATUS "[3/3] network_system: setting options...")
+message(STATUS "[3/4] network_system: setting options...")
 set(BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(BUILD_SAMPLES OFF CACHE BOOL "" FORCE)
 set(BUILD_VERIFY_BUILD OFF CACHE BOOL "" FORCE)
@@ -78,9 +86,30 @@ set(NETWORK_BUILD_INTEGRATION_TESTS OFF CACHE BOOL "" FORCE)
 set(NETWORK_ENABLE_GRPC_OFFICIAL OFF CACHE BOOL "" FORCE)
 set(NETWORK_BUILD_MODULES OFF CACHE BOOL "" FORCE)
 set(ENABLE_COVERAGE OFF CACHE BOOL "" FORCE)
-message(STATUS "[3/3] network_system: fetching and configuring (may take ~20s)...")
+message(STATUS "[3/4] network_system: fetching and configuring (may take ~20s)...")
 FetchContent_MakeAvailable(network_system)
-message(STATUS "[3/3] network_system: ready (${network_system_SOURCE_DIR})")
+message(STATUS "[3/4] network_system: ready (${network_system_SOURCE_DIR})")
+
+# ── [4/4] database_system (Tier 3) ───────────────────────────────────────
+# Disable optional backends and features to minimize build footprint.
+message(STATUS "")
+message(STATUS "[4/4] database_system: setting options...")
+set(USE_UNIT_TEST OFF CACHE BOOL "" FORCE)
+set(BUILD_DATABASE_SAMPLES OFF CACHE BOOL "" FORCE)
+set(BUILD_DATABASE_SYSTEM_AS_SUBMODULE ON CACHE BOOL "" FORCE)
+set(BUILD_WITH_COMMON_SYSTEM ON CACHE BOOL "" FORCE)
+set(USE_THREAD_SYSTEM OFF CACHE BOOL "" FORCE)
+set(USE_CONTAINER_SYSTEM OFF CACHE BOOL "" FORCE)
+set(USE_MONGODB OFF CACHE BOOL "" FORCE)
+set(USE_REDIS OFF CACHE BOOL "" FORCE)
+set(USE_MYSQL OFF CACHE BOOL "" FORCE)
+set(BUILD_INTEGRATED_DATABASE OFF CACHE BOOL "" FORCE)
+set(DATABASE_BUILD_MODULES OFF CACHE BOOL "" FORCE)
+message(STATUS "[4/4] database_system: fetching and configuring...")
+FetchContent_MakeAvailable(database_system)
+set(DATABASE_SYSTEM_INCLUDE_DIR "${database_system_SOURCE_DIR}"
+    CACHE PATH "Path to database_system root directory" FORCE)
+message(STATUS "[4/4] database_system: ready (${database_system_SOURCE_DIR})")
 
 # ── Restore and finalize ──────────────────────────────────────────────────
 set(BUILD_TESTING "${BUILD_TESTING_SAVED}" CACHE BOOL "" FORCE)
@@ -88,9 +117,10 @@ set(BUILD_TESTING "${BUILD_TESTING_SAVED}" CACHE BOOL "" FORCE)
 message(STATUS "")
 message(STATUS "========================================")
 message(STATUS " CGS dependencies resolved:")
-message(STATUS "   common_system  (Tier 0, header-only)")
-message(STATUS "   thread_system  (Tier 1, thread pool)")
-message(STATUS "   network_system (Tier 4, TCP/UDP/WS)")
+message(STATUS "   common_system    (Tier 0, header-only)")
+message(STATUS "   thread_system    (Tier 1, thread pool)")
+message(STATUS "   network_system   (Tier 4, TCP/UDP/WS)")
+message(STATUS "   database_system  (Tier 3, DAL)")
 message(STATUS "========================================")
 message(STATUS "")
 
@@ -111,3 +141,4 @@ _cgs_mark_system_includes(common_system)
 _cgs_mark_system_includes(thread_base)
 _cgs_mark_system_includes(thread_core)
 _cgs_mark_system_includes(NetworkSystem)
+_cgs_mark_system_includes(database)

@@ -35,6 +35,10 @@ enum class ErrorCode : uint32_t {
     DatabaseError = 0x0200,
     QueryFailed = 0x0201,
     TransactionFailed = 0x0202,
+    ConnectionPoolExhausted = 0x0203,
+    ConnectionPoolTimeout = 0x0204,
+    NotConnected = 0x0205,
+    PreparedStatementFailed = 0x0206,
 
     // ECS (0x0300 - 0x03FF)
     EntityNotFound = 0x0300,

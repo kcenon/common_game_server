@@ -71,3 +71,13 @@ target_link_libraries(cgs_foundation_monitoring_tests PRIVATE
     GTest::gtest_main
 )
 gtest_discover_tests(cgs_foundation_monitoring_tests)
+
+# Unit tests - foundation container adapter
+add_executable(cgs_foundation_container_tests
+    unit/foundation/container_adapter_test.cpp
+)
+target_link_libraries(cgs_foundation_container_tests PRIVATE
+    cgs::foundation_container
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_foundation_container_tests)

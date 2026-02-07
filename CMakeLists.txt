@@ -76,7 +76,7 @@ add_subdirectory(src/foundation)
 # add_subdirectory(src/services)
 
 # Layer 4: ECS core
-# add_subdirectory(src/ecs)
+add_subdirectory(src/ecs)
 
 # Layer 5: Game logic
 # add_subdirectory(src/game)

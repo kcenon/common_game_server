@@ -73,6 +73,12 @@ enum class ErrorCode : uint32_t {
     LoggerError = 0x0800,
     LoggerNotInitialized = 0x0801,
     LoggerFlushFailed = 0x0802,
+
+    // Monitoring (0x0900 - 0x09FF)
+    MonitoringError = 0x0900,
+    MetricNotFound = 0x0901,
+    InvalidMetricType = 0x0902,
+    HistogramNotRegistered = 0x0903,
 };
 
 /// Return the subsystem name for a given error code.
@@ -89,6 +95,7 @@ constexpr std::string_view errorSubsystem(ErrorCode code) {
         case 0x0600: return "Config";
         case 0x0700: return "Thread";
         case 0x0800: return "Logger";
+        case 0x0900: return "Monitoring";
         default: return "Unknown";
     }
 }

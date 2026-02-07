@@ -61,3 +61,13 @@ target_link_libraries(cgs_foundation_database_tests PRIVATE
     GTest::gtest_main
 )
 gtest_discover_tests(cgs_foundation_database_tests)
+
+# Unit tests - foundation monitoring adapter
+add_executable(cgs_foundation_monitoring_tests
+    unit/foundation/monitoring_adapter_test.cpp
+)
+target_link_libraries(cgs_foundation_monitoring_tests PRIVATE
+    cgs::foundation_monitoring
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_foundation_monitoring_tests)

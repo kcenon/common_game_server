@@ -119,22 +119,24 @@ struct GameNetworkManager::Impl {
         return SessionId(nextSessionId.fetch_add(1, std::memory_order_relaxed));
     }
 
-    // Create and configure a protocol server
+    // Create a protocol server with the given port.
+    // Note: UDP facade auto-starts the server during creation, so the
+    // caller must skip the explicit start() call for UDP.
     std::shared_ptr<kcenon::network::interfaces::i_protocol_server>
-    createServer(Protocol protocol) {
+    createServer(Protocol protocol, uint16_t port) {
         using namespace kcenon::network::facade;
         switch (protocol) {
             case Protocol::TCP: {
                 tcp_facade facade;
-                return facade.create_server({});
+                return facade.create_server({.port = port});
             }
             case Protocol::UDP: {
                 udp_facade facade;
-                return facade.create_server({});
+                return facade.create_server({.port = port});
             }
             case Protocol::WebSocket: {
                 websocket_facade facade;
-                return facade.create_server({});
+                return facade.create_server({.port = port});
             }
         }
         return nullptr;
@@ -189,23 +191,39 @@ struct GameNetworkManager::Impl {
                     }
                 }
 
-                // Deserialize and dispatch to opcode handler
-                auto msg = NetworkMessage::deserialize(data);
-                if (!msg) {
-                    owner->onError.emit(sid, ErrorCode::InvalidMessage);
-                    return;
-                }
+                // Parse all messages from the buffer. TCP streams may
+                // deliver multiple serialized messages in a single callback.
+                constexpr std::size_t kMinFrameSize = 6; // 4 length + 2 opcode
+                std::size_t offset = 0;
 
-                MessageHandler handler;
-                {
-                    std::shared_lock lock(handlerMutex);
-                    auto it = handlers.find(msg->opcode);
-                    if (it != handlers.end()) {
-                        handler = it->second;
+                while (offset + kMinFrameSize <= data.size()) {
+                    auto remaining = data.size() - offset;
+                    auto msg = NetworkMessage::deserialize(
+                        data.data() + offset, remaining);
+                    if (!msg) {
+                        owner->onError.emit(sid, ErrorCode::InvalidMessage);
+                        break;
                     }
-                }
-                if (handler) {
-                    handler(sid, *msg);
+
+                    // Read total length from header to advance the offset
+                    uint32_t totalLen =
+                        (static_cast<uint32_t>(data[offset]) << 24) |
+                        (static_cast<uint32_t>(data[offset + 1]) << 16) |
+                        (static_cast<uint32_t>(data[offset + 2]) << 8) |
+                        static_cast<uint32_t>(data[offset + 3]);
+                    offset += totalLen;
+
+                    MessageHandler handler;
+                    {
+                        std::shared_lock lock(handlerMutex);
+                        auto it = handlers.find(msg->opcode);
+                        if (it != handlers.end()) {
+                            handler = it->second;
+                        }
+                    }
+                    if (handler) {
+                        handler(sid, *msg);
+                    }
                 }
             });
 
@@ -287,7 +305,7 @@ GameResult<void> GameNetworkManager::listen(uint16_t port, Protocol protocol) {
                           std::string(protocolName(protocol))));
     }
 
-    auto server = impl_->createServer(protocol);
+    auto server = impl_->createServer(protocol, port);
     if (!server) {
         return GameResult<void>::err(
             GameError(ErrorCode::ListenFailed,
@@ -297,12 +315,15 @@ GameResult<void> GameNetworkManager::listen(uint16_t port, Protocol protocol) {
 
     impl_->setupCallbacks(server, protocol);
 
-    auto result = server->start(port);
-    if (result.is_err()) {
-        return GameResult<void>::err(
-            GameError(ErrorCode::ListenFailed,
-                      "failed to start " + std::string(protocolName(protocol)) +
-                          " server on port " + std::to_string(port)));
+    // UDP facade auto-starts the server during creation, so skip explicit start.
+    if (protocol != Protocol::UDP) {
+        auto result = server->start(port);
+        if (result.is_err()) {
+            return GameResult<void>::err(
+                GameError(ErrorCode::ListenFailed,
+                          "failed to start " + std::string(protocolName(protocol)) +
+                              " server on port " + std::to_string(port)));
+        }
     }
 
     impl_->servers.emplace(protocol, std::move(server));

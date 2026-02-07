@@ -51,3 +51,13 @@ target_link_libraries(cgs_foundation_network_tests PRIVATE
     GTest::gtest_main
 )
 gtest_discover_tests(cgs_foundation_network_tests)
+
+# Unit tests - foundation database adapter
+add_executable(cgs_foundation_database_tests
+    unit/foundation/database_adapter_test.cpp
+)
+target_link_libraries(cgs_foundation_database_tests PRIVATE
+    cgs::foundation_database
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_foundation_database_tests)

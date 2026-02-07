@@ -81,3 +81,13 @@ target_link_libraries(cgs_foundation_container_tests PRIVATE
     GTest::gtest_main
 )
 gtest_discover_tests(cgs_foundation_container_tests)
+
+# Unit tests - ECS component storage
+add_executable(cgs_ecs_component_storage_tests
+    unit/ecs/component_storage_test.cpp
+)
+target_link_libraries(cgs_ecs_component_storage_tests PRIVATE
+    cgs::ecs_component_storage
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_ecs_component_storage_tests)

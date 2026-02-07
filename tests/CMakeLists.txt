@@ -101,3 +101,29 @@ target_link_libraries(cgs_ecs_entity_manager_tests PRIVATE
     GTest::gtest_main
 )
 gtest_discover_tests(cgs_ecs_entity_manager_tests)
+
+# Integration tests - foundation network
+add_executable(cgs_foundation_network_integration_tests
+    integration/foundation/network_integration_test.cpp
+)
+target_link_libraries(cgs_foundation_network_integration_tests PRIVATE
+    cgs::foundation_network
+    NetworkSystem
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_foundation_network_integration_tests
+    PROPERTIES LABELS "integration"
+)
+
+# Benchmark tests - foundation network throughput
+add_executable(cgs_foundation_network_throughput_tests
+    benchmark/foundation/network_throughput_test.cpp
+)
+target_link_libraries(cgs_foundation_network_throughput_tests PRIVATE
+    cgs::foundation_network
+    NetworkSystem
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_foundation_network_throughput_tests
+    PROPERTIES LABELS "benchmark"
+)

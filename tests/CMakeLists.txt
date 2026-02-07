@@ -91,3 +91,13 @@ target_link_libraries(cgs_ecs_component_storage_tests PRIVATE
     GTest::gtest_main
 )
 gtest_discover_tests(cgs_ecs_component_storage_tests)
+
+# Unit tests - ECS entity manager
+add_executable(cgs_ecs_entity_manager_tests
+    unit/ecs/entity_manager_test.cpp
+)
+target_link_libraries(cgs_ecs_entity_manager_tests PRIVATE
+    cgs::ecs_entity_manager
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_ecs_entity_manager_tests)

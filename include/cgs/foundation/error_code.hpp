@@ -79,6 +79,11 @@ enum class ErrorCode : uint32_t {
     MetricNotFound = 0x0901,
     InvalidMetricType = 0x0902,
     HistogramNotRegistered = 0x0903,
+
+    // Serialization (0x0A00 - 0x0AFF)
+    SerializationError = 0x0A00,
+    InvalidBinaryData = 0x0A01,
+    InvalidJsonData = 0x0A02,
 };
 
 /// Return the subsystem name for a given error code.
@@ -96,6 +101,7 @@ constexpr std::string_view errorSubsystem(ErrorCode code) {
         case 0x0700: return "Thread";
         case 0x0800: return "Logger";
         case 0x0900: return "Monitoring";
+        case 0x0A00: return "Serialization";
         default: return "Unknown";
     }
 }

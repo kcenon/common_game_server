@@ -1,9 +1,12 @@
 /// @file system_scheduler.cpp
-/// @brief System scheduling implementation.
+/// @brief System scheduling implementation with parallel execution.
 ///
 /// Provides staged execution with topological ordering via Kahn's
 /// algorithm for dependency resolution.  Circular dependencies are
 /// detected and reported with the names of the involved systems.
+///
+/// Parallel execution groups non-conflicting systems into batches
+/// that are dispatched to a user-provided ParallelExecutor.
 ///
 /// @see SDS-MOD-012
 
@@ -15,9 +18,43 @@
 
 namespace cgs::ecs {
 
-// ── Static member ───────────────────────────────────────────────────────
+// ── Static members ──────────────────────────────────────────────────────
 
 const std::vector<SystemTypeId> SystemScheduler::kEmptyOrder_;
+const std::vector<SystemScheduler::ParallelBatch> SystemScheduler::kEmptyBatches_;
+
+// ── SystemAccessInfo ────────────────────────────────────────────────────
+
+bool SystemAccessInfo::ConflictsWith(const SystemAccessInfo& other) const {
+    // Undeclared access (empty reads AND writes) conflicts with everything.
+    if ((reads.empty() && writes.empty()) ||
+        (other.reads.empty() && other.writes.empty())) {
+        return true;
+    }
+
+    // Write-write conflict.
+    for (auto w : writes) {
+        if (other.writes.count(w)) {
+            return true;
+        }
+    }
+
+    // My write conflicts with other's read.
+    for (auto w : writes) {
+        if (other.reads.count(w)) {
+            return true;
+        }
+    }
+
+    // My read conflicts with other's write.
+    for (auto r : reads) {
+        if (other.writes.count(r)) {
+            return true;
+        }
+    }
+
+    return false;
+}
 
 // ── Registration ────────────────────────────────────────────────────────
 
@@ -71,6 +108,7 @@ bool SystemScheduler::IsEnabled(SystemTypeId system) const {
 bool SystemScheduler::Build() {
     lastError_.clear();
     executionOrder_.clear();
+    parallelBatches_.clear();
 
     // Process each stage independently.
     for (const auto& [stage, ids] : stageGroups_) {
@@ -79,7 +117,10 @@ bool SystemScheduler::Build() {
             built_ = false;
             return false;
         }
-        executionOrder_[stage] = std::move(sorted);
+        executionOrder_[stage] = sorted;
+
+        // Compute parallel batches from the sorted order.
+        computeParallelBatches(stage, sorted);
     }
 
     built_ = true;
@@ -162,6 +203,105 @@ bool SystemScheduler::topologicalSort(
     return true;
 }
 
+// ── Parallel batch computation ──────────────────────────────────────────
+
+void SystemScheduler::computeParallelBatches(
+    SystemStage stage,
+    const std::vector<SystemTypeId>& order) {
+
+    auto& batches = parallelBatches_[stage];
+    batches.clear();
+
+    if (order.empty()) {
+        return;
+    }
+
+    // Track which batch each system was assigned to, so that
+    // dependency constraints (predecessor must be in earlier batch)
+    // are respected.
+    std::unordered_map<SystemTypeId, std::size_t> systemBatch;
+
+    // Cache access info per system to avoid repeated virtual calls.
+    std::unordered_map<SystemTypeId, SystemAccessInfo> accessCache;
+    for (auto sysId : order) {
+        accessCache[sysId] = systems_.at(sysId).instance->GetAccessInfo();
+    }
+
+    // Minimum batch index forced by sync points.
+    std::size_t minimumBatch = 0;
+
+    for (auto sysId : order) {
+        const auto& myAccess = accessCache[sysId];
+
+        // Earliest batch this system can go into, considering
+        // explicit dependencies.
+        std::size_t minBatch = minimumBatch;
+        if (auto it = reverseDeps_.find(sysId); it != reverseDeps_.end()) {
+            for (auto pred : it->second) {
+                if (auto bit = systemBatch.find(pred);
+                    bit != systemBatch.end()) {
+                    minBatch = std::max(minBatch, bit->second + 1);
+                }
+            }
+        }
+
+        // Try to fit into an existing batch starting from minBatch.
+        bool placed = false;
+        for (std::size_t b = minBatch; b < batches.size(); ++b) {
+            bool conflicts = false;
+            for (auto otherId : batches[b].systems) {
+                if (myAccess.ConflictsWith(accessCache[otherId])) {
+                    conflicts = true;
+                    break;
+                }
+            }
+            if (!conflicts) {
+                batches[b].systems.push_back(sysId);
+                systemBatch[sysId] = b;
+                placed = true;
+                break;
+            }
+        }
+
+        if (!placed) {
+            // Ensure we don't create a batch before minBatch.
+            while (batches.size() < minBatch) {
+                batches.emplace_back();
+            }
+            batches.emplace_back();
+            batches.back().systems.push_back(sysId);
+            systemBatch[sysId] = batches.size() - 1;
+        }
+
+        // If this system is a sync point, force subsequent systems
+        // into a strictly later batch.
+        if (syncPoints_.count(sysId)) {
+            minimumBatch = systemBatch[sysId] + 1;
+        }
+    }
+}
+
+// ── Parallel execution control ──────────────────────────────────────────
+
+void SystemScheduler::SetParallelExecutor(ParallelExecutor executor) {
+    parallelExecutor_ = std::move(executor);
+}
+
+void SystemScheduler::EnableParallelExecution(bool enable) {
+    parallelEnabled_ = enable;
+}
+
+bool SystemScheduler::IsParallelExecutionEnabled() const noexcept {
+    return parallelEnabled_;
+}
+
+// ── Sync points ─────────────────────────────────────────────────────────
+
+void SystemScheduler::AddSyncPoint(SystemTypeId afterSystem) {
+    syncPoints_.insert(afterSystem);
+    built_ = false;
+}
+
 // ── Execution ───────────────────────────────────────────────────────────
 
 void SystemScheduler::Execute(float deltaTime) {
@@ -175,16 +315,7 @@ void SystemScheduler::Execute(float deltaTime) {
     };
 
     for (auto stage : kVariableStages) {
-        auto it = executionOrder_.find(stage);
-        if (it == executionOrder_.end()) {
-            continue;
-        }
-        for (auto typeId : it->second) {
-            auto& entry = systems_.at(typeId);
-            if (entry.enabled) {
-                entry.instance->Execute(deltaTime);
-            }
-        }
+        executeStage(stage, deltaTime);
     }
 
     // FixedUpdate: accumulate time and tick at fixed intervals.
@@ -194,14 +325,61 @@ void SystemScheduler::Execute(float deltaTime) {
 
         while (fixedTimeAccumulator_ >= fixedTimeStep_) {
             fixedTimeAccumulator_ -= fixedTimeStep_;
+            executeStage(SystemStage::FixedUpdate, fixedTimeStep_);
+        }
+    }
+}
 
-            for (auto typeId : fixedIt->second) {
-                auto& entry = systems_.at(typeId);
-                if (entry.enabled) {
-                    entry.instance->Execute(fixedTimeStep_);
-                }
+void SystemScheduler::executeStage(SystemStage stage, float deltaTime) {
+    if (parallelEnabled_ && parallelExecutor_) {
+        auto it = parallelBatches_.find(stage);
+        if (it == parallelBatches_.end()) {
+            return;
+        }
+        for (const auto& batch : it->second) {
+            executeBatch(batch, deltaTime);
+        }
+    } else {
+        auto it = executionOrder_.find(stage);
+        if (it == executionOrder_.end()) {
+            return;
+        }
+        for (auto typeId : it->second) {
+            auto& entry = systems_.at(typeId);
+            if (entry.enabled) {
+                entry.instance->Execute(deltaTime);
             }
         }
+    }
+}
+
+void SystemScheduler::executeBatch(
+    const ParallelBatch& batch, float deltaTime) {
+
+    // Collect enabled systems.
+    std::vector<std::function<void()>> tasks;
+    tasks.reserve(batch.systems.size());
+
+    for (auto sysId : batch.systems) {
+        auto& entry = systems_.at(sysId);
+        if (entry.enabled) {
+            ISystem* sys = entry.instance.get();
+            tasks.emplace_back([sys, deltaTime] {
+                sys->Execute(deltaTime);
+            });
+        }
+    }
+
+    if (tasks.empty()) {
+        return;
+    }
+
+    if (tasks.size() == 1) {
+        // Single task — run directly, no parallel overhead.
+        tasks[0]();
+    } else {
+        // Multiple tasks — dispatch via parallel executor.
+        parallelExecutor_(tasks);
     }
 }
 
@@ -231,6 +409,15 @@ SystemScheduler::GetExecutionOrder(SystemStage stage) const {
         return it->second;
     }
     return kEmptyOrder_;
+}
+
+const std::vector<SystemScheduler::ParallelBatch>&
+SystemScheduler::GetParallelBatches(SystemStage stage) const {
+    auto it = parallelBatches_.find(stage);
+    if (it != parallelBatches_.end()) {
+        return it->second;
+    }
+    return kEmptyBatches_;
 }
 
 } // namespace cgs::ecs

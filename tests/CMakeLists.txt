@@ -123,6 +123,16 @@ target_link_libraries(cgs_ecs_query_tests PRIVATE
 )
 gtest_discover_tests(cgs_ecs_query_tests)
 
+# Unit tests - ECS parallel execution
+add_executable(cgs_ecs_parallel_execution_tests
+    unit/ecs/parallel_execution_test.cpp
+)
+target_link_libraries(cgs_ecs_parallel_execution_tests PRIVATE
+    cgs::ecs_system_scheduler
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_ecs_parallel_execution_tests)
+
 # Integration tests - foundation network
 add_executable(cgs_foundation_network_integration_tests
     integration/foundation/network_integration_test.cpp

@@ -1,12 +1,18 @@
 #pragma once
 
 /// @file system_scheduler.hpp
-/// @brief System scheduling with dependency management for the ECS.
+/// @brief System scheduling with dependency management and parallel
+///        execution for the ECS.
 ///
 /// SystemScheduler manages system registration, stage-based grouping,
 /// dependency-driven topological ordering, and runtime enable/disable.
 /// FixedUpdate runs at a configurable fixed interval independent of
 /// frame rate.
+///
+/// Parallel execution: systems that declare non-conflicting component
+/// access patterns (via Read<T>/Write<T>) are automatically grouped
+/// into parallel batches.  A user-provided ParallelExecutor dispatches
+/// these batches to a thread pool.
 ///
 /// @see docs/reference/ECS_DESIGN.md  Section 3
 /// @see SDS-MOD-012
@@ -68,12 +74,56 @@ enum class SystemStage : uint8_t {
     FixedUpdate  ///< Fixed-timestep update (physics, etc.)
 };
 
+// ── Component access patterns ──────────────────────────────────────────
+
+/// Describes which component types a system reads and writes.
+///
+/// Used by the scheduler to determine which systems can safely execute
+/// in parallel.  If both `reads` and `writes` are empty the system is
+/// treated as having undeclared access and will never be parallelized.
+struct SystemAccessInfo {
+    std::unordered_set<ComponentTypeId> reads;
+    std::unordered_set<ComponentTypeId> writes;
+
+    /// Check whether this access pattern conflicts with @p other.
+    ///
+    /// Two systems conflict when they have write-write or read-write
+    /// overlap on the same component type, or when either system has
+    /// undeclared access (empty reads AND writes).
+    [[nodiscard]] bool ConflictsWith(const SystemAccessInfo& other) const;
+};
+
+/// Compile-time helper to declare read access to component types.
+///
+/// @code
+///   SystemAccessInfo GetAccessInfo() const override {
+///       SystemAccessInfo info;
+///       Read<Position, Velocity>::Apply(info);
+///       return info;
+///   }
+/// @endcode
+template <typename... Ts>
+struct Read {
+    static void Apply(SystemAccessInfo& info) {
+        ((info.reads.insert(ComponentType<Ts>::Id())), ...);
+    }
+};
+
+/// Compile-time helper to declare write access to component types.
+template <typename... Ts>
+struct Write {
+    static void Apply(SystemAccessInfo& info) {
+        ((info.writes.insert(ComponentType<Ts>::Id())), ...);
+    }
+};
+
 // ── System interface ────────────────────────────────────────────────────
 
 /// Abstract base class for ECS systems.
 ///
-/// Concrete systems override `Execute()` and optionally `GetStage()`.
-/// The scheduler owns and manages the lifecycle of registered systems.
+/// Concrete systems override `Execute()` and optionally `GetStage()`
+/// and `GetAccessInfo()`.  The scheduler owns and manages the lifecycle
+/// of registered systems.
 class ISystem {
 public:
     virtual ~ISystem() = default;
@@ -91,6 +141,15 @@ public:
 
     /// Return a human-readable name for this system (for diagnostics).
     [[nodiscard]] virtual std::string_view GetName() const = 0;
+
+    /// Return the component access patterns for this system.
+    ///
+    /// Override to declare which component types the system reads and
+    /// writes.  Systems with declared, non-conflicting access patterns
+    /// may be executed in parallel by the scheduler.
+    ///
+    /// Default: empty (undeclared — always runs sequentially).
+    [[nodiscard]] virtual SystemAccessInfo GetAccessInfo() const { return {}; }
 };
 
 // ── System scheduler ────────────────────────────────────────────────────
@@ -193,6 +252,49 @@ public:
     /// Get the current fixed timestep.
     [[nodiscard]] float GetFixedTimeStep() const noexcept;
 
+    // ── Parallel execution ──────────────────────────────────────────
+
+    /// A batch of systems that can execute in parallel.
+    struct ParallelBatch {
+        std::vector<SystemTypeId> systems;
+    };
+
+    /// Function that executes a vector of tasks in parallel.
+    /// Must block until all tasks complete.
+    using ParallelExecutor =
+        std::function<void(const std::vector<std::function<void()>>&)>;
+
+    /// Set the executor for parallel system batches.
+    ///
+    /// If not set (or set to nullptr), systems always run sequentially
+    /// even when parallel execution is enabled.
+    void SetParallelExecutor(ParallelExecutor executor);
+
+    /// Enable or disable parallel execution.
+    ///
+    /// When enabled, Build() computes parallel batches from system
+    /// access patterns and Execute() dispatches them via the
+    /// ParallelExecutor.
+    ///
+    /// @pre A ParallelExecutor must be set for actual parallelism.
+    void EnableParallelExecution(bool enable);
+
+    /// Check whether parallel execution is enabled.
+    [[nodiscard]] bool IsParallelExecutionEnabled() const noexcept;
+
+    // ── Sync points ─────────────────────────────────────────────────
+
+    /// Register a sync point after system @p afterSystem.
+    ///
+    /// Forces a parallel-batch boundary: all systems up to and
+    /// including @p afterSystem must complete before any later system
+    /// in the same stage may start.
+    void AddSyncPoint(SystemTypeId afterSystem);
+
+    /// Convenience: register a sync point after system type T.
+    template <typename T>
+    void AddSyncPoint();
+
     // ── Queries ─────────────────────────────────────────────────────
 
     /// Retrieve a registered system by type.
@@ -206,6 +308,12 @@ public:
     /// @return Vector of SystemTypeIds in execution order.
     [[nodiscard]] const std::vector<SystemTypeId>&
     GetExecutionOrder(SystemStage stage) const;
+
+    /// Retrieve the parallel batches for a specific stage (after Build).
+    ///
+    /// @return Vector of ParallelBatches in execution order.
+    [[nodiscard]] const std::vector<ParallelBatch>&
+    GetParallelBatches(SystemStage stage) const;
 
 private:
     /// Internal entry for a registered system.
@@ -225,6 +333,17 @@ private:
         const std::vector<SystemTypeId>& ids,
         std::vector<SystemTypeId>& sorted);
 
+    /// Execute all systems in a single stage (sequential or parallel).
+    void executeStage(SystemStage stage, float deltaTime);
+
+    /// Execute a single parallel batch.
+    void executeBatch(const ParallelBatch& batch, float deltaTime);
+
+    /// Compute parallel batches from the topological order.
+    void computeParallelBatches(
+        SystemStage stage,
+        const std::vector<SystemTypeId>& order);
+
     /// All registered systems, keyed by SystemTypeId.
     std::unordered_map<SystemTypeId, SystemEntry> systems_;
 
@@ -241,6 +360,18 @@ private:
     /// Computed execution order per stage (populated by Build()).
     std::unordered_map<SystemStage, std::vector<SystemTypeId>> executionOrder_;
 
+    /// Parallel batches per stage (populated by Build()).
+    std::unordered_map<SystemStage, std::vector<ParallelBatch>> parallelBatches_;
+
+    /// Systems marked as sync-point boundaries.
+    std::unordered_set<SystemTypeId> syncPoints_;
+
+    /// User-provided parallel executor.
+    ParallelExecutor parallelExecutor_;
+
+    /// Whether parallel execution is enabled.
+    bool parallelEnabled_ = false;
+
     /// Whether Build() has been called successfully.
     bool built_ = false;
 
@@ -255,6 +386,9 @@ private:
 
     /// Empty vector returned for stages with no systems.
     static const std::vector<SystemTypeId> kEmptyOrder_;
+
+    /// Empty vector returned for stages with no batches.
+    static const std::vector<ParallelBatch> kEmptyBatches_;
 };
 
 // ── Template implementations ────────────────────────────────────────────
@@ -297,6 +431,11 @@ bool SystemScheduler::AddDependency() {
 template <typename T>
 void SystemScheduler::SetEnabled(bool enabled) {
     SetEnabled(SystemType<T>::Id(), enabled);
+}
+
+template <typename T>
+void SystemScheduler::AddSyncPoint() {
+    AddSyncPoint(SystemType<T>::Id());
 }
 
 template <typename T>

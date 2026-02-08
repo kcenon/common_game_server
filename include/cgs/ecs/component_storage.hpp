@@ -31,6 +31,12 @@ public:
     [[nodiscard]] virtual bool Has(Entity entity) const = 0;
     virtual void Clear() = 0;
     [[nodiscard]] virtual std::size_t Size() const = 0;
+
+    /// Return the entity id stored at dense @p index.
+    [[nodiscard]] virtual uint32_t EntityAt(std::size_t index) const = 0;
+
+    /// Return the storage's global modification version counter.
+    [[nodiscard]] virtual uint32_t Version() const noexcept = 0;
 };
 
 /// Sparse-set component storage.
@@ -169,10 +175,13 @@ public:
     [[nodiscard]] const_iterator cend() const noexcept { return dense_.cend(); }
 
     /// Return the entity id that owns the component at @p index.
-    [[nodiscard]] uint32_t EntityAt(std::size_t index) const {
+    [[nodiscard]] uint32_t EntityAt(std::size_t index) const override {
         assert(index < entities_.size());
         return entities_[index];
     }
+
+    /// Return the storage's global modification version counter.
+    [[nodiscard]] uint32_t Version() const noexcept override { return globalVersion_; }
 
     // ── Version / change detection ──────────────────────────────────────
 

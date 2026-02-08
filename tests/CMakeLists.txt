@@ -112,6 +112,17 @@ target_link_libraries(cgs_ecs_system_scheduler_tests PRIVATE
 )
 gtest_discover_tests(cgs_ecs_system_scheduler_tests)
 
+# Unit tests - ECS component query system
+add_executable(cgs_ecs_query_tests
+    unit/ecs/query_test.cpp
+)
+target_link_libraries(cgs_ecs_query_tests PRIVATE
+    cgs::ecs_query
+    cgs::ecs_entity_manager
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_ecs_query_tests)
+
 # Integration tests - foundation network
 add_executable(cgs_foundation_network_integration_tests
     integration/foundation/network_integration_test.cpp

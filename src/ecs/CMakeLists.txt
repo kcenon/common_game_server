@@ -2,3 +2,4 @@
 add_subdirectory(component_storage)
 add_subdirectory(entity_manager)
 add_subdirectory(system_scheduler)
+add_subdirectory(query)

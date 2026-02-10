@@ -73,7 +73,7 @@ target_link_libraries(cgs_core INTERFACE cgs_warnings)
 add_subdirectory(src/foundation)
 
 # Layer 3: Services
-# add_subdirectory(src/services)
+add_subdirectory(src/services)
 
 # Layer 4: ECS core
 add_subdirectory(src/ecs)

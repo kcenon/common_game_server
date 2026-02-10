@@ -59,6 +59,13 @@ enum class ErrorCode : uint32_t {
     TokenExpired = 0x0501,
     InvalidToken = 0x0502,
     PermissionDenied = 0x0503,
+    UserAlreadyExists = 0x0504,
+    InvalidEmail = 0x0505,
+    WeakPassword = 0x0506,
+    RateLimitExceeded = 0x0507,
+    TokenRevoked = 0x0508,
+    InvalidCredentials = 0x0509,
+    RefreshTokenExpired = 0x050A,
 
     // Config (0x0600 - 0x06FF)
     ConfigLoadFailed = 0x0600,

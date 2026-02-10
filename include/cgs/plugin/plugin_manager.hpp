@@ -17,6 +17,7 @@
 #include "cgs/foundation/game_result.hpp"
 #include "cgs/plugin/iplugin.hpp"
 #include "cgs/plugin/plugin_types.hpp"
+#include "cgs/plugin/version_constraint.hpp"
 
 namespace cgs::plugin {
 
@@ -126,6 +127,36 @@ public:
     /// Return the number of loaded plugins.
     [[nodiscard]] std::size_t PluginCount() const noexcept;
 
+    // ── Dependency validation ──────────────────────────────────────────
+
+    /// Describes a single dependency issue found during validation.
+    struct DependencyIssue {
+        enum class Kind : uint8_t {
+            Missing,          ///< Required plugin is not loaded.
+            VersionMismatch,  ///< Plugin is loaded but version doesn't satisfy constraints.
+            CircularDep       ///< Circular dependency detected.
+        };
+
+        Kind kind;
+        std::string plugin;      ///< Plugin that declares the dependency.
+        std::string dependency;  ///< The dependency target.
+        std::string detail;      ///< Human-readable description.
+    };
+
+    /// Result of dependency validation.
+    struct DependencyReport {
+        bool success = true;
+        std::vector<DependencyIssue> issues;
+        std::vector<std::string> loadOrder;
+        std::vector<std::string> cyclePath;  ///< Non-empty if circular dep found.
+    };
+
+    /// Validate all plugin dependencies and compute load order.
+    ///
+    /// Unlike resolveDependencies() (which stops at the first error),
+    /// this method collects all issues into a comprehensive report.
+    [[nodiscard]] DependencyReport ValidateDependencies() const;
+
 private:
     /// Internal bookkeeping for a loaded plugin.
     struct PluginEntry {
@@ -142,6 +173,13 @@ private:
     /// Resolve dependency ordering via topological sort.
     [[nodiscard]] cgs::foundation::GameResult<std::vector<std::string>>
     resolveDependencies() const;
+
+    /// Validate version constraints for all loaded plugins.
+    void validateVersionConstraints(DependencyReport& report) const;
+
+    /// Detect circular dependencies via DFS and return the cycle path.
+    [[nodiscard]] std::vector<std::string> detectCycle(
+        const std::unordered_map<std::string, std::vector<std::string>>& graph) const;
 
     /// Close a dynamic library handle.
     static void closeLibrary(void* handle);

@@ -197,6 +197,17 @@ target_link_libraries(cgs_game_ai_system_tests PRIVATE
 )
 gtest_discover_tests(cgs_game_ai_system_tests)
 
+# Unit tests - Game quest system
+add_executable(cgs_game_quest_system_tests
+    unit/game/quest_system_test.cpp
+)
+target_link_libraries(cgs_game_quest_system_tests PRIVATE
+    cgs::game_quest_system
+    cgs::ecs_entity_manager
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_game_quest_system_tests)
+
 # Integration tests - foundation network
 add_executable(cgs_foundation_network_integration_tests
     integration/foundation/network_integration_test.cpp

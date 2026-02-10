@@ -1,6 +1,7 @@
-# Plugin System (SDS-MOD-020, SDS-MOD-021)
+# Plugin System (SDS-MOD-020, SDS-MOD-021, SDS-MOD-018)
 add_library(cgs_plugin
     plugin_manager.cpp
+    version_constraint.cpp
 )
 target_link_libraries(cgs_plugin
     PUBLIC cgs_core

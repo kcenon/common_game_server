@@ -8,10 +8,12 @@
 
 #include <algorithm>
 #include <queue>
+#include <stack>
 #include <unordered_set>
 
 #include "cgs/foundation/error_code.hpp"
 #include "cgs/plugin/plugin_export.hpp"
+#include "cgs/plugin/version_constraint.hpp"
 
 // Platform-specific dynamic library loading.
 #if defined(_WIN32)
@@ -415,7 +417,43 @@ GameResult<void> PluginManager::loadPluginInstance(
 }
 
 GameResult<std::vector<std::string>> PluginManager::resolveDependencies() const {
-    // Build adjacency list: dependency -> dependents.
+    auto report = ValidateDependencies();
+    if (!report.success) {
+        // Build a detailed error message from all issues.
+        std::string msg;
+        for (const auto& issue : report.issues) {
+            if (!msg.empty()) {
+                msg += "; ";
+            }
+            msg += issue.detail;
+        }
+        if (!report.cyclePath.empty()) {
+            msg += " [cycle: ";
+            for (std::size_t i = 0; i < report.cyclePath.size(); ++i) {
+                if (i > 0) {
+                    msg += " -> ";
+                }
+                msg += report.cyclePath[i];
+            }
+            msg += "]";
+        }
+        return GameResult<std::vector<std::string>>::err(
+            GameError(ErrorCode::DependencyError, std::move(msg)));
+    }
+
+    return GameResult<std::vector<std::string>>::ok(std::move(report.loadOrder));
+}
+
+// ── Dependency validation ───────────────────────────────────────────────
+
+PluginManager::DependencyReport PluginManager::ValidateDependencies() const {
+    DependencyReport report;
+    report.success = true;
+
+    // Step 1: Validate version constraints and collect missing deps.
+    validateVersionConstraints(report);
+
+    // Step 2: Build adjacency list (dependency -> dependents).
     std::unordered_map<std::string, std::vector<std::string>> graph;
     std::unordered_map<std::string, std::size_t> inDegree;
 
@@ -424,21 +462,48 @@ GameResult<std::vector<std::string>> PluginManager::resolveDependencies() const 
             inDegree[name] = 0;
         }
         for (const auto& dep : entry.plugin->GetInfo().dependencies) {
-            // Parse dependency name (strip version spec like ">=1.0.0").
-            auto spacePos = dep.find_first_of("><=!");
-            std::string depName = (spacePos != std::string::npos)
-                                      ? dep.substr(0, spacePos)
-                                      : dep;
+            auto specResult = DependencySpec::Parse(dep);
+            std::string depName;
+            if (specResult.hasValue()) {
+                depName = specResult.value().name;
+            } else {
+                auto opPos = dep.find_first_of("><=~");
+                depName = (opPos != std::string::npos) ? dep.substr(0, opPos) : dep;
+            }
 
-            graph[depName].push_back(name);
-            inDegree[name]++;
+            // Only add edges for loaded plugins (skip missing deps).
+            if (plugins_.count(depName) > 0) {
+                graph[depName].push_back(name);
+                inDegree[name]++;
+            }
             if (inDegree.find(depName) == inDegree.end()) {
                 inDegree[depName] = 0;
             }
         }
     }
 
-    // Kahn's algorithm for topological sort.
+    // Step 3: Detect circular dependencies via DFS.
+    auto cycle = detectCycle(graph);
+    if (!cycle.empty()) {
+        report.success = false;
+        report.cyclePath = cycle;
+
+        std::string cyclePath;
+        for (std::size_t i = 0; i < cycle.size(); ++i) {
+            if (i > 0) {
+                cyclePath += " -> ";
+            }
+            cyclePath += cycle[i];
+        }
+
+        DependencyIssue issue;
+        issue.kind = DependencyIssue::Kind::CircularDep;
+        issue.detail = "Circular dependency detected: " + cyclePath;
+        report.issues.push_back(std::move(issue));
+        return report;
+    }
+
+    // Step 4: Topological sort (Kahn's algorithm).
     std::queue<std::string> readyQueue;
     for (const auto& [name, degree] : inDegree) {
         if (degree == 0 && plugins_.count(name) > 0) {
@@ -467,13 +532,130 @@ GameResult<std::vector<std::string>> PluginManager::resolveDependencies() const 
         }
     }
 
-    if (sorted.size() < plugins_.size()) {
-        return GameResult<std::vector<std::string>>::err(
-            GameError(ErrorCode::DependencyError,
-                      "Circular or unresolvable plugin dependency detected"));
+    report.loadOrder = std::move(sorted);
+    return report;
+}
+
+void PluginManager::validateVersionConstraints(DependencyReport& report) const {
+    for (const auto& [name, entry] : plugins_) {
+        for (const auto& dep : entry.plugin->GetInfo().dependencies) {
+            auto specResult = DependencySpec::Parse(dep);
+            if (specResult.hasError()) {
+                // Fallback: extract plain name.
+                continue;
+            }
+
+            const auto& spec = specResult.value();
+
+            // Check if dependency is loaded.
+            auto depIt = plugins_.find(spec.name);
+            if (depIt == plugins_.end()) {
+                report.success = false;
+                DependencyIssue issue;
+                issue.kind = DependencyIssue::Kind::Missing;
+                issue.plugin = name;
+                issue.dependency = spec.name;
+                issue.detail = "Plugin '" + name + "' requires '" + spec.name +
+                               "' (" + spec.ConstraintsToString() +
+                               ") but it is not loaded";
+                report.issues.push_back(std::move(issue));
+                continue;
+            }
+
+            // Check version constraints.
+            if (!spec.constraints.empty()) {
+                const auto& depVersion = depIt->second.plugin->GetInfo().version;
+                if (!spec.IsSatisfiedBy(depVersion)) {
+                    report.success = false;
+                    DependencyIssue issue;
+                    issue.kind = DependencyIssue::Kind::VersionMismatch;
+                    issue.plugin = name;
+                    issue.dependency = spec.name;
+                    issue.detail =
+                        "Plugin '" + name + "' requires '" + spec.name + "' " +
+                        spec.ConstraintsToString() + " but loaded version is " +
+                        std::to_string(depVersion.major) + "." +
+                        std::to_string(depVersion.minor) + "." +
+                        std::to_string(depVersion.patch);
+                    report.issues.push_back(std::move(issue));
+                }
+            }
+        }
+    }
+}
+
+std::vector<std::string> PluginManager::detectCycle(
+    const std::unordered_map<std::string, std::vector<std::string>>& graph) const {
+    // DFS-based cycle detection with path reconstruction.
+    enum class Color : uint8_t { White, Gray, Black };
+    std::unordered_map<std::string, Color> color;
+
+    for (const auto& [name, entry] : plugins_) {
+        color[name] = Color::White;
     }
 
-    return GameResult<std::vector<std::string>>::ok(std::move(sorted));
+    // parent map to reconstruct the cycle path.
+    std::unordered_map<std::string, std::string> parent;
+    std::string cycleStart;
+    std::string cycleEnd;
+    bool found = false;
+
+    std::function<bool(const std::string&)> dfs =
+        [&](const std::string& node) -> bool {
+        color[node] = Color::Gray;
+
+        if (graph.count(node) > 0) {
+            for (const auto& neighbor : graph.at(node)) {
+                if (color.count(neighbor) == 0) {
+                    continue;
+                }
+                if (color[neighbor] == Color::Gray) {
+                    // Found a cycle.
+                    cycleStart = neighbor;
+                    cycleEnd = node;
+                    found = true;
+                    return true;
+                }
+                if (color[neighbor] == Color::White) {
+                    parent[neighbor] = node;
+                    if (dfs(neighbor)) {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        color[node] = Color::Black;
+        return false;
+    };
+
+    for (const auto& [name, entry] : plugins_) {
+        if (color[name] == Color::White) {
+            if (dfs(name)) {
+                break;
+            }
+        }
+    }
+
+    if (!found) {
+        return {};
+    }
+
+    // Reconstruct the cycle path: cycleStart -> ... -> cycleEnd -> cycleStart.
+    std::vector<std::string> cycle;
+
+    auto current = cycleEnd;
+    while (current != cycleStart) {
+        cycle.push_back(current);
+        if (parent.count(current) == 0) {
+            break;
+        }
+        current = parent[current];
+    }
+    cycle.push_back(cycleStart);
+    std::reverse(cycle.begin(), cycle.end());
+    cycle.push_back(cycleStart);  // Close the cycle.
+    return cycle;
 }
 
 void PluginManager::closeLibrary(void* handle) {

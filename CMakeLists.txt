@@ -79,7 +79,7 @@ add_subdirectory(src/foundation)
 add_subdirectory(src/ecs)
 
 # Layer 5: Game logic
-# add_subdirectory(src/game)
+add_subdirectory(src/game)
 
 # Layer 6: Plugins
 add_subdirectory(src/plugins)

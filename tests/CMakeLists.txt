@@ -153,6 +153,17 @@ target_link_libraries(cgs_plugin_dependency_tests PRIVATE
 )
 gtest_discover_tests(cgs_plugin_dependency_tests)
 
+# Unit tests - Game object system
+add_executable(cgs_game_object_system_tests
+    unit/game/object_system_test.cpp
+)
+target_link_libraries(cgs_game_object_system_tests PRIVATE
+    cgs::game_object_system
+    cgs::ecs_entity_manager
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_game_object_system_tests)
+
 # Integration tests - foundation network
 add_executable(cgs_foundation_network_integration_tests
     integration/foundation/network_integration_test.cpp

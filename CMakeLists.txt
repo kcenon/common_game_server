@@ -82,7 +82,7 @@ add_subdirectory(src/ecs)
 # add_subdirectory(src/game)
 
 # Layer 6: Plugins
-# add_subdirectory(src/plugins)
+add_subdirectory(src/plugins)
 
 # Testing
 if(CGS_BUILD_TESTS)

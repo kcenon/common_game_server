@@ -49,6 +49,10 @@ enum class ErrorCode : uint32_t {
     PluginLoadFailed = 0x0400,
     PluginNotFound = 0x0401,
     DependencyError = 0x0402,
+    PluginAlreadyLoaded = 0x0403,
+    PluginInvalidState = 0x0404,
+    PluginVersionMismatch = 0x0405,
+    PluginInitFailed = 0x0406,
 
     // Auth (0x0500 - 0x05FF)
     AuthenticationFailed = 0x0500,

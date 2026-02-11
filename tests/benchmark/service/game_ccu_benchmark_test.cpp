@@ -124,7 +124,7 @@ TEST_F(GameCCUBenchmark, JoinThroughput1KCCU) {
 
     const auto joinEnd = steady_clock::now();
     const double joinElapsedSec =
-        duration_cast<microseconds>(joinEnd - joinStart).count() / 1e6;
+        static_cast<double>(duration_cast<microseconds>(joinEnd - joinStart).count()) / 1e6;
     const double joinRate =
         static_cast<double>(joinedCount) / joinElapsedSec;
 
@@ -205,7 +205,7 @@ TEST_F(GameCCUBenchmark, TickLatencyUnderFullLoad) {
         const auto end = steady_clock::now();
 
         ASSERT_TRUE(result.hasValue()) << "Tick " << i << " failed";
-        double ms = duration_cast<microseconds>(end - start).count() / 1e3;
+        double ms = static_cast<double>(duration_cast<microseconds>(end - start).count()) / 1e3;
         latencies.push_back(ms);
     }
 
@@ -279,7 +279,7 @@ TEST_F(GameCCUBenchmark, LeaveThroughput1KCCU) {
 
     const auto leaveEnd = steady_clock::now();
     const double leaveElapsedSec =
-        duration_cast<microseconds>(leaveEnd - leaveStart).count() / 1e6;
+        static_cast<double>(duration_cast<microseconds>(leaveEnd - leaveStart).count()) / 1e6;
     const double leaveRate =
         static_cast<double>(leftCount) / leaveElapsedSec;
 
@@ -358,7 +358,7 @@ TEST_F(GameCCUBenchmark, ScalingLinearity) {
             (void)server_->tick();
             auto end = steady_clock::now();
             ticks.push_back(
-                duration_cast<microseconds>(end - start).count() / 1e3);
+                static_cast<double>(duration_cast<microseconds>(end - start).count()) / 1e3);
         }
 
         std::sort(ticks.begin(), ticks.end());

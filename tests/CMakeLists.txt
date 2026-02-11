@@ -229,6 +229,16 @@ target_link_libraries(cgs_service_auth_tests PRIVATE
 )
 gtest_discover_tests(cgs_service_auth_tests)
 
+# Unit tests - Service auth server (registration, login, token management)
+add_executable(cgs_service_auth_server_tests
+    unit/service/auth_server_test.cpp
+)
+target_link_libraries(cgs_service_auth_server_tests PRIVATE
+    cgs::service_auth
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_service_auth_server_tests)
+
 # Integration tests - foundation network
 add_executable(cgs_foundation_network_integration_tests
     integration/foundation/network_integration_test.cpp

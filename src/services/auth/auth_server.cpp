@@ -1,0 +1,275 @@
+/// @file auth_server.cpp
+/// @brief AuthServer implementation orchestrating the full auth workflow.
+///
+/// @see SRS-SVC-001
+
+#include "cgs/service/auth_server.hpp"
+
+#include "cgs/foundation/error_code.hpp"
+#include "cgs/foundation/game_error.hpp"
+#include "cgs/service/password_hasher.hpp"
+#include "cgs/service/rate_limiter.hpp"
+#include "cgs/service/token_provider.hpp"
+#include "cgs/service/token_store.hpp"
+#include "cgs/service/user_repository.hpp"
+
+#include <algorithm>
+#include <chrono>
+#include <string>
+
+namespace cgs::service {
+
+using cgs::foundation::ErrorCode;
+using cgs::foundation::GameError;
+
+// -- Construction / destruction -----------------------------------------------
+
+AuthServer::AuthServer(AuthConfig config,
+                       std::shared_ptr<IUserRepository> userRepo,
+                       std::shared_ptr<ITokenStore> tokenStore)
+    : config_(std::move(config)),
+      userRepo_(std::move(userRepo)),
+      tokenStore_(std::move(tokenStore)),
+      tokenProvider_(
+          std::make_unique<TokenProvider>(config_.signingKey)),
+      passwordHasher_(std::make_unique<PasswordHasher>()),
+      rateLimiter_(std::make_unique<RateLimiter>(
+          config_.rateLimitMaxAttempts, config_.rateLimitWindow)) {}
+
+AuthServer::~AuthServer() = default;
+AuthServer::AuthServer(AuthServer&&) noexcept = default;
+AuthServer& AuthServer::operator=(AuthServer&&) noexcept = default;
+
+// -- Registration (SRS-SVC-001.1) ---------------------------------------------
+
+cgs::foundation::GameResult<UserRecord> AuthServer::registerUser(
+    const UserCredentials& credentials) {
+    // Validate email format.
+    if (!isValidEmail(credentials.email)) {
+        return cgs::foundation::GameResult<UserRecord>::err(
+            GameError(ErrorCode::InvalidEmail, "invalid email format"));
+    }
+
+    // Validate password strength.
+    if (!isStrongPassword(credentials.password)) {
+        return cgs::foundation::GameResult<UserRecord>::err(
+            GameError(ErrorCode::WeakPassword,
+                      "password must be at least " +
+                          std::to_string(config_.minPasswordLength) +
+                          " characters"));
+    }
+
+    // Check for duplicate username.
+    if (userRepo_->findByUsername(credentials.username).has_value()) {
+        return cgs::foundation::GameResult<UserRecord>::err(
+            GameError(ErrorCode::UserAlreadyExists,
+                      "username already taken"));
+    }
+
+    // Check for duplicate email.
+    if (userRepo_->findByEmail(credentials.email).has_value()) {
+        return cgs::foundation::GameResult<UserRecord>::err(
+            GameError(ErrorCode::UserAlreadyExists,
+                      "email already registered"));
+    }
+
+    // Hash password.
+    auto hashed = passwordHasher_->hash(credentials.password);
+
+    // Build user record.
+    UserRecord record;
+    record.username = credentials.username;
+    record.email = credentials.email;
+    record.passwordHash = std::move(hashed.hash);
+    record.salt = std::move(hashed.salt);
+    record.status = UserStatus::Active;
+    record.roles = {"player"};
+
+    // Persist and return.
+    auto id = userRepo_->create(std::move(record));
+    auto stored = userRepo_->findById(id);
+    return cgs::foundation::GameResult<UserRecord>::ok(std::move(*stored));
+}
+
+// -- Login (SRS-SVC-001.2, SRS-SVC-001.3) ------------------------------------
+
+cgs::foundation::GameResult<TokenPair> AuthServer::login(
+    std::string_view username, std::string_view password,
+    const std::string& clientIp) {
+    // Rate limit check.
+    if (!rateLimiter_->allow(clientIp)) {
+        return cgs::foundation::GameResult<TokenPair>::err(
+            GameError(ErrorCode::RateLimitExceeded,
+                      "too many login attempts, try again later"));
+    }
+
+    // Find user.
+    auto userOpt = userRepo_->findByUsername(username);
+    if (!userOpt.has_value()) {
+        return cgs::foundation::GameResult<TokenPair>::err(
+            GameError(ErrorCode::InvalidCredentials,
+                      "invalid username or password"));
+    }
+
+    auto& user = *userOpt;
+
+    // Check account status.
+    if (user.status != UserStatus::Active) {
+        return cgs::foundation::GameResult<TokenPair>::err(
+            GameError(ErrorCode::AuthenticationFailed,
+                      "account is not active"));
+    }
+
+    // Verify password.
+    if (!passwordHasher_->verify(password, user.passwordHash, user.salt)) {
+        return cgs::foundation::GameResult<TokenPair>::err(
+            GameError(ErrorCode::InvalidCredentials,
+                      "invalid username or password"));
+    }
+
+    // Build claims.
+    TokenClaims claims;
+    claims.subject = std::to_string(user.id);
+    claims.username = user.username;
+    claims.roles = user.roles;
+
+    // Generate access token.
+    auto accessToken =
+        tokenProvider_->generateAccessToken(claims, config_.accessTokenExpiry);
+
+    // Generate and store refresh token.
+    auto refreshTokenStr = TokenProvider::generateRefreshToken();
+    RefreshTokenRecord refreshRecord;
+    refreshRecord.token = refreshTokenStr;
+    refreshRecord.userId = user.id;
+    refreshRecord.expiresAt =
+        std::chrono::system_clock::now() + config_.refreshTokenExpiry;
+    refreshRecord.revoked = false;
+    tokenStore_->store(std::move(refreshRecord));
+
+    // Reset rate limiter on successful login.
+    rateLimiter_->reset(clientIp);
+
+    TokenPair pair;
+    pair.accessToken = std::move(accessToken);
+    pair.refreshToken = std::move(refreshTokenStr);
+    pair.accessExpiresIn = config_.accessTokenExpiry;
+    pair.refreshExpiresIn = config_.refreshTokenExpiry;
+    return cgs::foundation::GameResult<TokenPair>::ok(std::move(pair));
+}
+
+// -- Token refresh (SRS-SVC-001.4) --------------------------------------------
+
+cgs::foundation::GameResult<TokenPair> AuthServer::refreshToken(
+    std::string_view refreshToken) {
+    // Look up the refresh token.
+    auto recordOpt = tokenStore_->find(refreshToken);
+    if (!recordOpt.has_value()) {
+        return cgs::foundation::GameResult<TokenPair>::err(
+            GameError(ErrorCode::InvalidToken,
+                      "refresh token not found"));
+    }
+
+    auto& record = *recordOpt;
+
+    // Check revocation.
+    if (record.revoked) {
+        return cgs::foundation::GameResult<TokenPair>::err(
+            GameError(ErrorCode::TokenRevoked,
+                      "refresh token has been revoked"));
+    }
+
+    // Check expiry.
+    if (std::chrono::system_clock::now() > record.expiresAt) {
+        return cgs::foundation::GameResult<TokenPair>::err(
+            GameError(ErrorCode::RefreshTokenExpired,
+                      "refresh token has expired"));
+    }
+
+    // Find the user.
+    auto userOpt = userRepo_->findById(record.userId);
+    if (!userOpt.has_value()) {
+        return cgs::foundation::GameResult<TokenPair>::err(
+            GameError(ErrorCode::AuthenticationFailed,
+                      "user not found for refresh token"));
+    }
+
+    auto& user = *userOpt;
+
+    // Revoke the old refresh token (rotation).
+    tokenStore_->revoke(refreshToken);
+
+    // Build claims.
+    TokenClaims claims;
+    claims.subject = std::to_string(user.id);
+    claims.username = user.username;
+    claims.roles = user.roles;
+
+    // Generate new token pair.
+    auto newAccessToken =
+        tokenProvider_->generateAccessToken(claims, config_.accessTokenExpiry);
+    auto newRefreshTokenStr = TokenProvider::generateRefreshToken();
+
+    RefreshTokenRecord newRefreshRecord;
+    newRefreshRecord.token = newRefreshTokenStr;
+    newRefreshRecord.userId = user.id;
+    newRefreshRecord.expiresAt =
+        std::chrono::system_clock::now() + config_.refreshTokenExpiry;
+    newRefreshRecord.revoked = false;
+    tokenStore_->store(std::move(newRefreshRecord));
+
+    TokenPair pair;
+    pair.accessToken = std::move(newAccessToken);
+    pair.refreshToken = std::move(newRefreshTokenStr);
+    pair.accessExpiresIn = config_.accessTokenExpiry;
+    pair.refreshExpiresIn = config_.refreshTokenExpiry;
+    return cgs::foundation::GameResult<TokenPair>::ok(std::move(pair));
+}
+
+// -- Logout (SRS-SVC-001.5) ---------------------------------------------------
+
+cgs::foundation::GameResult<void> AuthServer::logout(
+    std::string_view refreshToken) {
+    if (!tokenStore_->revoke(refreshToken)) {
+        return cgs::foundation::GameResult<void>::err(
+            GameError(ErrorCode::InvalidToken,
+                      "refresh token not found"));
+    }
+    return cgs::foundation::GameResult<void>::ok();
+}
+
+// -- Token validation ---------------------------------------------------------
+
+cgs::foundation::GameResult<TokenClaims> AuthServer::validateToken(
+    std::string_view accessToken) const {
+    return tokenProvider_->validateAccessToken(accessToken);
+}
+
+// -- Validation helpers -------------------------------------------------------
+
+bool AuthServer::isValidEmail(std::string_view email) const {
+    // Basic structural check: must have exactly one '@' with non-empty parts
+    // and at least one '.' after '@'.
+    auto atPos = email.find('@');
+    if (atPos == std::string_view::npos || atPos == 0) {
+        return false;
+    }
+
+    auto domain = email.substr(atPos + 1);
+    if (domain.empty() || domain.find('.') == std::string_view::npos) {
+        return false;
+    }
+
+    // No consecutive dots, no trailing dot.
+    if (domain.back() == '.' || domain.find("..") != std::string_view::npos) {
+        return false;
+    }
+
+    return true;
+}
+
+bool AuthServer::isStrongPassword(std::string_view password) const {
+    return password.size() >= static_cast<std::size_t>(config_.minPasswordLength);
+}
+
+} // namespace cgs::service

@@ -53,6 +53,10 @@ enum class ErrorCode : uint32_t {
     PluginInvalidState = 0x0404,
     PluginVersionMismatch = 0x0405,
     PluginInitFailed = 0x0406,
+    HotReloadFailed = 0x0407,
+    HotReloadDisabled = 0x0408,
+    StateSerializationFailed = 0x0409,
+    StateDeserializationFailed = 0x040A,
 
     // Auth (0x0500 - 0x05FF)
     AuthenticationFailed = 0x0500,

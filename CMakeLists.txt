@@ -19,6 +19,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 option(CGS_BUILD_TESTS "Build unit and integration tests" ON)
 option(CGS_BUILD_BENCHMARKS "Build performance benchmarks" OFF)
 option(CGS_ENABLE_SANITIZERS "Enable address and undefined behavior sanitizers" OFF)
+option(CGS_HOT_RELOAD "Enable plugin hot reload (development only)" OFF)
 
 # Compiler warning flags
 add_library(cgs_warnings INTERFACE)

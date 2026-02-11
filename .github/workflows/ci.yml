@@ -23,6 +23,9 @@ jobs:
           - os: ubuntu-24.04
             build_type: Debug
 
+    env:
+      CONAN_PRESET: conan-${{ matrix.build_type == 'Release' && 'release' || 'debug' }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -58,17 +61,10 @@ jobs:
             -s build_type=${{ matrix.build_type }}
 
       - name: Configure CMake
-        run: |
-          cmake --preset conan-release 2>/dev/null || \
-          cmake -B build \
-            -DCMAKE_BUILD_TYPE=${{ matrix.build_type }} \
-            -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake \
-            -DCGS_BUILD_TESTS=ON
+        run: cmake --preset ${{ env.CONAN_PRESET }}
 
       - name: Build
-        run: cmake --build build --config ${{ matrix.build_type }} -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
+        run: cmake --build --preset ${{ env.CONAN_PRESET }} -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
 
       - name: Run unit tests
-        run: ctest --test-dir build --output-on-failure -E "integration|benchmark" -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
-        env:
-          CTEST_OUTPUT_ON_FAILURE: 1
+        run: ctest --preset ${{ env.CONAN_PRESET }} --output-on-failure -E "integration|benchmark" -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)

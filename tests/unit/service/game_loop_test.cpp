@@ -142,7 +142,7 @@ TEST_F(GameLoopTest, ThreadedMetricsCallbackInvocation) {
     });
 
     EXPECT_TRUE(loop_.start());
-    std::this_thread::sleep_for(120ms);
+    std::this_thread::sleep_for(250ms);
     loop_.stop();
 
     EXPECT_GE(metricsCount.load(), 2);

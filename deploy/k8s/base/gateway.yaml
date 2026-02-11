@@ -36,6 +36,9 @@ spec:
             - name: websocket
               containerPort: 8081
               protocol: TCP
+            - name: health
+              containerPort: 9100
+              protocol: TCP
           env:
             - name: CGS_CONFIG_PATH
               value: /etc/cgs/config.yaml
@@ -56,15 +59,17 @@ spec:
               cpu: "1"
               memory: 512Mi
           livenessProbe:
-            tcpSocket:
-              port: tcp
+            httpGet:
+              path: /healthz
+              port: health
             initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 2
             failureThreshold: 3
           readinessProbe:
-            tcpSocket:
-              port: tcp
+            httpGet:
+              path: /readyz
+              port: health
             initialDelaySeconds: 3
             periodSeconds: 5
             timeoutSeconds: 2

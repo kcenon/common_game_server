@@ -33,6 +33,9 @@ spec:
             - name: auth-api
               containerPort: 9001
               protocol: TCP
+            - name: health
+              containerPort: 9101
+              protocol: TCP
           env:
             - name: CGS_CONFIG_PATH
               value: /etc/cgs/config.yaml
@@ -53,15 +56,17 @@ spec:
               cpu: 500m
               memory: 256Mi
           livenessProbe:
-            exec:
-              command: ["sh", "-c", "kill -0 1"]
+            httpGet:
+              path: /healthz
+              port: health
             initialDelaySeconds: 5
             periodSeconds: 10
             timeoutSeconds: 2
             failureThreshold: 3
           readinessProbe:
-            exec:
-              command: ["sh", "-c", "kill -0 1"]
+            httpGet:
+              path: /readyz
+              port: health
             initialDelaySeconds: 3
             periodSeconds: 5
             timeoutSeconds: 2

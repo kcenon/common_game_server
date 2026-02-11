@@ -103,6 +103,10 @@ enum class ErrorCode : uint32_t {
     MapInstanceInvalidState = 0x0B03,
     GameLoopAlreadyRunning = 0x0B04,
     GameLoopNotRunning = 0x0B05,
+    PlayerAlreadyInWorld = 0x0B06,
+    PlayerNotInWorld = 0x0B07,
+    InstanceFull = 0x0B08,
+    SystemSchedulerBuildFailed = 0x0B09,
 
     // Lobby (0x0C00 - 0x0CFF)
     LobbyError = 0x0C00,

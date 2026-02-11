@@ -40,20 +40,21 @@ static QueryResult convertResult(
     for (const auto& kcRow : kcResult) {
         DbRow row;
         for (const auto& [col, val] : kcRow) {
-            std::visit([&](auto&& arg) {
+            const auto& key = col;
+            std::visit([&row, &key](auto&& arg) {
                 using T = std::decay_t<decltype(arg)>;
                 if constexpr (std::is_same_v<T, std::nullptr_t>) {
-                    row[col] = DbNull{};
+                    row[key] = DbNull{};
                 } else if constexpr (std::is_same_v<T, std::string>) {
-                    row[col] = arg;
+                    row[key] = arg;
                 } else if constexpr (std::is_same_v<T, std::int64_t>) {
-                    row[col] = arg;
+                    row[key] = arg;
                 } else if constexpr (std::is_same_v<T, double>) {
-                    row[col] = arg;
+                    row[key] = arg;
                 } else if constexpr (std::is_same_v<T, bool>) {
-                    row[col] = arg;
+                    row[key] = arg;
                 } else {
-                    row[col] = DbNull{};
+                    row[key] = DbNull{};
                 }
             }, val);
         }

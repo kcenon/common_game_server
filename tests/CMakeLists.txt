@@ -173,6 +173,16 @@ target_link_libraries(cgs_plugin_hot_reload_tests PRIVATE
 )
 gtest_discover_tests(cgs_plugin_hot_reload_tests)
 
+# Unit tests - MMORPG reference plugin (character, guild, chat, simulation)
+add_executable(cgs_plugin_mmorpg_tests
+    unit/plugin/mmorpg_plugin_test.cpp
+)
+target_link_libraries(cgs_plugin_mmorpg_tests PRIVATE
+    cgs::plugin_mmorpg
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_plugin_mmorpg_tests)
+
 # Unit tests - Game object system
 add_executable(cgs_game_object_system_tests
     unit/game/object_system_test.cpp

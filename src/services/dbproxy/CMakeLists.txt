@@ -6,5 +6,6 @@ add_library(cgs_service_dbproxy
 )
 target_link_libraries(cgs_service_dbproxy
     PUBLIC cgs_core
+    PRIVATE cgs::foundation_database
 )
 add_library(cgs::service_dbproxy ALIAS cgs_service_dbproxy)

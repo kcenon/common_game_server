@@ -279,6 +279,30 @@ target_link_libraries(cgs_service_dbproxy_tests PRIVATE
 )
 gtest_discover_tests(cgs_service_dbproxy_tests)
 
+# Integration tests - service dbproxy (requires CGS_TEST_DB_CONN env var)
+add_executable(cgs_service_dbproxy_integration_tests
+    integration/service/dbproxy_integration_test.cpp
+)
+target_link_libraries(cgs_service_dbproxy_integration_tests PRIVATE
+    cgs::service_dbproxy
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_service_dbproxy_integration_tests
+    PROPERTIES LABELS "integration"
+)
+
+# Benchmark tests - service dbproxy cache latency
+add_executable(cgs_service_dbproxy_benchmark_tests
+    benchmark/service/dbproxy_benchmark_test.cpp
+)
+target_link_libraries(cgs_service_dbproxy_benchmark_tests PRIVATE
+    cgs::service_dbproxy
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_service_dbproxy_benchmark_tests
+    PROPERTIES LABELS "benchmark"
+)
+
 # Integration tests - foundation network
 add_executable(cgs_foundation_network_integration_tests
     integration/foundation/network_integration_test.cpp

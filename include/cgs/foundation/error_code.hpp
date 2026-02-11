@@ -112,6 +112,15 @@ enum class ErrorCode : uint32_t {
     InvalidRating = 0x0C04,
     PartyNotFound = 0x0C05,
     PartyFull = 0x0C06,
+
+    // DBProxy (0x0D00 - 0x0DFF)
+    DBProxyError = 0x0D00,
+    CacheMiss = 0x0D01,
+    CacheInvalidation = 0x0D02,
+    ReplicaUnavailable = 0x0D03,
+    PrimaryUnavailable = 0x0D04,
+    QueryRoutingFailed = 0x0D05,
+    DBProxyNotStarted = 0x0D06,
 };
 
 /// Return the subsystem name for a given error code.
@@ -132,6 +141,7 @@ constexpr std::string_view errorSubsystem(ErrorCode code) {
         case 0x0A00: return "Serialization";
         case 0x0B00: return "GameServer";
         case 0x0C00: return "Lobby";
+        case 0x0D00: return "DBProxy";
         default: return "Unknown";
     }
 }

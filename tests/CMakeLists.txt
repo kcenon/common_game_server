@@ -313,6 +313,38 @@ target_link_libraries(cgs_service_lobby_tests PRIVATE
 )
 gtest_discover_tests(cgs_service_lobby_tests)
 
+# Unit tests - Service party manager (party lifecycle, member management)
+add_executable(cgs_service_party_manager_tests
+    unit/service/party_manager_test.cpp
+)
+target_link_libraries(cgs_service_party_manager_tests PRIVATE
+    cgs::service_lobby
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_service_party_manager_tests)
+
+# Unit tests - Service lobby server (orchestration, party queuing, ELO)
+add_executable(cgs_service_lobby_server_tests
+    unit/service/lobby_server_test.cpp
+)
+target_link_libraries(cgs_service_lobby_server_tests PRIVATE
+    cgs::service_lobby
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_service_lobby_server_tests)
+
+# Integration tests - Service lobby (matchmaking flow, party queuing, benchmark)
+add_executable(cgs_service_lobby_integration_tests
+    integration/service/lobby_integration_test.cpp
+)
+target_link_libraries(cgs_service_lobby_integration_tests PRIVATE
+    cgs::service_lobby
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_service_lobby_integration_tests
+    PROPERTIES LABELS "integration"
+)
+
 # Unit tests - Service dbproxy (query cache, connection pool, dbproxy server)
 add_executable(cgs_service_dbproxy_tests
     unit/service/dbproxy_test.cpp

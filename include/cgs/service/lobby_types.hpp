@@ -4,13 +4,15 @@
 /// @brief Core types for the Lobby Server matchmaking system.
 ///
 /// Defines game modes, regions, player ratings (ELO/MMR),
-/// matchmaking tickets, match results, and queue configuration.
+/// matchmaking tickets, match results, queue configuration,
+/// and party management types.
 ///
 /// @see SRS-SVC-004
 /// @see SDS-MOD-033
 
 #include <chrono>
 #include <cstdint>
+#include <string>
 #include <vector>
 
 namespace cgs::service {
@@ -71,6 +73,47 @@ struct QueueConfig {
     std::chrono::seconds expansionInterval{10};
 
     uint32_t maxQueueSize = 10000;  ///< Maximum players in the queue.
+};
+
+// -- Party types (SRS-SVC-004.3) ---------------------------------------------
+
+/// Unique identifier for a party.
+using PartyId = uint64_t;
+
+/// A member within a party.
+struct PartyMember {
+    uint64_t playerId = 0;
+    std::string name;
+    PlayerRating rating;
+    bool isReady = false;
+};
+
+/// A party (group) of players.
+struct Party {
+    PartyId id = 0;
+    uint64_t leaderId = 0;
+    std::vector<PartyMember> members;
+    uint32_t maxSize = 5;
+    bool inQueue = false;
+    GameMode preferredMode = GameMode::Dungeon;
+};
+
+/// Configuration for the lobby server.
+struct LobbyConfig {
+    /// Queue configuration for matchmaking.
+    QueueConfig queueConfig;
+
+    /// Maximum party size.
+    uint32_t maxPartySize = 5;
+};
+
+/// Runtime statistics for the lobby server.
+struct LobbyStats {
+    std::size_t queuedPlayers = 0;
+    uint64_t matchesFormed = 0;
+    std::size_t activeParties = 0;
+    uint64_t partiesCreated = 0;
+    uint64_t partiesDisbanded = 0;
 };
 
 } // namespace cgs::service

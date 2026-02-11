@@ -116,6 +116,12 @@ enum class ErrorCode : uint32_t {
     InvalidRating = 0x0C04,
     PartyNotFound = 0x0C05,
     PartyFull = 0x0C06,
+    PlayerAlreadyInParty = 0x0C07,
+    NotPartyLeader = 0x0C08,
+    LobbyNotStarted = 0x0C09,
+    LobbyAlreadyStarted = 0x0C0A,
+    NoServerAvailable = 0x0C0B,
+    PlayerNotInParty = 0x0C0C,
 
     // DBProxy (0x0D00 - 0x0DFF)
     DBProxyError = 0x0D00,

@@ -1,0 +1,42 @@
+# Build artifacts
+build/
+out/
+
+# Version control
+.git/
+.gitignore
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Documentation and design
+.ad-sdlc/
+docs/
+
+# Tests and benchmarks (not needed in production images)
+tests/
+benchmarks/
+
+# CI/CD
+.github/
+
+# Claude Code
+.claude/
+
+# Object files and libraries
+*.o
+*.a
+*.so
+*.dylib
+
+# Python cache
+__pycache__/
+*.pyc
+
+# OS files
+.DS_Store
+Thumbs.db

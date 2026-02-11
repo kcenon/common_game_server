@@ -17,3 +17,10 @@ target_link_libraries(cgs_service_game
     PUBLIC cgs_game_inventory_system
 )
 add_library(cgs::service_game ALIAS cgs_service_game)
+
+if(CGS_BUILD_SERVICES)
+    add_executable(cgs_game_server main.cpp)
+    target_link_libraries(cgs_game_server
+        PRIVATE cgs_service_game cgs_service_runner
+    )
+endif()

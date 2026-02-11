@@ -1,0 +1,6 @@
+# Game Service Configuration
+game:
+  tick_rate: 20                 # 20 Hz (50ms per tick)
+  max_instances: 1000
+  spatial_cell_size: 32.0       # World spatial partitioning cell size
+  ai_tick_interval: 0.1         # AI update interval in seconds

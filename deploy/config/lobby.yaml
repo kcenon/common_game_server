@@ -1,0 +1,11 @@
+# Lobby Service Configuration
+lobby:
+  max_party_size: 5
+  queue:
+    min_players_per_match: 2
+    max_players_per_match: 2
+    initial_rating_tolerance: 100
+    max_rating_tolerance: 500
+    expansion_step: 50
+    expansion_interval_seconds: 10
+    max_queue_size: 10000

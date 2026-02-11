@@ -9,3 +9,10 @@ target_link_libraries(cgs_service_dbproxy
     PRIVATE cgs::foundation_database
 )
 add_library(cgs::service_dbproxy ALIAS cgs_service_dbproxy)
+
+if(CGS_BUILD_SERVICES)
+    add_executable(cgs_dbproxy_server main.cpp)
+    target_link_libraries(cgs_dbproxy_server
+        PRIVATE cgs_service_dbproxy cgs_service_runner
+    )
+endif()

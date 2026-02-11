@@ -9,6 +9,11 @@ metadata:
     app.kubernetes.io/part-of: common-game-server
 spec:
   replicas: 2
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 0
+      maxSurge: 1
   selector:
     matchLabels:
       app.kubernetes.io/name: lobby
@@ -20,6 +25,7 @@ spec:
         app.kubernetes.io/part-of: common-game-server
     spec:
       serviceAccountName: cgs-service-account
+      terminationGracePeriodSeconds: 30
       containers:
         - name: lobby
           image: cgs-lobby:latest
@@ -55,6 +61,10 @@ spec:
             periodSeconds: 5
             timeoutSeconds: 2
             failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                command: ["sh", "-c", "sleep 5"]
       volumes:
         - name: config
           configMap:

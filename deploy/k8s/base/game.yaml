@@ -1,0 +1,113 @@
+# GameServer StatefulSet — provides stable network identity and ordered
+# deployment for stateful game instances.  Each pod owns a persistent
+# identity (game-0, game-1, ...) so that the Gateway can route players to
+# the same instance across reconnects (sticky sessions).
+#
+# Headless Service (clusterIP: None) gives each pod a DNS record:
+#   game-<ordinal>.game.cgs-system.svc.cluster.local
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: game
+  namespace: cgs-system
+  labels:
+    app.kubernetes.io/name: game
+    app.kubernetes.io/component: service
+    app.kubernetes.io/part-of: common-game-server
+spec:
+  serviceName: game
+  replicas: 2
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: game
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # Update one pod at a time to preserve running game instances.
+      maxUnavailable: 1
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: game
+        app.kubernetes.io/component: service
+        app.kubernetes.io/part-of: common-game-server
+    spec:
+      serviceAccountName: cgs-service-account
+      terminationGracePeriodSeconds: 60
+      containers:
+        - name: game
+          image: cgs-game:latest
+          ports:
+            - name: game-api
+              containerPort: 9010
+              protocol: TCP
+          env:
+            - name: CGS_CONFIG_PATH
+              value: /etc/cgs/config.yaml
+            # Inject the pod ordinal as an environment variable so the
+            # game server can register a unique instance identity.
+            - name: POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+          volumeMounts:
+            - name: config
+              mountPath: /etc/cgs
+              readOnly: true
+          resources:
+            requests:
+              cpu: 500m
+              memory: 512Mi
+            limits:
+              cpu: "2"
+              memory: 1Gi
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "kill -0 1"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "kill -0 1"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+          lifecycle:
+            preStop:
+              exec:
+                # Allow in-flight game ticks to complete and player sessions
+                # to drain before SIGTERM reaches the process.
+                command: ["sh", "-c", "sleep 10"]
+      volumes:
+        - name: config
+          configMap:
+            name: cgs-config
+            items:
+              - key: game.yaml
+                path: config.yaml
+---
+# Headless Service for StatefulSet DNS resolution.
+# Each pod gets: game-<N>.game.cgs-system.svc.cluster.local
+apiVersion: v1
+kind: Service
+metadata:
+  name: game
+  namespace: cgs-system
+  labels:
+    app.kubernetes.io/name: game
+    app.kubernetes.io/component: service
+    app.kubernetes.io/part-of: common-game-server
+spec:
+  type: ClusterIP
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: game
+  ports:
+    - name: game-api
+      port: 9010
+      targetPort: game-api
+      protocol: TCP

@@ -20,8 +20,11 @@ resources:
   - secrets.yaml
   - auth.yaml
   - gateway.yaml
+  - game.yaml
   - lobby.yaml
   - dbproxy.yaml
+  - hpa.yaml
+  - pdb.yaml
 
 labels:
   - pairs:

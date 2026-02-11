@@ -20,3 +20,20 @@ else()
     message(STATUS "Plugin hot reload: DISABLED (production)")
 endif()
 add_library(cgs::plugin ALIAS cgs_plugin)
+
+# MMORPG Reference Plugin (Issue #29, SDS-MOD-023)
+# Integrates all 6 game systems as a reference implementation.
+add_library(cgs_plugin_mmorpg
+    mmorpg_plugin.cpp
+)
+target_link_libraries(cgs_plugin_mmorpg
+    PUBLIC cgs::plugin
+           cgs::game_object_system
+           cgs::game_combat_system
+           cgs::game_world_system
+           cgs::game_ai_system
+           cgs::game_quest_system
+           cgs::game_inventory_system
+           cgs::ecs_entity_manager
+)
+add_library(cgs::plugin_mmorpg ALIAS cgs_plugin_mmorpg)

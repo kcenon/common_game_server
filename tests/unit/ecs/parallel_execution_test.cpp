@@ -636,7 +636,7 @@ TEST(ParallelPerformanceTest, SpeedupWithIndependentSystems) {
     std::cout << "[PERF] Parallel   (" << kIterations
               << " frames): " << parDuration << " us\n";
     std::cout << "[PERF] Speedup: " << std::fixed << std::setprecision(2)
-              << (static_cast<double>(seqDuration) / parDuration) << "x\n";
+              << (static_cast<double>(seqDuration) / static_cast<double>(parDuration)) << "x\n";
 
     // Parallel should be measurably faster with 4 independent systems
     // on a multi-core machine. Allow generous margin for CI variability.

@@ -103,6 +103,15 @@ enum class ErrorCode : uint32_t {
     MapInstanceInvalidState = 0x0B03,
     GameLoopAlreadyRunning = 0x0B04,
     GameLoopNotRunning = 0x0B05,
+
+    // Lobby (0x0C00 - 0x0CFF)
+    LobbyError = 0x0C00,
+    QueueFull = 0x0C01,
+    AlreadyInQueue = 0x0C02,
+    NotInQueue = 0x0C03,
+    InvalidRating = 0x0C04,
+    PartyNotFound = 0x0C05,
+    PartyFull = 0x0C06,
 };
 
 /// Return the subsystem name for a given error code.
@@ -122,6 +131,7 @@ constexpr std::string_view errorSubsystem(ErrorCode code) {
         case 0x0900: return "Monitoring";
         case 0x0A00: return "Serialization";
         case 0x0B00: return "GameServer";
+        case 0x0C00: return "Lobby";
         default: return "Unknown";
     }
 }

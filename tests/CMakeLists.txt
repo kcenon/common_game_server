@@ -259,6 +259,16 @@ target_link_libraries(cgs_service_game_tests PRIVATE
 )
 gtest_discover_tests(cgs_service_game_tests)
 
+# Unit tests - Service lobby (matchmaking queue, ELO calculator)
+add_executable(cgs_service_lobby_tests
+    unit/service/matchmaking_test.cpp
+)
+target_link_libraries(cgs_service_lobby_tests PRIVATE
+    cgs::service_lobby
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_service_lobby_tests)
+
 # Integration tests - foundation network
 add_executable(cgs_foundation_network_integration_tests
     integration/foundation/network_integration_test.cpp

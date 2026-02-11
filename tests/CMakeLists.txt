@@ -434,3 +434,40 @@ target_link_libraries(cgs_foundation_network_throughput_tests PRIVATE
 gtest_discover_tests(cgs_foundation_network_throughput_tests
     PROPERTIES LABELS "benchmark"
 )
+
+# Benchmark tests - ECS component storage throughput (SRS-NFR-003)
+add_executable(cgs_ecs_component_storage_benchmark_tests
+    benchmark/ecs/component_storage_benchmark_test.cpp
+)
+target_link_libraries(cgs_ecs_component_storage_benchmark_tests PRIVATE
+    cgs::ecs_entity_manager
+    cgs::game_object_system
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_ecs_component_storage_benchmark_tests
+    PROPERTIES LABELS "benchmark"
+)
+
+# Benchmark tests - ECS system scheduler and world tick (SRS-NFR-002)
+add_executable(cgs_ecs_system_scheduler_benchmark_tests
+    benchmark/ecs/system_scheduler_benchmark_test.cpp
+)
+target_link_libraries(cgs_ecs_system_scheduler_benchmark_tests PRIVATE
+    cgs::plugin_mmorpg
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_ecs_system_scheduler_benchmark_tests
+    PROPERTIES LABELS "benchmark"
+)
+
+# Benchmark tests - plugin load time (SRS-NFR-006)
+add_executable(cgs_plugin_load_benchmark_tests
+    benchmark/plugin/plugin_load_benchmark_test.cpp
+)
+target_link_libraries(cgs_plugin_load_benchmark_tests PRIVATE
+    cgs::plugin_mmorpg
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_plugin_load_benchmark_tests
+    PROPERTIES LABELS "benchmark"
+)

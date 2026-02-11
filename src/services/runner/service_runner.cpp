@@ -6,6 +6,7 @@
 #include <chrono>
 #include <csignal>
 #include <cstdlib>
+#include <iostream>
 #include <string_view>
 #include <thread>
 
@@ -75,6 +76,42 @@ std::filesystem::path parseConfigArg(int argc, char* argv[]) {
         }
     }
     return {};
+}
+
+// -- GracefulShutdown --------------------------------------------------------
+
+void GracefulShutdown::addHook(std::string name, ShutdownHook hook) {
+    hooks_.push_back({std::move(name), std::move(hook)});
+}
+
+void GracefulShutdown::execute() {
+    auto deadline = std::chrono::steady_clock::now() + drainTimeout_;
+
+    for (const auto& hook : hooks_) {
+        if (std::chrono::steady_clock::now() >= deadline) {
+            std::cerr << "Graceful shutdown timeout reached, skipping: "
+                      << hook.name << "\n";
+            break;
+        }
+
+        try {
+            hook.callback();
+        } catch (const std::exception& e) {
+            std::cerr << "Shutdown hook '" << hook.name
+                      << "' failed: " << e.what() << "\n";
+        } catch (...) {
+            std::cerr << "Shutdown hook '" << hook.name
+                      << "' failed with unknown error\n";
+        }
+    }
+}
+
+std::size_t GracefulShutdown::hookCount() const {
+    return hooks_.size();
+}
+
+void GracefulShutdown::setDrainTimeout(std::chrono::seconds timeout) {
+    drainTimeout_ = timeout;
 }
 
 } // namespace cgs::service

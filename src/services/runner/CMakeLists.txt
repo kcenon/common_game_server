@@ -1,9 +1,12 @@
 # Service Runner - shared entry-point utilities (signal handling, config loading,
-# health server, circuit breaker)
+# health server, circuit breaker, persistence)
 add_library(cgs_service_runner STATIC
     service_runner.cpp
     circuit_breaker.cpp
     health_server.cpp
+    write_ahead_log.cpp
+    snapshot_manager.cpp
+    persistence_manager.cpp
 )
 target_link_libraries(cgs_service_runner
     PUBLIC cgs_core

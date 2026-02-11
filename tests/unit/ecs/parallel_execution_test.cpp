@@ -482,6 +482,7 @@ TEST(ScratchAllocatorTest, TypedAllocation) {
 
     struct Vec3 {
         float x, y, z;
+        Vec3(float x_, float y_, float z_) : x(x_), y(y_), z(z_) {}
     };
 
     auto* v = scratch.New<Vec3>(1.0f, 2.0f, 3.0f);
@@ -563,7 +564,7 @@ struct HeavySystem : public ISystem {
         // Simulate work: sum a large array.
         volatile float sum = 0.0f;
         for (int i = 0; i < 100'000; ++i) {
-            sum += static_cast<float>(i) * 0.001f;
+            sum = sum + static_cast<float>(i) * 0.001f;
         }
     }
 

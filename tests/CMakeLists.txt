@@ -249,6 +249,28 @@ target_link_libraries(cgs_service_gateway_tests PRIVATE
 )
 gtest_discover_tests(cgs_service_gateway_tests)
 
+# Unit tests - Service gateway server (connection, auth, routing, migration)
+add_executable(cgs_service_gateway_server_tests
+    unit/service/gateway_server_test.cpp
+)
+target_link_libraries(cgs_service_gateway_server_tests PRIVATE
+    cgs::service_gateway
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_service_gateway_server_tests)
+
+# Integration tests - Service gateway (full lifecycle, benchmark)
+add_executable(cgs_service_gateway_integration_tests
+    integration/service/gateway_integration_test.cpp
+)
+target_link_libraries(cgs_service_gateway_integration_tests PRIVATE
+    cgs::service_gateway
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_service_gateway_integration_tests
+    PROPERTIES LABELS "integration"
+)
+
 # Unit tests - Service game (game loop, map instance manager)
 add_executable(cgs_service_game_tests
     unit/service/game_loop_test.cpp

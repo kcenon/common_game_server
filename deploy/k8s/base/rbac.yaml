@@ -1,0 +1,40 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: cgs-service-account
+  namespace: cgs-system
+  labels:
+    app.kubernetes.io/part-of: common-game-server
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: cgs-role
+  namespace: cgs-system
+  labels:
+    app.kubernetes.io/part-of: common-game-server
+rules:
+  # Allow reading ConfigMaps and Secrets for configuration.
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+  # Allow listing pods for service discovery and health checks.
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: cgs-role-binding
+  namespace: cgs-system
+  labels:
+    app.kubernetes.io/part-of: common-game-server
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: cgs-role
+subjects:
+  - kind: ServiceAccount
+    name: cgs-service-account
+    namespace: cgs-system

@@ -1,0 +1,65 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cgs-config
+  namespace: cgs-system
+  labels:
+    app.kubernetes.io/part-of: common-game-server
+data:
+  # Each key is mounted as /etc/cgs/config.yaml in the corresponding deployment.
+  # Service discovery uses K8s DNS: <service>.cgs-system.svc.cluster.local
+
+  auth.yaml: |
+    auth:
+      signing_key: "injected-from-secret"
+      access_token_expiry_seconds: 900
+      refresh_token_expiry_seconds: 604800
+      min_password_length: 8
+      rate_limit_max_attempts: 5
+      rate_limit_window_seconds: 60
+
+  gateway.yaml: |
+    auth:
+      signing_key: "injected-from-secret"
+      access_token_expiry_seconds: 900
+      refresh_token_expiry_seconds: 604800
+    gateway:
+      tcp_port: 8080
+      websocket_port: 8081
+      auth_timeout_seconds: 10
+      rate_limit_capacity: 100
+      rate_limit_refill_rate: 50
+      max_connections: 10000
+      idle_timeout_seconds: 300
+
+  game.yaml: |
+    game:
+      tick_rate: 20
+      max_instances: 1000
+      spatial_cell_size: 32.0
+      ai_tick_interval: 0.1
+
+  lobby.yaml: |
+    lobby:
+      max_party_size: 5
+      queue:
+        min_players_per_match: 2
+        max_players_per_match: 2
+        initial_rating_tolerance: 100
+        max_rating_tolerance: 500
+        expansion_step: 50
+        expansion_interval_seconds: 10
+        max_queue_size: 10000
+
+  dbproxy.yaml: |
+    dbproxy:
+      primary:
+        connection_string: "host=postgres.cgs-system.svc.cluster.local port=5432 dbname=cgs user=cgs password=injected-from-secret"
+        min_connections: 2
+        max_connections: 10
+        connection_timeout_seconds: 30
+      cache:
+        enabled: true
+        max_entries: 10000
+        default_ttl_seconds: 300
+      health_check_interval_seconds: 30

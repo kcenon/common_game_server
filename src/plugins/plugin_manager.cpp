@@ -12,6 +12,7 @@
 #include <unordered_set>
 
 #include "cgs/foundation/error_code.hpp"
+#include "cgs/plugin/plugin_events.hpp"
 #include "cgs/plugin/plugin_export.hpp"
 #include "cgs/plugin/version_constraint.hpp"
 
@@ -31,20 +32,42 @@ namespace cgs::plugin {
 
 // ── Construction / destruction ──────────────────────────────────────────
 
-PluginManager::PluginManager() = default;
+PluginManager::PluginManager() {
+    context_.eventBus = &eventBus_;
+}
 
 PluginManager::~PluginManager() {
     ShutdownAll();
     UnloadAll();
 }
 
-PluginManager::PluginManager(PluginManager&&) noexcept = default;
-PluginManager& PluginManager::operator=(PluginManager&&) noexcept = default;
+PluginManager::PluginManager(PluginManager&& other) noexcept
+    : plugins_(std::move(other.plugins_)),
+      loadOrder_(std::move(other.loadOrder_)),
+      context_(other.context_),
+      eventBus_(std::move(other.eventBus_)) {
+    context_.eventBus = &eventBus_;
+}
+
+PluginManager& PluginManager::operator=(PluginManager&& other) noexcept {
+    if (this != &other) {
+        ShutdownAll();
+        UnloadAll();
+        plugins_ = std::move(other.plugins_);
+        loadOrder_ = std::move(other.loadOrder_);
+        context_ = other.context_;
+        eventBus_ = std::move(other.eventBus_);
+        context_.eventBus = &eventBus_;
+    }
+    return *this;
+}
 
 // ── Context ─────────────────────────────────────────────────────────────
 
 void PluginManager::SetContext(PluginContext ctx) {
     context_ = ctx;
+    // Ensure the event bus always points to our owned instance.
+    context_.eventBus = &eventBus_;
 }
 
 PluginContext& PluginManager::GetContext() noexcept {
@@ -144,12 +167,15 @@ GameResult<void> PluginManager::InitPlugin(std::string_view name) {
 
     if (!entry.plugin->OnInit()) {
         entry.state = PluginState::Error;
+        eventBus_.Publish(PluginErrorEvent{
+            std::string(name), "OnInit() failed"});
         return GameResult<void>::err(
             GameError(ErrorCode::PluginInitFailed,
                       "OnInit() failed for plugin: " + std::string(name)));
     }
 
     entry.state = PluginState::Initialized;
+    eventBus_.Publish(PluginInitializedEvent{std::string(name)});
     return GameResult<void>::ok();
 }
 
@@ -194,6 +220,7 @@ GameResult<void> PluginManager::ActivatePlugin(std::string_view name) {
     }
 
     entry.state = PluginState::Active;
+    eventBus_.Publish(PluginActivatedEvent{std::string(name)});
     return GameResult<void>::ok();
 }
 
@@ -249,6 +276,7 @@ GameResult<void> PluginManager::ShutdownPlugin(std::string_view name) {
                           "' is not in Active or Initialized state"));
     }
 
+    eventBus_.Publish(PluginShutdownEvent{std::string(name)});
     entry.state = PluginState::ShuttingDown;
     entry.plugin->OnShutdown();
     entry.state = PluginState::Loaded;
@@ -267,6 +295,7 @@ void PluginManager::ShutdownAll() {
         if (it != plugins_.end() &&
             (it->second.state == PluginState::Active ||
              it->second.state == PluginState::Initialized)) {
+            eventBus_.Publish(PluginShutdownEvent{name});
             it->second.state = PluginState::ShuttingDown;
             it->second.plugin->OnShutdown();
             it->second.state = PluginState::Loaded;
@@ -368,6 +397,10 @@ std::size_t PluginManager::PluginCount() const noexcept {
     return plugins_.size();
 }
 
+EventBus& PluginManager::GetEventBus() noexcept {
+    return eventBus_;
+}
+
 // ── Private helpers ─────────────────────────────────────────────────────
 
 GameResult<void> PluginManager::loadPluginInstance(
@@ -412,7 +445,12 @@ GameResult<void> PluginManager::loadPluginInstance(
     entry.state = PluginState::Loaded;
     entry.loadedAt = std::chrono::steady_clock::now();
 
-    plugins_.emplace(info.name, std::move(entry));
+    auto pluginName = info.name;
+    auto pluginVersion = info.version;
+    plugins_.emplace(pluginName, std::move(entry));
+
+    eventBus_.Publish(PluginLoadedEvent{pluginName, pluginVersion});
+
     return GameResult<void>::ok();
 }
 

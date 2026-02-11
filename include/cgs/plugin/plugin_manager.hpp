@@ -15,6 +15,7 @@
 #include <vector>
 
 #include "cgs/foundation/game_result.hpp"
+#include "cgs/plugin/event_bus.hpp"
 #include "cgs/plugin/iplugin.hpp"
 #include "cgs/plugin/plugin_types.hpp"
 #include "cgs/plugin/version_constraint.hpp"
@@ -127,6 +128,9 @@ public:
     /// Return the number of loaded plugins.
     [[nodiscard]] std::size_t PluginCount() const noexcept;
 
+    /// Access the event bus owned by this manager.
+    [[nodiscard]] EventBus& GetEventBus() noexcept;
+
     // ── Dependency validation ──────────────────────────────────────────
 
     /// Describes a single dependency issue found during validation.
@@ -192,6 +196,9 @@ private:
 
     /// Plugin context shared with all plugins.
     PluginContext context_;
+
+    /// Event bus for inter-plugin communication and lifecycle events.
+    EventBus eventBus_;
 };
 
 } // namespace cgs::plugin

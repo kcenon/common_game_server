@@ -1,0 +1,30 @@
+# Kustomize base configuration for CGS Kubernetes deployment.
+#
+# Usage:
+#   kubectl apply -k deploy/k8s/base/
+#
+# To customize images for a specific registry:
+#   cd deploy/k8s/base
+#   kustomize edit set image cgs-auth=ghcr.io/kcenon/cgs-auth:v0.1.0
+#   kustomize edit set image cgs-gateway=ghcr.io/kcenon/cgs-gateway:v0.1.0
+#   ...
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: cgs-system
+
+resources:
+  - namespace.yaml
+  - rbac.yaml
+  - configmap.yaml
+  - secrets.yaml
+  - auth.yaml
+  - gateway.yaml
+  - lobby.yaml
+  - dbproxy.yaml
+
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: common-game-server
+      app.kubernetes.io/managed-by: kustomize
+    includeSelectors: false

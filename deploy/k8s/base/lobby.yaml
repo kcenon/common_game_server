@@ -1,0 +1,83 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: lobby
+  namespace: cgs-system
+  labels:
+    app.kubernetes.io/name: lobby
+    app.kubernetes.io/component: service
+    app.kubernetes.io/part-of: common-game-server
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: lobby
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: lobby
+        app.kubernetes.io/component: service
+        app.kubernetes.io/part-of: common-game-server
+    spec:
+      serviceAccountName: cgs-service-account
+      containers:
+        - name: lobby
+          image: cgs-lobby:latest
+          ports:
+            - name: lobby-api
+              containerPort: 9002
+              protocol: TCP
+          env:
+            - name: CGS_CONFIG_PATH
+              value: /etc/cgs/config.yaml
+          volumeMounts:
+            - name: config
+              mountPath: /etc/cgs
+              readOnly: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "kill -0 1"]
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "kill -0 1"]
+            initialDelaySeconds: 3
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+      volumes:
+        - name: config
+          configMap:
+            name: cgs-config
+            items:
+              - key: lobby.yaml
+                path: config.yaml
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: lobby
+  namespace: cgs-system
+  labels:
+    app.kubernetes.io/name: lobby
+    app.kubernetes.io/component: service
+    app.kubernetes.io/part-of: common-game-server
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: lobby
+  ports:
+    - name: lobby-api
+      port: 9002
+      targetPort: lobby-api
+      protocol: TCP

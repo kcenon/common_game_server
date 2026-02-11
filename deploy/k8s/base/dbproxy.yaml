@@ -1,0 +1,93 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dbproxy
+  namespace: cgs-system
+  labels:
+    app.kubernetes.io/name: dbproxy
+    app.kubernetes.io/component: service
+    app.kubernetes.io/part-of: common-game-server
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dbproxy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: dbproxy
+        app.kubernetes.io/component: service
+        app.kubernetes.io/part-of: common-game-server
+    spec:
+      serviceAccountName: cgs-service-account
+      containers:
+        - name: dbproxy
+          image: cgs-dbproxy:latest
+          ports:
+            - name: dbproxy-api
+              containerPort: 9003
+              protocol: TCP
+          env:
+            - name: CGS_CONFIG_PATH
+              value: /etc/cgs/config.yaml
+            - name: CGS_DB_CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: cgs-secrets
+                  key: db-connection-string
+            - name: CGS_DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: cgs-secrets
+                  key: db-password
+          volumeMounts:
+            - name: config
+              mountPath: /etc/cgs
+              readOnly: true
+          resources:
+            requests:
+              cpu: 200m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          livenessProbe:
+            exec:
+              command: ["sh", "-c", "kill -0 1"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 2
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command: ["sh", "-c", "kill -0 1"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            timeoutSeconds: 2
+            failureThreshold: 3
+      volumes:
+        - name: config
+          configMap:
+            name: cgs-config
+            items:
+              - key: dbproxy.yaml
+                path: config.yaml
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: dbproxy
+  namespace: cgs-system
+  labels:
+    app.kubernetes.io/name: dbproxy
+    app.kubernetes.io/component: service
+    app.kubernetes.io/part-of: common-game-server
+spec:
+  type: ClusterIP
+  selector:
+    app.kubernetes.io/name: dbproxy
+  ports:
+    - name: dbproxy-api
+      port: 9003
+      targetPort: dbproxy-api
+      protocol: TCP

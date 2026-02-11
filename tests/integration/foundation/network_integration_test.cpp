@@ -77,11 +77,11 @@ public:
     /// TCP facade auto-starts the connection inside create_client().
     bool connectTCP(uint16_t port) {
         facade::tcp_facade tcp;
-        client_ = tcp.create_client({
-            .host = "127.0.0.1",
-            .port = port,
-            .client_id = "test-tcp-client"
-        });
+        facade::tcp_facade::client_config cfg{};
+        cfg.host = "127.0.0.1";
+        cfg.port = port;
+        cfg.client_id = "test-tcp-client";
+        client_ = tcp.create_client(cfg);
         attachObserver();
         return awaitConnection(kConnectTimeout);
     }

@@ -1,0 +1,86 @@
+#pragma once
+
+/// @file auth_server.hpp
+/// @brief Authentication server for registration, login, and token management.
+///
+/// Orchestrates UserRepository, TokenStore, TokenProvider, PasswordHasher,
+/// and RateLimiter into a complete authentication service.
+///
+/// @see SRS-SVC-001
+
+#include <memory>
+#include <string>
+#include <string_view>
+
+#include "cgs/foundation/game_result.hpp"
+#include "cgs/service/auth_types.hpp"
+
+namespace cgs::service {
+
+class IUserRepository;
+class ITokenStore;
+class TokenProvider;
+class PasswordHasher;
+class RateLimiter;
+
+/// Authentication server implementing user registration, login/logout,
+/// JWT token issuance, refresh token management, and token revocation.
+///
+/// Example:
+/// @code
+///   auto userRepo = std::make_shared<InMemoryUserRepository>();
+///   auto tokenStore = std::make_shared<InMemoryTokenStore>();
+///   AuthServer server(AuthConfig{}, userRepo, tokenStore);
+///
+///   auto reg = server.registerUser({"alice", "alice@example.com", "Pa$$w0rd!"});
+///   auto tokens = server.login("alice", "Pa$$w0rd!", "127.0.0.1");
+/// @endcode
+class AuthServer {
+public:
+    /// Construct with configuration and storage backends.
+    AuthServer(AuthConfig config,
+               std::shared_ptr<IUserRepository> userRepo,
+               std::shared_ptr<ITokenStore> tokenStore);
+
+    ~AuthServer();
+
+    AuthServer(const AuthServer&) = delete;
+    AuthServer& operator=(const AuthServer&) = delete;
+    AuthServer(AuthServer&&) noexcept;
+    AuthServer& operator=(AuthServer&&) noexcept;
+
+    /// Register a new user (SRS-SVC-001.1).
+    [[nodiscard]] cgs::foundation::GameResult<UserRecord> registerUser(
+        const UserCredentials& credentials);
+
+    /// Authenticate and issue tokens (SRS-SVC-001.2, SRS-SVC-001.3).
+    [[nodiscard]] cgs::foundation::GameResult<TokenPair> login(
+        std::string_view username,
+        std::string_view password,
+        const std::string& clientIp);
+
+    /// Refresh an access token using a refresh token (SRS-SVC-001.4).
+    [[nodiscard]] cgs::foundation::GameResult<TokenPair> refreshToken(
+        std::string_view refreshToken);
+
+    /// Logout by revoking the refresh token (SRS-SVC-001.5).
+    [[nodiscard]] cgs::foundation::GameResult<void> logout(
+        std::string_view refreshToken);
+
+    /// Validate an access token and return decoded claims.
+    [[nodiscard]] cgs::foundation::GameResult<TokenClaims> validateToken(
+        std::string_view accessToken) const;
+
+private:
+    [[nodiscard]] bool isValidEmail(std::string_view email) const;
+    [[nodiscard]] bool isStrongPassword(std::string_view password) const;
+
+    AuthConfig config_;
+    std::shared_ptr<IUserRepository> userRepo_;
+    std::shared_ptr<ITokenStore> tokenStore_;
+    std::unique_ptr<TokenProvider> tokenProvider_;
+    std::unique_ptr<PasswordHasher> passwordHasher_;
+    std::unique_ptr<RateLimiter> rateLimiter_;
+};
+
+} // namespace cgs::service

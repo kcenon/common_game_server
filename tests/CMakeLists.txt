@@ -281,6 +281,28 @@ target_link_libraries(cgs_service_game_tests PRIVATE
 )
 gtest_discover_tests(cgs_service_game_tests)
 
+# Unit tests - Service game server (world simulation, player lifecycle)
+add_executable(cgs_service_game_server_tests
+    unit/service/game_server_test.cpp
+)
+target_link_libraries(cgs_service_game_server_tests PRIVATE
+    cgs::service_game
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_service_game_server_tests)
+
+# Integration tests - Service game server (multi-player simulation, benchmark)
+add_executable(cgs_service_game_server_integration_tests
+    integration/service/game_server_integration_test.cpp
+)
+target_link_libraries(cgs_service_game_server_integration_tests PRIVATE
+    cgs::service_game
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_service_game_server_integration_tests
+    PROPERTIES LABELS "integration"
+)
+
 # Unit tests - Service lobby (matchmaking queue, ELO calculator)
 add_executable(cgs_service_lobby_tests
     unit/service/matchmaking_test.cpp

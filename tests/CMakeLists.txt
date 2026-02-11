@@ -471,3 +471,28 @@ target_link_libraries(cgs_plugin_load_benchmark_tests PRIVATE
 gtest_discover_tests(cgs_plugin_load_benchmark_tests
     PROPERTIES LABELS "benchmark"
 )
+
+# Benchmark tests - ECS memory profiling (SRS-NFR-005)
+add_executable(cgs_ecs_memory_profiling_benchmark_tests
+    benchmark/ecs/memory_profiling_benchmark_test.cpp
+)
+target_link_libraries(cgs_ecs_memory_profiling_benchmark_tests PRIVATE
+    cgs::plugin_mmorpg
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_ecs_memory_profiling_benchmark_tests
+    PROPERTIES LABELS "benchmark"
+)
+
+# Benchmark tests - message serialization throughput (SRS-NFR-001)
+add_executable(cgs_message_serialization_benchmark_tests
+    benchmark/foundation/message_serialization_benchmark_test.cpp
+)
+target_link_libraries(cgs_message_serialization_benchmark_tests PRIVATE
+    cgs::foundation_network
+    cgs::foundation_container
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_message_serialization_benchmark_tests
+    PROPERTIES LABELS "benchmark"
+)

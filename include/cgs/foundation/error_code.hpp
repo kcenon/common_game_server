@@ -121,6 +121,17 @@ enum class ErrorCode : uint32_t {
     PrimaryUnavailable = 0x0D04,
     QueryRoutingFailed = 0x0D05,
     DBProxyNotStarted = 0x0D06,
+
+    // Gateway (0x0E00 - 0x0EFF)
+    GatewayError = 0x0E00,
+    GatewayNotStarted = 0x0E01,
+    GatewayAlreadyStarted = 0x0E02,
+    ConnectionLimitReached = 0x0E03,
+    ClientNotAuthenticated = 0x0E04,
+    RouteNotFound = 0x0E05,
+    MigrationFailed = 0x0E06,
+    GatewayRateLimited = 0x0E07,
+    AuthTimeoutExpired = 0x0E08,
 };
 
 /// Return the subsystem name for a given error code.
@@ -142,6 +153,7 @@ constexpr std::string_view errorSubsystem(ErrorCode code) {
         case 0x0B00: return "GameServer";
         case 0x0C00: return "Lobby";
         case 0x0D00: return "DBProxy";
+        case 0x0E00: return "Gateway";
         default: return "Unknown";
     }
 }

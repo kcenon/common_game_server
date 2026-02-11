@@ -8,6 +8,7 @@
 #include <mutex>
 #include <unordered_map>
 
+#include "cgs/foundation/game_metrics.hpp"
 #include "cgs/ecs/component_storage.hpp"
 #include "cgs/ecs/entity.hpp"
 #include "cgs/ecs/entity_manager.hpp"
@@ -193,6 +194,19 @@ GameResult<void> GameServer::start() {
         impl_->entities.FlushDeferred();
     });
 
+    // Register tick metrics with Prometheus-compatible histogram.
+    auto& metrics = cgs::foundation::GameMetrics::instance();
+    metrics.registerHistogram("cgs_tick_ms",
+        cgs::foundation::HistogramBuckets::defaultLatency());
+
+    impl_->gameLoop.setMetricsCallback(
+        [&metrics](const cgs::service::TickMetrics& tm) {
+            auto ms = static_cast<double>(tm.updateTime.count()) / 1000.0;
+            metrics.recordHistogram("cgs_tick_ms", ms);
+            metrics.setGauge("cgs_tick_budget_utilization",
+                             static_cast<double>(tm.budgetUtilization));
+        });
+
     if (!impl_->gameLoop.start()) {
         return GameResult<void>::err(
             GameError(ErrorCode::GameLoopAlreadyRunning,
@@ -366,6 +380,9 @@ GameResult<cgs::ecs::Entity> GameServer::addPlayer(
 
     impl_->playersJoined.fetch_add(1, std::memory_order_relaxed);
 
+    cgs::foundation::GameMetrics::instance().setGauge(
+        "cgs_ccu", static_cast<double>(impl_->playerSessions.size()));
+
     return GameResult<cgs::ecs::Entity>::ok(entity);
 }
 
@@ -389,6 +406,9 @@ GameResult<void> GameServer::removePlayer(PlayerId playerId) {
     impl_->entities.Destroy(session.entity);
 
     impl_->playersLeft.fetch_add(1, std::memory_order_relaxed);
+
+    cgs::foundation::GameMetrics::instance().setGauge(
+        "cgs_ccu", static_cast<double>(impl_->playerSessions.size()));
 
     return GameResult<void>::ok();
 }

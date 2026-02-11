@@ -10,8 +10,10 @@
 #include <vector>
 
 #include "cgs/foundation/config_manager.hpp"
+#include "cgs/foundation/game_metrics.hpp"
 #include "cgs/service/dbproxy_server.hpp"
 #include "cgs/service/dbproxy_types.hpp"
+#include "cgs/service/health_server.hpp"
 #include "cgs/service/service_runner.hpp"
 
 namespace {
@@ -102,6 +104,18 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
+    // Health server + metrics.
+    auto& metrics = cgs::foundation::GameMetrics::instance();
+    cgs::service::HealthServer health(
+        {.port = 9103, .serviceName = "dbproxy"}, metrics);
+
+    auto healthResult = health.start();
+    if (!healthResult) {
+        std::cerr << "Failed to start health server: "
+                  << healthResult.error().message() << "\n";
+        return EXIT_FAILURE;
+    }
+
     auto dbCfg = buildDBProxyConfig(config);
     cgs::service::DBProxyServer server(dbCfg);
 
@@ -112,14 +126,19 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
+    health.setReady(true);
+
     std::cout << "DBProxy server started (primary: "
               << dbCfg.primary.connectionString
-              << ", replicas: " << dbCfg.replicas.size() << ")\n";
+              << ", replicas: " << dbCfg.replicas.size()
+              << ", health_port: 9103)\n";
 
     signals.waitForShutdown();
 
     std::cout << "Shutting down dbproxy server...\n";
+    health.setReady(false);
     server.stop();
+    health.stop();
     std::cout << "DBProxy server stopped\n";
     return EXIT_SUCCESS;
 }

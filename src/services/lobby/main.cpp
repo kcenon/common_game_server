@@ -8,6 +8,8 @@
 #include <iostream>
 
 #include "cgs/foundation/config_manager.hpp"
+#include "cgs/foundation/game_metrics.hpp"
+#include "cgs/service/health_server.hpp"
 #include "cgs/service/lobby_server.hpp"
 #include "cgs/service/lobby_types.hpp"
 #include "cgs/service/service_runner.hpp"
@@ -82,6 +84,18 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
+    // Health server + metrics.
+    auto& metrics = cgs::foundation::GameMetrics::instance();
+    cgs::service::HealthServer health(
+        {.port = 9102, .serviceName = "lobby"}, metrics);
+
+    auto healthResult = health.start();
+    if (!healthResult) {
+        std::cerr << "Failed to start health server: "
+                  << healthResult.error().message() << "\n";
+        return EXIT_FAILURE;
+    }
+
     auto lobbyCfg = buildLobbyConfig(config);
     cgs::service::LobbyServer server(lobbyCfg);
 
@@ -92,13 +106,18 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
+    health.setReady(true);
+
     std::cout << "Lobby server started (max_party: " << lobbyCfg.maxPartySize
-              << ", max_queue: " << lobbyCfg.queueConfig.maxQueueSize << ")\n";
+              << ", max_queue: " << lobbyCfg.queueConfig.maxQueueSize
+              << ", health_port: 9102)\n";
 
     signals.waitForShutdown();
 
     std::cout << "Shutting down lobby server...\n";
+    health.setReady(false);
     server.stop();
+    health.stop();
     std::cout << "Lobby server stopped\n";
     return EXIT_SUCCESS;
 }

@@ -10,8 +10,10 @@
 #include <memory>
 
 #include "cgs/foundation/config_manager.hpp"
+#include "cgs/foundation/game_metrics.hpp"
 #include "cgs/service/auth_server.hpp"
 #include "cgs/service/auth_types.hpp"
+#include "cgs/service/health_server.hpp"
 #include "cgs/service/service_runner.hpp"
 #include "cgs/service/token_store.hpp"
 #include "cgs/service/user_repository.hpp"
@@ -74,6 +76,18 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
+    // Health server + metrics.
+    auto& metrics = cgs::foundation::GameMetrics::instance();
+    cgs::service::HealthServer health(
+        {.port = 9101, .serviceName = "auth"}, metrics);
+
+    auto healthResult = health.start();
+    if (!healthResult) {
+        std::cerr << "Failed to start health server: "
+                  << healthResult.error().message() << "\n";
+        return EXIT_FAILURE;
+    }
+
     auto authConfig = buildAuthConfig(config);
 
     // In-memory backends for standalone development mode.
@@ -82,11 +96,15 @@ int main(int argc, char* argv[]) {
 
     cgs::service::AuthServer server(authConfig, userRepo, tokenStore);
 
+    health.setReady(true);
+
     std::cout << "Auth service started (config: " << configPath.string()
-              << ")\n";
+              << ", health_port: 9101)\n";
 
     signals.waitForShutdown();
 
+    health.setReady(false);
+    health.stop();
     std::cout << "Auth service stopped\n";
     return EXIT_SUCCESS;
 }

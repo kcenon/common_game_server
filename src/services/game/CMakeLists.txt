@@ -6,6 +6,7 @@ add_library(cgs_service_game
 )
 target_link_libraries(cgs_service_game
     PUBLIC cgs_core
+    PUBLIC cgs_foundation_monitoring
     PUBLIC cgs_ecs_component_storage
     PUBLIC cgs_ecs_entity_manager
     PUBLIC cgs_ecs_system_scheduler

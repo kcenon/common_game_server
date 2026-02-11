@@ -101,3 +101,7 @@ spec:
       port: 9001
       targetPort: auth-api
       protocol: TCP
+    - name: metrics
+      port: 9101
+      targetPort: health
+      protocol: TCP

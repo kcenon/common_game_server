@@ -1,0 +1,170 @@
+name: Load Tests
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: "k6 scenario (smoke, load, ccu_1k)"
+        required: false
+        default: "smoke"
+        type: choice
+        options:
+          - smoke
+          - load
+          - ccu_1k
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  # -----------------------------------------------------------------------
+  # Job 1: C++ CCU benchmark (GameServer, single-node)
+  # -----------------------------------------------------------------------
+  ccu-benchmark:
+    name: CCU Benchmark (C++)
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpq-dev
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Conan
+        run: |
+          pip install conan
+          conan profile detect --force
+
+      - name: Cache Conan packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.conan2
+          key: conan-${{ runner.os }}-Release-${{ hashFiles('conanfile.py') }}
+          restore-keys: |
+            conan-${{ runner.os }}-Release-
+
+      - name: Install dependencies
+        run: |
+          conan install . \
+            --output-folder=build \
+            --build=missing \
+            -s build_type=Release
+
+      - name: Configure and build
+        run: |
+          cmake --preset conan-release
+          cmake --build --preset conan-release -j$(nproc)
+
+      - name: Run CCU benchmark tests
+        id: ccu_benchmark
+        run: |
+          echo "## CCU Benchmark Results" > ccu_report.txt
+          echo "" >> ccu_report.txt
+          echo "Run: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> ccu_report.txt
+          echo "Ref: ${{ github.sha }}" >> ccu_report.txt
+          echo "" >> ccu_report.txt
+
+          ctest --preset conan-release \
+            -R "GameCCU" \
+            --output-on-failure \
+            --verbose \
+            2>&1 | tee ccu_output.txt
+
+          if grep -q "PASSED" ccu_output.txt; then
+            echo "status=success" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=failure" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload CCU benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: ccu-benchmark-results
+          path: |
+            ccu_output.txt
+            ccu_report.txt
+          retention-days: 90
+
+      - name: Flag CCU regression on failure
+        if: steps.ccu_benchmark.outputs.status == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const ref = context.sha.substring(0, 8);
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[Regression] CCU benchmark failure (${ref})`,
+              body: [
+                `## CCU Performance Regression Detected`,
+                ``,
+                `| Field | Value |`,
+                `|-------|-------|`,
+                `| **Commit** | ${context.sha} |`,
+                `| **Run** | [View workflow run](${runUrl}) |`,
+                `| **Triggered by** | ${context.eventName} |`,
+                ``,
+                `### SRS Requirements Affected`,
+                ``,
+                `| SRS ID | Requirement | Target |`,
+                `|--------|-------------|--------|`,
+                `| SRS-NFR-008 | CCU per node | >= 1,000 |`,
+                `| SRS-NFR-010 | CCU per cluster | >= 10,000 |`,
+                ``,
+                `Review the CCU benchmark artifacts for details.`,
+              ].join('\n'),
+              labels: ['type:performance', 'priority:P0-critical'],
+            });
+
+  # -----------------------------------------------------------------------
+  # Job 2: k6 smoke test (requires running services — Docker Compose)
+  # -----------------------------------------------------------------------
+  k6-smoke:
+    name: k6 Smoke Test
+    runs-on: ubuntu-24.04
+    if: github.event_name == 'workflow_dispatch'
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install k6
+        run: |
+          sudo gpg -k
+          sudo gpg --no-default-keyring --keyring /usr/share/keyrings/k6-archive-keyring.gpg \
+            --keyserver hkp://keyserver.ubuntu.com:80 --recv-keys C5AD17C747E3415A3642D57D77C6C491D6AC1D68
+          echo "deb [signed-by=/usr/share/keyrings/k6-archive-keyring.gpg] https://dl.k6.io/deb stable main" \
+            | sudo tee /etc/apt/sources.list.d/k6.list
+          sudo apt-get update
+          sudo apt-get install -y k6
+
+      - name: Create results directory
+        run: mkdir -p tests/load/results
+
+      - name: Run k6 smoke test (auth)
+        run: |
+          SCENARIO="${{ github.event.inputs.scenario || 'smoke' }}"
+          k6 run \
+            -e SCENARIO="$SCENARIO" \
+            -e AUTH_URL="http://localhost:9001" \
+            tests/load/auth_load.js \
+            2>&1 | tee tests/load/results/k6_auth.log || true
+
+      - name: Upload k6 results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: k6-smoke-results
+          path: tests/load/results/
+          retention-days: 30

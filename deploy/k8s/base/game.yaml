@@ -42,6 +42,9 @@ spec:
             - name: game-api
               containerPort: 9010
               protocol: TCP
+            - name: health
+              containerPort: 9110
+              protocol: TCP
           env:
             - name: CGS_CONFIG_PATH
               value: /etc/cgs/config.yaml
@@ -63,15 +66,17 @@ spec:
               cpu: "2"
               memory: 1Gi
           livenessProbe:
-            exec:
-              command: ["sh", "-c", "kill -0 1"]
+            httpGet:
+              path: /healthz
+              port: health
             initialDelaySeconds: 10
             periodSeconds: 10
             timeoutSeconds: 2
             failureThreshold: 3
           readinessProbe:
-            exec:
-              command: ["sh", "-c", "kill -0 1"]
+            httpGet:
+              path: /readyz
+              port: health
             initialDelaySeconds: 5
             periodSeconds: 5
             timeoutSeconds: 2

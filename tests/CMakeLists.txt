@@ -508,3 +508,14 @@ target_link_libraries(cgs_game_ccu_benchmark_tests PRIVATE
 gtest_discover_tests(cgs_game_ccu_benchmark_tests
     PROPERTIES LABELS "benchmark"
 )
+
+# Unit tests - Service reliability (circuit breaker, health server)
+add_executable(cgs_service_reliability_tests
+    unit/service/reliability_test.cpp
+)
+target_link_libraries(cgs_service_reliability_tests PRIVATE
+    cgs::service_runner
+    cgs::foundation_monitoring
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_service_reliability_tests)

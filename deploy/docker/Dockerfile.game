@@ -1,0 +1,63 @@
+# Dockerfile.game — Multi-stage build for the Game service executable.
+#
+# Build:  docker build -f deploy/docker/Dockerfile.game -t cgs-game .
+# Run:    docker run --rm cgs-game
+
+# ── Stage 1: Build ───────────────────────────────────────────────────────────
+FROM ubuntu:24.04 AS builder
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        build-essential \
+        cmake \
+        git \
+        python3-pip \
+        python3-venv \
+        libpq-dev \
+        pkg-config \
+        ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN python3 -m venv /opt/conan && \
+    /opt/conan/bin/pip install --no-cache-dir conan && \
+    ln -s /opt/conan/bin/conan /usr/local/bin/conan && \
+    conan profile detect --force
+
+WORKDIR /src
+
+COPY conanfile.py CMakeLists.txt ./
+COPY cmake/ cmake/
+
+RUN conan install . \
+        --output-folder=build \
+        --build=missing \
+        -s build_type=Release \
+        -o build_tests=False \
+        -o build_benchmarks=False \
+        -o build_services=True
+
+COPY . .
+
+RUN cmake -S . -B build \
+        -DCMAKE_TOOLCHAIN_FILE=build/conan_toolchain.cmake \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCGS_BUILD_SERVICES=ON \
+        -DCGS_BUILD_TESTS=OFF \
+        -DCGS_BUILD_BENCHMARKS=OFF \
+    && cmake --build build --target cgs_game_server -j"$(nproc)"
+
+# ── Stage 2: Runtime ─────────────────────────────────────────────────────────
+FROM ubuntu:24.04
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+        libpq5 \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN groupadd -r cgs && useradd -r -g cgs -d /opt/cgs cgs
+
+COPY --from=builder /src/build/src/services/game/cgs_game_server /usr/local/bin/
+COPY deploy/config/game.yaml /etc/cgs/config.yaml
+
+USER cgs
+ENTRYPOINT ["cgs_game_server", "--config", "/etc/cgs/config.yaml"]

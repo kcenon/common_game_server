@@ -1,0 +1,80 @@
+# Docker Compose for local full-stack development.
+#
+# Usage:
+#   cd deploy
+#   docker compose up --build
+#
+# All service images are built from the project root context.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: cgs
+      POSTGRES_USER: cgs
+      POSTGRES_PASSWORD: cgs_dev
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U cgs"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  auth:
+    build:
+      context: ../
+      dockerfile: deploy/docker/Dockerfile.auth
+    depends_on:
+      postgres:
+        condition: service_healthy
+    ports:
+      - "9001:9001"
+    environment:
+      CGS_CONFIG_PATH: /etc/cgs/config.yaml
+
+  gateway:
+    build:
+      context: ../
+      dockerfile: deploy/docker/Dockerfile.gateway
+    depends_on:
+      - auth
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+    environment:
+      CGS_CONFIG_PATH: /etc/cgs/config.yaml
+
+  game:
+    build:
+      context: ../
+      dockerfile: deploy/docker/Dockerfile.game
+    depends_on:
+      - gateway
+    environment:
+      CGS_CONFIG_PATH: /etc/cgs/config.yaml
+
+  lobby:
+    build:
+      context: ../
+      dockerfile: deploy/docker/Dockerfile.lobby
+    depends_on:
+      - gateway
+    environment:
+      CGS_CONFIG_PATH: /etc/cgs/config.yaml
+
+  dbproxy:
+    build:
+      context: ../
+      dockerfile: deploy/docker/Dockerfile.dbproxy
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      CGS_CONFIG_PATH: /etc/cgs/config.yaml
+      CGS_DBPROXY_PRIMARY_CONNECTION: "host=postgres port=5432 dbname=cgs user=cgs password=cgs_dev"
+
+volumes:
+  pgdata:

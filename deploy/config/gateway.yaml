@@ -1,0 +1,14 @@
+# Gateway Service Configuration
+auth:
+  signing_key: "change-me-in-production"
+  access_token_expiry_seconds: 900
+  refresh_token_expiry_seconds: 604800
+
+gateway:
+  tcp_port: 8080
+  websocket_port: 8081
+  auth_timeout_seconds: 10
+  rate_limit_capacity: 100
+  rate_limit_refill_rate: 50
+  max_connections: 10000
+  idle_timeout_seconds: 300

@@ -1,0 +1,14 @@
+# DBProxy Service Configuration
+dbproxy:
+  primary:
+    connection_string: "host=localhost port=5432 dbname=cgs user=cgs password=cgs_dev"
+    min_connections: 2
+    max_connections: 10
+    connection_timeout_seconds: 30
+
+  cache:
+    enabled: true
+    max_entries: 10000
+    default_ttl_seconds: 300
+
+  health_check_interval_seconds: 30

@@ -1,0 +1,8 @@
+# Auth Service Configuration
+auth:
+  signing_key: "change-me-in-production"
+  access_token_expiry_seconds: 900       # 15 minutes
+  refresh_token_expiry_seconds: 604800   # 7 days
+  min_password_length: 8
+  rate_limit_max_attempts: 5
+  rate_limit_window_seconds: 60

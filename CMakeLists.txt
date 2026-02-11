@@ -20,6 +20,7 @@ option(CGS_BUILD_TESTS "Build unit and integration tests" ON)
 option(CGS_BUILD_BENCHMARKS "Build performance benchmarks" OFF)
 option(CGS_ENABLE_SANITIZERS "Enable address and undefined behavior sanitizers" OFF)
 option(CGS_HOT_RELOAD "Enable plugin hot reload (development only)" OFF)
+option(CGS_BUILD_SERVICES "Build service executables" OFF)
 
 # Compiler warning flags
 add_library(cgs_warnings INTERFACE)

@@ -12,10 +12,12 @@ class CommonGameServerConan(ConanFile):
     options = {
         "build_tests": [True, False],
         "build_benchmarks": [True, False],
+        "build_services": [True, False],
     }
     default_options = {
         "build_tests": True,
         "build_benchmarks": False,
+        "build_services": False,
     }
 
     def requirements(self):
@@ -36,6 +38,7 @@ class CommonGameServerConan(ConanFile):
         tc = CMakeToolchain(self)
         tc.variables["CGS_BUILD_TESTS"] = bool(self.options.build_tests)
         tc.variables["CGS_BUILD_BENCHMARKS"] = bool(self.options.build_benchmarks)
+        tc.variables["CGS_BUILD_SERVICES"] = bool(self.options.build_services)
         tc.generate()
 
     def build(self):

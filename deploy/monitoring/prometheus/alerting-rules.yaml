@@ -1,0 +1,171 @@
+# PrometheusRule for CGS SLO-based alerting.
+#
+# SLO targets (SRS-NFR-011~013):
+#   - Uptime: 99.9% (43 min/month downtime budget)
+#   - MTTR: <= 5 minutes
+#   - Data loss: zero on crash
+#
+# Requires Prometheus Operator (PrometheusRule CRD).
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: cgs-reliability-alerts
+  namespace: cgs-system
+  labels:
+    app.kubernetes.io/part-of: common-game-server
+    release: prometheus
+spec:
+  groups:
+    # ── Uptime SLO (99.9%) ──────────────────────────────────────────────
+    - name: cgs-uptime
+      interval: 30s
+      rules:
+        # Warning: any single service has been down for > 1 minute.
+        - alert: CGSServiceDown
+          expr: up{namespace="cgs-system"} == 0
+          for: 1m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: "CGS service {{ $labels.job }} is down"
+            description: >-
+              Service {{ $labels.job }} in namespace {{ $labels.namespace }}
+              has been unreachable for more than 1 minute.
+            runbook_url: "https://github.com/kcenon/common_game_server/wiki/runbook-service-down"
+
+        # Critical: service down > 5 minutes (MTTR SLO violation).
+        - alert: CGSServiceMTTRBreached
+          expr: up{namespace="cgs-system"} == 0
+          for: 5m
+          labels:
+            severity: critical
+            team: platform
+            slo: mttr
+          annotations:
+            summary: "MTTR SLO breached: {{ $labels.job }} down > 5min"
+            description: >-
+              Service {{ $labels.job }} has been down for over 5 minutes,
+              exceeding the MTTR SLO of 5 minutes (SRS-NFR-012).
+            runbook_url: "https://github.com/kcenon/common_game_server/wiki/runbook-mttr-breach"
+
+        # Critical: uptime SLO burn rate too high.
+        # If the 1-hour error rate would exhaust the monthly error budget
+        # in 3 days, fire an alert.
+        - alert: CGSUptimeBurnRateHigh
+          expr: |
+            (
+              1 - avg_over_time(up{namespace="cgs-system"}[1h])
+            ) > (1 - 0.999) * 720
+          for: 5m
+          labels:
+            severity: critical
+            team: platform
+            slo: uptime
+          annotations:
+            summary: "99.9% uptime SLO burn rate too high"
+            description: >-
+              The current error rate for CGS services would exhaust the
+              monthly 99.9% uptime budget within 3 days. Investigate
+              immediately.
+
+    # ── Service Health ──────────────────────────────────────────────────
+    - name: cgs-health
+      interval: 30s
+      rules:
+        # Warning: readiness probe failing (not accepting traffic).
+        - alert: CGSServiceNotReady
+          expr: |
+            cgs_health_ready{namespace="cgs-system"} == 0
+          for: 2m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: "CGS service {{ $labels.service }} not ready"
+            description: >-
+              Service {{ $labels.service }} has been reporting not-ready
+              for over 2 minutes. It is not receiving traffic.
+
+        # Warning: high restart count (possible crash loop).
+        - alert: CGSPodRestartHigh
+          expr: |
+            increase(kube_pod_container_status_restarts_total{
+              namespace="cgs-system"
+            }[1h]) > 3
+          for: 0s
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: "Pod {{ $labels.pod }} restarting frequently"
+            description: >-
+              Container {{ $labels.container }} in pod {{ $labels.pod }}
+              has restarted more than 3 times in the last hour.
+
+    # ── Game Server Performance ─────────────────────────────────────────
+    - name: cgs-performance
+      interval: 30s
+      rules:
+        # Warning: game tick taking too long (> 50ms at p99).
+        - alert: CGSGameTickSlow
+          expr: |
+            histogram_quantile(0.99,
+              rate(cgs_tick_ms_bucket{namespace="cgs-system"}[5m])
+            ) > 50
+          for: 5m
+          labels:
+            severity: warning
+            team: game
+          annotations:
+            summary: "Game tick p99 latency exceeds 50ms"
+            description: >-
+              The 99th percentile game tick duration has been above 50ms
+              for 5 minutes. This may cause visible lag for players.
+
+        # Critical: game tick budget exceeded (> 100% utilization).
+        - alert: CGSGameTickOverBudget
+          expr: |
+            cgs_tick_budget_utilization{namespace="cgs-system"} > 1.0
+          for: 2m
+          labels:
+            severity: critical
+            team: game
+          annotations:
+            summary: "Game tick consistently over budget"
+            description: >-
+              Game server tick is consistently exceeding its time budget.
+              Players may experience severe lag or desync.
+
+    # ── Data Persistence ────────────────────────────────────────────────
+    - name: cgs-persistence
+      interval: 30s
+      rules:
+        # Warning: WAL entries growing without snapshot.
+        - alert: CGSWalEntriesHigh
+          expr: |
+            cgs_wal_pending_entries{namespace="cgs-system"} > 10000
+          for: 5m
+          labels:
+            severity: warning
+            team: platform
+          annotations:
+            summary: "WAL has > 10k pending entries"
+            description: >-
+              The Write-Ahead Log has accumulated over 10,000 entries
+              without a successful snapshot. Check snapshot scheduler.
+
+        # Critical: snapshot age too old (> 5 minutes).
+        - alert: CGSSnapshotStale
+          expr: |
+            (time() - cgs_last_snapshot_timestamp{namespace="cgs-system"}) > 300
+          for: 2m
+          labels:
+            severity: critical
+            team: platform
+            slo: data_durability
+          annotations:
+            summary: "Player data snapshot is stale (> 5min)"
+            description: >-
+              No successful snapshot has been taken in the last 5 minutes.
+              Data loss window is growing beyond acceptable limits.

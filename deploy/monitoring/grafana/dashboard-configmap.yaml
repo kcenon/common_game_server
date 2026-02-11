@@ -1,0 +1,17 @@
+# ConfigMap to auto-provision the CGS dashboard into Grafana.
+#
+# Requires Grafana sidecar (kube-prometheus-stack default) configured to
+# watch for ConfigMaps with label: grafana_dashboard=1
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cgs-grafana-dashboard
+  namespace: cgs-system
+  labels:
+    app.kubernetes.io/part-of: common-game-server
+    grafana_dashboard: "1"
+data:
+  cgs-reliability-overview.json: |
+    # Import from: deploy/monitoring/grafana/cgs-overview-dashboard.json
+    # The actual JSON content should be embedded here during deployment.
+    # Use kustomize configMapGenerator or a CI step to inline the dashboard JSON.

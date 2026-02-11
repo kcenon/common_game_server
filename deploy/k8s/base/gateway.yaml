@@ -108,3 +108,7 @@ spec:
       port: 8081
       targetPort: websocket
       protocol: TCP
+    - name: metrics
+      port: 9100
+      targetPort: health
+      protocol: TCP

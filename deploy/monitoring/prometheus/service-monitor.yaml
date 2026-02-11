@@ -1,0 +1,28 @@
+# ServiceMonitor for Prometheus Operator — auto-discovers all CGS services.
+#
+# Requires:
+#   - Prometheus Operator installed (kube-prometheus-stack or equivalent)
+#   - Each CGS K8s Service exposes a port named "metrics" (added in this PR)
+#
+# Prometheus scrapes /metrics on each service's health port at 15s intervals.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: cgs-services
+  namespace: cgs-system
+  labels:
+    app.kubernetes.io/part-of: common-game-server
+    release: prometheus  # Match Prometheus Operator's serviceMonitorSelector
+spec:
+  namespaceSelector:
+    matchNames:
+      - cgs-system
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: common-game-server
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 15s
+      scrapeTimeout: 10s
+      honorLabels: true

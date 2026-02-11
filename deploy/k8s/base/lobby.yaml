@@ -96,3 +96,7 @@ spec:
       port: 9002
       targetPort: lobby-api
       protocol: TCP
+    - name: metrics
+      port: 9102
+      targetPort: health
+      protocol: TCP

@@ -116,3 +116,7 @@ spec:
       port: 9010
       targetPort: game-api
       protocol: TCP
+    - name: metrics
+      port: 9110
+      targetPort: health
+      protocol: TCP

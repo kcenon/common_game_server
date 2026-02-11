@@ -106,3 +106,7 @@ spec:
       port: 9003
       targetPort: dbproxy-api
       protocol: TCP
+    - name: metrics
+      port: 9103
+      targetPort: health
+      protocol: TCP

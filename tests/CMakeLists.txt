@@ -519,3 +519,13 @@ target_link_libraries(cgs_service_reliability_tests PRIVATE
     GTest::gtest_main
 )
 gtest_discover_tests(cgs_service_reliability_tests)
+
+# Unit tests - Service persistence (WAL, snapshots, persistence manager, graceful shutdown)
+add_executable(cgs_service_persistence_tests
+    unit/service/persistence_test.cpp
+)
+target_link_libraries(cgs_service_persistence_tests PRIVATE
+    cgs::service_runner
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_service_persistence_tests)

@@ -146,6 +146,19 @@ enum class ErrorCode : uint32_t {
     MigrationFailed = 0x0E06,
     GatewayRateLimited = 0x0E07,
     AuthTimeoutExpired = 0x0E08,
+
+    // Persistence (0x0F00 - 0x0FFF)
+    PersistenceError = 0x0F00,
+    WalWriteFailed = 0x0F01,
+    WalReadFailed = 0x0F02,
+    WalCorrupted = 0x0F03,
+    WalTruncateFailed = 0x0F04,
+    SnapshotWriteFailed = 0x0F05,
+    SnapshotReadFailed = 0x0F06,
+    SnapshotCorrupted = 0x0F07,
+    RecoveryFailed = 0x0F08,
+    PersistenceNotStarted = 0x0F09,
+    PersistenceAlreadyStarted = 0x0F0A,
 };
 
 /// Return the subsystem name for a given error code.
@@ -168,6 +181,7 @@ constexpr std::string_view errorSubsystem(ErrorCode code) {
         case 0x0C00: return "Lobby";
         case 0x0D00: return "DBProxy";
         case 0x0E00: return "Gateway";
+        case 0x0F00: return "Persistence";
         default: return "Unknown";
     }
 }

@@ -3,12 +3,15 @@
 /// @file service_runner.hpp
 /// @brief Shared utilities for service entry points.
 ///
-/// Provides signal handling, configuration loading, and CLI argument
-/// parsing for all CGS service executables.
+/// Provides signal handling, configuration loading, graceful shutdown
+/// coordination, and CLI argument parsing for all CGS service executables.
 
 #include <atomic>
+#include <chrono>
 #include <filesystem>
+#include <functional>
 #include <string_view>
+#include <vector>
 
 #include "cgs/foundation/config_manager.hpp"
 #include "cgs/foundation/game_result.hpp"
@@ -40,6 +43,60 @@ public:
 private:
     static std::atomic<bool> shutdownFlag_;
     static void handler(int signal);
+};
+
+/// Shutdown hook callback type.
+///
+/// Each hook receives a name for logging and a callable.
+/// Hooks are executed in registration order during graceful shutdown.
+using ShutdownHook = std::function<void()>;
+
+/// Coordinates graceful shutdown: drains connections, saves state, exits.
+///
+/// Services register shutdown hooks that are executed in order when
+/// a shutdown signal is received. This ensures:
+///   1. New connections are refused (readiness → false)
+///   2. In-flight requests drain within a timeout
+///   3. Persistent state is saved (snapshots, WAL flush)
+///   4. Resources are released cleanly
+///
+/// Usage:
+/// @code
+///   GracefulShutdown shutdown;
+///   shutdown.addHook("health", [&]() { health.setReady(false); });
+///   shutdown.addHook("drain",  [&]() { server.drainConnections(); });
+///   shutdown.addHook("persist",[&]() { persistence.stop(); });
+///   shutdown.addHook("stop",   [&]() { server.stop(); });
+///
+///   // On signal:
+///   shutdown.execute();
+/// @endcode
+class GracefulShutdown {
+public:
+    /// Add a named shutdown hook.
+    ///
+    /// Hooks execute in registration order during shutdown.
+    void addHook(std::string name, ShutdownHook hook);
+
+    /// Execute all registered hooks in order.
+    ///
+    /// Each hook is given up to the configured timeout.
+    /// Errors in one hook do not prevent subsequent hooks from running.
+    void execute();
+
+    /// Get the number of registered hooks.
+    [[nodiscard]] std::size_t hookCount() const;
+
+    /// Set the maximum time to wait for all hooks to complete.
+    void setDrainTimeout(std::chrono::seconds timeout);
+
+private:
+    struct Hook {
+        std::string name;
+        ShutdownHook callback;
+    };
+    std::vector<Hook> hooks_;
+    std::chrono::seconds drainTimeout_{30};
 };
 
 /// Load a YAML configuration file into the provided ConfigManager.

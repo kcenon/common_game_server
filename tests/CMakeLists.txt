@@ -496,3 +496,15 @@ target_link_libraries(cgs_message_serialization_benchmark_tests PRIVATE
 gtest_discover_tests(cgs_message_serialization_benchmark_tests
     PROPERTIES LABELS "benchmark"
 )
+
+# Benchmark tests - GameServer CCU (SRS-NFR-008, SRS-NFR-010)
+add_executable(cgs_game_ccu_benchmark_tests
+    benchmark/service/game_ccu_benchmark_test.cpp
+)
+target_link_libraries(cgs_game_ccu_benchmark_tests PRIVATE
+    cgs::service_game
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_game_ccu_benchmark_tests
+    PROPERTIES LABELS "benchmark"
+)

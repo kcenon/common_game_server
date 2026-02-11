@@ -8,7 +8,9 @@
 #include <iostream>
 
 #include "cgs/foundation/config_manager.hpp"
+#include "cgs/foundation/game_metrics.hpp"
 #include "cgs/service/game_server.hpp"
+#include "cgs/service/health_server.hpp"
 #include "cgs/service/service_runner.hpp"
 
 namespace {
@@ -58,6 +60,18 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
+    // Health server + metrics.
+    auto& metrics = cgs::foundation::GameMetrics::instance();
+    cgs::service::HealthServer health(
+        {.port = 9110, .serviceName = "game"}, metrics);
+
+    auto healthResult = health.start();
+    if (!healthResult) {
+        std::cerr << "Failed to start health server: "
+                  << healthResult.error().message() << "\n";
+        return EXIT_FAILURE;
+    }
+
     auto gameCfg = buildGameConfig(config);
     cgs::service::GameServer server(gameCfg);
 
@@ -68,13 +82,18 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
+    health.setReady(true);
+
     std::cout << "Game server started (tick_rate: " << gameCfg.tickRate
-              << " Hz, max_instances: " << gameCfg.maxInstances << ")\n";
+              << " Hz, max_instances: " << gameCfg.maxInstances
+              << ", health_port: 9110)\n";
 
     signals.waitForShutdown();
 
     std::cout << "Shutting down game server...\n";
+    health.setReady(false);
     server.stop();
+    health.stop();
     std::cout << "Game server stopped\n";
     return EXIT_SUCCESS;
 }

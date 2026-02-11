@@ -10,10 +10,12 @@
 #include <memory>
 
 #include "cgs/foundation/config_manager.hpp"
+#include "cgs/foundation/game_metrics.hpp"
 #include "cgs/service/auth_server.hpp"
 #include "cgs/service/auth_types.hpp"
 #include "cgs/service/gateway_server.hpp"
 #include "cgs/service/gateway_types.hpp"
+#include "cgs/service/health_server.hpp"
 #include "cgs/service/service_runner.hpp"
 #include "cgs/service/token_store.hpp"
 #include "cgs/service/user_repository.hpp"
@@ -102,6 +104,18 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
+    // Health server + metrics.
+    auto& metrics = cgs::foundation::GameMetrics::instance();
+    cgs::service::HealthServer health(
+        {.port = 9100, .serviceName = "gateway"}, metrics);
+
+    auto healthResult = health.start();
+    if (!healthResult) {
+        std::cerr << "Failed to start health server: "
+                  << healthResult.error().message() << "\n";
+        return EXIT_FAILURE;
+    }
+
     // Embedded auth server with in-memory storage.
     auto authConfig = buildAuthConfig(config);
     auto userRepo = std::make_shared<cgs::service::InMemoryUserRepository>();
@@ -119,13 +133,18 @@ int main(int argc, char* argv[]) {
         return EXIT_FAILURE;
     }
 
+    health.setReady(true);
+
     std::cout << "Gateway server started (tcp:" << gwConfig.tcpPort
-              << " ws:" << gwConfig.webSocketPort << ")\n";
+              << " ws:" << gwConfig.webSocketPort
+              << ", health_port: 9100)\n";
 
     signals.waitForShutdown();
 
     std::cout << "Shutting down gateway...\n";
+    health.setReady(false);
     gateway.stop();
+    health.stop();
     std::cout << "Gateway server stopped\n";
     return EXIT_SUCCESS;
 }

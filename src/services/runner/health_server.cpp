@@ -267,6 +267,7 @@ void HealthServer::stop() {
 
 void HealthServer::setReady(bool ready) {
     impl_->ready.store(ready, std::memory_order_relaxed);
+    impl_->metrics.setGauge("cgs_health_ready", ready ? 1.0 : 0.0);
 }
 
 bool HealthServer::isRunning() const {

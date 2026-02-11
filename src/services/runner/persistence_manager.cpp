@@ -10,6 +10,7 @@
 
 #include "cgs/foundation/error_code.hpp"
 #include "cgs/foundation/game_error.hpp"
+#include "cgs/foundation/game_metrics.hpp"
 
 namespace cgs::service {
 
@@ -97,6 +98,14 @@ struct PersistenceManager::Impl {
         }
 
         lastSnapshotSequence = snap.walSequence;
+
+        // Update Prometheus gauges.
+        auto& m = cgs::foundation::GameMetrics::instance();
+        m.setGauge("cgs_last_snapshot_timestamp",
+                    static_cast<double>(snap.timestampUs) / 1e6);
+        m.setGauge("cgs_wal_pending_entries",
+                    static_cast<double>(wal.entryCount()));
+
         return GameResult<void>::ok();
     }
 
@@ -196,7 +205,13 @@ void PersistenceManager::stop() {
 // -- Operations --------------------------------------------------------------
 
 GameResult<uint64_t> PersistenceManager::recordChange(WalEntry entry) {
-    return impl_->wal.append(std::move(entry));
+    auto result = impl_->wal.append(std::move(entry));
+    if (result.hasValue()) {
+        cgs::foundation::GameMetrics::instance().setGauge(
+            "cgs_wal_pending_entries",
+            static_cast<double>(impl_->wal.entryCount()));
+    }
+    return result;
 }
 
 GameResult<void> PersistenceManager::takeSnapshot() {

@@ -239,6 +239,16 @@ target_link_libraries(cgs_service_auth_server_tests PRIVATE
 )
 gtest_discover_tests(cgs_service_auth_server_tests)
 
+# Unit tests - Service gateway components (session manager, token bucket, route table)
+add_executable(cgs_service_gateway_tests
+    unit/service/gateway_components_test.cpp
+)
+target_link_libraries(cgs_service_gateway_tests PRIVATE
+    cgs::service_gateway
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_service_gateway_tests)
+
 # Integration tests - foundation network
 add_executable(cgs_foundation_network_integration_tests
     integration/foundation/network_integration_test.cpp

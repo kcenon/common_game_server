@@ -153,6 +153,16 @@ target_link_libraries(cgs_plugin_dependency_tests PRIVATE
 )
 gtest_discover_tests(cgs_plugin_dependency_tests)
 
+# Unit tests - Plugin event bus (pub/sub, priority, deferred, lifecycle events)
+add_executable(cgs_plugin_event_bus_tests
+    unit/plugin/event_bus_test.cpp
+)
+target_link_libraries(cgs_plugin_event_bus_tests PRIVATE
+    cgs::plugin
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_plugin_event_bus_tests)
+
 # Unit tests - Game object system
 add_executable(cgs_game_object_system_tests
     unit/game/object_system_test.cpp

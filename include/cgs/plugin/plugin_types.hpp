@@ -13,6 +13,10 @@
 #include "cgs/foundation/service_locator.hpp"
 
 namespace cgs::plugin {
+class EventBus;
+} // namespace cgs::plugin
+
+namespace cgs::plugin {
 
 /// Plugin API version.  Plugins built against a different major version
 /// are considered incompatible and will be rejected during loading.
@@ -44,9 +48,11 @@ struct PluginInfo {
 /// Runtime context passed to plugins during their Load phase.
 ///
 /// Provides access to foundation services (logger, config, etc.)
-/// via the ServiceLocator.
+/// via the ServiceLocator, and to the shared EventBus for
+/// inter-plugin communication.
 struct PluginContext {
     cgs::foundation::ServiceLocator* services = nullptr;
+    EventBus* eventBus = nullptr;
 };
 
 /// Plugin lifecycle states.

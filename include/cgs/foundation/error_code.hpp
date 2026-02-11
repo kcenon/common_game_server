@@ -95,6 +95,14 @@ enum class ErrorCode : uint32_t {
     SerializationError = 0x0A00,
     InvalidBinaryData = 0x0A01,
     InvalidJsonData = 0x0A02,
+
+    // GameServer (0x0B00 - 0x0BFF)
+    GameServerError = 0x0B00,
+    MapInstanceNotFound = 0x0B01,
+    MapInstanceLimitReached = 0x0B02,
+    MapInstanceInvalidState = 0x0B03,
+    GameLoopAlreadyRunning = 0x0B04,
+    GameLoopNotRunning = 0x0B05,
 };
 
 /// Return the subsystem name for a given error code.
@@ -113,6 +121,7 @@ constexpr std::string_view errorSubsystem(ErrorCode code) {
         case 0x0800: return "Logger";
         case 0x0900: return "Monitoring";
         case 0x0A00: return "Serialization";
+        case 0x0B00: return "GameServer";
         default: return "Unknown";
     }
 }

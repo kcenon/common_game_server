@@ -1,7 +1,9 @@
-# Lobby Service - Matchmaking Queue & ELO Calculator (SDS-MOD-033)
+# Lobby Service - Matchmaking, Party & Lobby Server (SDS-MOD-033)
 add_library(cgs_service_lobby
     elo_calculator.cpp
     matchmaking_queue.cpp
+    party_manager.cpp
+    lobby_server.cpp
 )
 target_link_libraries(cgs_service_lobby
     PUBLIC cgs_core

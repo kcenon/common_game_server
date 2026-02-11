@@ -1,0 +1,81 @@
+# PodDisruptionBudgets — guarantee minimum availability during voluntary
+# disruptions (node drain, cluster upgrade, etc.).
+#
+# Each PDB ensures at least 1 pod remains running per service.
+# For services with replicas=2 this means at most 1 pod is disrupted
+# at a time (maxUnavailable: 1).
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: gateway-pdb
+  namespace: cgs-system
+  labels:
+    app.kubernetes.io/name: gateway
+    app.kubernetes.io/component: availability
+    app.kubernetes.io/part-of: common-game-server
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: gateway
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: auth-pdb
+  namespace: cgs-system
+  labels:
+    app.kubernetes.io/name: auth
+    app.kubernetes.io/component: availability
+    app.kubernetes.io/part-of: common-game-server
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: auth
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: game-pdb
+  namespace: cgs-system
+  labels:
+    app.kubernetes.io/name: game
+    app.kubernetes.io/component: availability
+    app.kubernetes.io/part-of: common-game-server
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: game
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: lobby-pdb
+  namespace: cgs-system
+  labels:
+    app.kubernetes.io/name: lobby
+    app.kubernetes.io/component: availability
+    app.kubernetes.io/part-of: common-game-server
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: lobby
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: dbproxy-pdb
+  namespace: cgs-system
+  labels:
+    app.kubernetes.io/name: dbproxy
+    app.kubernetes.io/component: availability
+    app.kubernetes.io/part-of: common-game-server
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: dbproxy

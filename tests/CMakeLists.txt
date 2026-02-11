@@ -249,6 +249,16 @@ target_link_libraries(cgs_service_gateway_tests PRIVATE
 )
 gtest_discover_tests(cgs_service_gateway_tests)
 
+# Unit tests - Service game (game loop, map instance manager)
+add_executable(cgs_service_game_tests
+    unit/service/game_loop_test.cpp
+)
+target_link_libraries(cgs_service_game_tests PRIVATE
+    cgs::service_game
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_service_game_tests)
+
 # Integration tests - foundation network
 add_executable(cgs_foundation_network_integration_tests
     integration/foundation/network_integration_test.cpp

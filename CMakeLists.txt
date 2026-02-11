@@ -67,7 +67,7 @@ target_include_directories(cgs_core INTERFACE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>
 )
-target_link_libraries(cgs_core INTERFACE cgs_warnings)
+target_link_libraries(cgs_core INTERFACE cgs_warnings yaml-cpp::yaml-cpp)
 
 # Layer targets (libraries built as subsequent issues are implemented)
 # Layer 1-2: Foundation adapters

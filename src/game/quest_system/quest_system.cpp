@@ -82,12 +82,13 @@ void QuestSystem::processEvents() {
         if (event.processed) { continue; }
 
         // Map QuestEventType to ObjectiveType.
-        ObjectiveType objType;
+        ObjectiveType objType{};
         switch (event.type) {
         case QuestEventType::Kill:     objType = ObjectiveType::Kill;     break;
         case QuestEventType::Collect:  objType = ObjectiveType::Collect;  break;
         case QuestEventType::Explore:  objType = ObjectiveType::Explore;  break;
         case QuestEventType::Interact: objType = ObjectiveType::Interact; break;
+        default:                       continue;
         }
 
         // Update matching objectives in the player's quest log.

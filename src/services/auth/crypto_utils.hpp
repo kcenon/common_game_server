@@ -299,7 +299,8 @@ namespace cgs::service::detail {
     if (a.size() != b.size()) { return false; }
     volatile uint8_t diff = 0;
     for (std::size_t i = 0; i < a.size(); ++i) {
-        diff |= static_cast<uint8_t>(a[i]) ^ static_cast<uint8_t>(b[i]);
+        diff = static_cast<uint8_t>(
+            diff | (static_cast<uint8_t>(a[i]) ^ static_cast<uint8_t>(b[i])));
     }
     return diff == 0;
 }

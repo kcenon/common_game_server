@@ -100,11 +100,11 @@ TEST_F(NetworkThroughputTest, TCPMessageThroughput) {
 
     // Create client — TCP facade auto-starts the connection
     facade::tcp_facade tcp;
-    auto client = tcp.create_client({
-        .host = "127.0.0.1",
-        .port = kBenchmarkPort,
-        .client_id = "bench-client"
-    });
+    facade::tcp_facade::client_config clientCfg{};
+    clientCfg.host = "127.0.0.1";
+    clientCfg.port = kBenchmarkPort;
+    clientCfg.client_id = "bench-client";
+    auto client = tcp.create_client(clientCfg);
 
     // Attach observer (connection already started by facade)
     std::promise<void> connectedPromise;

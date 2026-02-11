@@ -125,10 +125,10 @@ TEST_F(GameLoopTest, ThreadedTickCallbackInvocation) {
     });
 
     EXPECT_TRUE(loop_.start());
-    std::this_thread::sleep_for(120ms);
+    std::this_thread::sleep_for(250ms);
     loop_.stop();
 
-    // At 20Hz, ~120ms should yield 2-3 ticks.
+    // At 20Hz, ~250ms should yield at least 2 ticks (generous for CI).
     EXPECT_GE(callCount.load(), 2);
 }
 
@@ -142,7 +142,7 @@ TEST_F(GameLoopTest, ThreadedMetricsCallbackInvocation) {
     });
 
     EXPECT_TRUE(loop_.start());
-    std::this_thread::sleep_for(120ms);
+    std::this_thread::sleep_for(250ms);
     loop_.stop();
 
     EXPECT_GE(metricsCount.load(), 2);

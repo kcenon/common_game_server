@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cstring>
+#include <mutex>
 #include <shared_mutex>
 #include <unordered_map>
 
@@ -128,15 +129,21 @@ struct GameNetworkManager::Impl {
         switch (protocol) {
             case Protocol::TCP: {
                 tcp_facade facade;
-                return facade.create_server({.port = port});
+                tcp_facade::server_config cfg{};
+                cfg.port = port;
+                return facade.create_server(cfg);
             }
             case Protocol::UDP: {
                 udp_facade facade;
-                return facade.create_server({.port = port});
+                udp_facade::server_config cfg{};
+                cfg.port = port;
+                return facade.create_server(cfg);
             }
             case Protocol::WebSocket: {
                 websocket_facade facade;
-                return facade.create_server({.port = port});
+                websocket_facade::server_config cfg{};
+                cfg.port = port;
+                return facade.create_server(cfg);
             }
         }
         return nullptr;

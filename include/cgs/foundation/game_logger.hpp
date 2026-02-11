@@ -187,11 +187,14 @@ private:
 
 #define CGS_LOG(level, cat, msg)                                                 \
     do {                                                                         \
+        _Pragma("GCC diagnostic push")                                           \
+        _Pragma("GCC diagnostic ignored \"-Wtype-limits\"")                      \
         if (static_cast<int>(level) >= CGS_MIN_LOG_LEVEL &&                      \
             ::cgs::foundation::GameLogger::instance().isEnabled((level), (cat)))  \
         {                                                                        \
             ::cgs::foundation::GameLogger::instance().log((level), (cat), (msg)); \
         }                                                                        \
+        _Pragma("GCC diagnostic pop")                                            \
     } while (0)
 
 #define CGS_LOG_DEBUG(cat, msg) \

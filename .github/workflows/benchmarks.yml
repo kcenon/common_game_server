@@ -1,0 +1,139 @@
+name: Benchmarks
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      baseline_ref:
+        description: "Git ref to compare against (default: previous tag)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  run-benchmarks:
+    name: Performance Benchmarks
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-24.04, macos-14]
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install system dependencies (Ubuntu)
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpq-dev
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Conan
+        run: |
+          pip install conan
+          conan profile detect --force
+
+      - name: Cache Conan packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.conan2
+          key: conan-${{ runner.os }}-Release-${{ hashFiles('conanfile.py') }}
+          restore-keys: |
+            conan-${{ runner.os }}-Release-
+
+      - name: Install dependencies
+        run: |
+          conan install . \
+            --output-folder=build \
+            --build=missing \
+            -s build_type=Release
+
+      - name: Configure and build
+        run: |
+          cmake --preset conan-release
+          cmake --build --preset conan-release -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
+
+      - name: Run benchmark tests
+        id: benchmarks
+        run: |
+          echo "## Benchmark Results (${{ matrix.os }})" > benchmark_report.txt
+          echo "" >> benchmark_report.txt
+          echo "Run: $(date -u '+%Y-%m-%d %H:%M:%S UTC')" >> benchmark_report.txt
+          echo "Ref: ${{ github.sha }}" >> benchmark_report.txt
+          echo "" >> benchmark_report.txt
+
+          # Run all benchmark-labeled tests with verbose output
+          ctest --preset conan-release \
+            -L benchmark \
+            --output-on-failure \
+            --verbose \
+            2>&1 | tee benchmark_output.txt
+
+          # Check for failures
+          if grep -q "tests passed" benchmark_output.txt; then
+            echo "status=success" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=failure" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ matrix.os }}
+          path: |
+            benchmark_output.txt
+            benchmark_report.txt
+          retention-days: 90
+
+      - name: Flag regression on failure
+        if: steps.benchmarks.outputs.status == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const os = '${{ matrix.os }}';
+            const ref = context.sha.substring(0, 8);
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[Regression] Benchmark failure on ${os} (${ref})`,
+              body: [
+                `## Performance Regression Detected`,
+                ``,
+                `| Field | Value |`,
+                `|-------|-------|`,
+                `| **OS** | ${os} |`,
+                `| **Commit** | ${context.sha} |`,
+                `| **Run** | [View workflow run](${runUrl}) |`,
+                `| **Triggered by** | ${context.eventName} |`,
+                ``,
+                `### Action Required`,
+                ``,
+                `One or more benchmark tests failed, indicating a potential performance`,
+                `regression against SRS-NFR requirements. Review the benchmark artifacts`,
+                `in the workflow run for details.`,
+                ``,
+                `### SRS Requirements`,
+                ``,
+                `| SRS ID | Requirement | Target |`,
+                `|--------|-------------|--------|`,
+                `| SRS-NFR-001 | Message throughput | ≥300,000 msg/sec |`,
+                `| SRS-NFR-002 | World tick latency | ≤50ms (20 Hz) |`,
+                `| SRS-NFR-003 | Entity update (10K) | ≤5ms |`,
+                `| SRS-NFR-004 | Database query p99 | ≤50ms |`,
+                `| SRS-NFR-005 | Memory per 1K players | ≤100MB |`,
+                `| SRS-NFR-006 | Plugin load time | ≤100ms |`,
+              ].join('\n'),
+              labels: ['type:performance', 'priority:P0-critical'],
+            });

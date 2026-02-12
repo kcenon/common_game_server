@@ -5,7 +5,7 @@
 
 // kcenon thread_system headers (hidden behind PIMPL)
 #include <kcenon/thread/core/thread_pool.h>
-#include <kcenon/thread/core/thread_pool_builder.h>
+#include <kcenon/thread/core/thread_worker.h>
 #include <kcenon/thread/core/job_builder.h>
 
 #include <atomic>
@@ -60,14 +60,24 @@ struct GameJobScheduler::Impl {
 GameJobScheduler::GameJobScheduler(std::size_t numThreads)
     : impl_(std::make_unique<Impl>())
 {
-    // Use thread_pool_builder to create workers with proper initialization.
-    // The builder creates thread_worker(true, context) which fully initialises
-    // all members, then sets job_queue and enqueues each worker individually —
-    // avoiding the heap corruption observed on GCC 14 / glibc when using the
-    // default thread_worker() constructor with enqueue_batch(). (Issue #80)
-    impl_->pool = kcenon::thread::thread_pool_builder("GameJobScheduler")
-        .with_workers(numThreads)
-        .build_and_start();
+    impl_->pool = std::make_shared<kcenon::thread::thread_pool>("GameJobScheduler");
+
+    // Create workers with full initialization — thread_worker(true, context)
+    // sets every member (atomics, mutex, condition_variable, work-stealing
+    // deque, cancellation_token).  The default thread_worker() constructor
+    // leaves members partially initialised, which causes heap corruption on
+    // GCC 14 / glibc when enqueue_batch() subsequently writes into them.
+    // Each worker is enqueued individually so that the pool sets job_queue,
+    // context, metrics and diagnostics before the worker vector is touched.
+    // This mirrors the pattern used by thread_pool_builder::build().  (#80)
+    auto queue = impl_->pool->get_job_queue();
+    for (std::size_t i = 0; i < numThreads; ++i) {
+        auto worker = std::make_unique<kcenon::thread::thread_worker>(
+            true, impl_->pool->get_context());
+        worker->set_job_queue(queue);
+        impl_->pool->enqueue(std::move(worker));
+    }
+    impl_->pool->start();
 }
 
 GameJobScheduler::~GameJobScheduler() {

@@ -1,5 +1,6 @@
 # Test configuration
 include(GoogleTest)
+find_package(OpenSSL 3.0.0 REQUIRED)  # For auth RS256 tests
 
 # Unit tests - core
 add_executable(cgs_unit_tests
@@ -249,12 +250,13 @@ target_link_libraries(cgs_game_inventory_system_tests PRIVATE
 )
 gtest_discover_tests(cgs_game_inventory_system_tests)
 
-# Unit tests - Service auth (password hashing, token provider)
+# Unit tests - Service auth (password hashing, token provider, RS256, blacklist)
 add_executable(cgs_service_auth_tests
     unit/service/auth_crypto_test.cpp
 )
 target_link_libraries(cgs_service_auth_tests PRIVATE
     cgs::service_auth
+    OpenSSL::Crypto
     GTest::gtest_main
 )
 gtest_discover_tests(cgs_service_auth_tests)

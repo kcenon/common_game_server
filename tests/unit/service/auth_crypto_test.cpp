@@ -12,6 +12,10 @@
 #include <thread>
 #include <vector>
 
+#include <openssl/bio.h>
+#include <openssl/evp.h>
+#include <openssl/pem.h>
+
 using namespace cgs::service;
 
 // =============================================================================
@@ -350,53 +354,44 @@ TEST_F(TokenProviderTest, EmptyTokenString) {
 
 namespace {
 
-// 2048-bit RSA test keypair (generated for testing only — not used in production).
-constexpr auto kTestRsaPrivateKeyPem = R"(-----BEGIN PRIVATE KEY-----
-MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDGTAERci6kr5bF
-3XSyTweaA/lP3XZmWMm6byIG4iBC0/M/yFezk8iv0xoFQt6rRQMFUIfYvFN9v7PR
-GyFfsM0m8eVyFp7/gmG5y+N9oAIdScAHXcmB2OhcbiUaBfcMHmHEV8gWR4hlgZcj
-KNKVJdJ0oK/4hQpJboLdyDVgqXJ1zQDxIKB8VnVTTRV3WPnpxyJilOmdS2v9wQzv
-/s6Lfm1eqW9L2lL4dWVrscifeosDAgMaxdCQjTZn0c6C0HDWz8SiLzL2IX5zjxs9
-oM9gq2qTZi8uoX4yebaaGEmIjG8HpoP2fR2jEEonlxCQQtX3e7FSeTnF8G2ykH2s
-tvqUpzKlAgMBAAECggEAA4kq6AqlwhopwX+e+1Kf7iiIe0VVvWJIvzozPIqvLGnh
-l5SlBbF1Uwyb/+su6RW7BaRSNnSN4OXjGQUsvZX7jn3NNiZ+Rsw7yFzrl/Dwtgt7
-hlYZ3VFxZpEwjavSDtAC38X4mMxv5kQe3l8LDuLvWKozK7wEOzDNL2heFUoS3alW
-WSh8srKE/LgBxcCskEJOt7dT/zps0wWIdrBGcH/m+eBRPELc7AoFXpi2U8wRgDlg
-IHAXU2cCmEhNcvF5KX4CswskSReACKBvkDnXpyxg4skfC1IH54Stg0y4MPPd7/qp
-V8rOesxJBkAuk9cRrzl+tQFSpSCvYh39sjukj6XtkQKBgQDl5uTeFql0PYHFxQBt
-tiPYVgeqElZshq1KNXapXsufv5YVTNChrNIGOyBar6a5enrE7u8mwunzqEpxIw1d
-mqDrErS2i9Ze6nmNjOL7lCKcot5Ttba6er+1tB9Sosrig08m3zuMpGvv97pSOInI
-u1atzbUDQVniHg5iE8C4ZKJu1QKBgQDczqV0elSDzHZVNTJE6NX9khUUMP3b0snm
-t4WnE6+v0mIHCxVWCc1hSBmdlQvaYMayJ3uCbVaWWZx9nVZbhF1lfzqqOPC/hORe
-D/KO4VIdlwDIszDtQcbP7FRRbSoM7MdiGmGxELrrM9oBnDRYcF8U+JesL9iAMgJ3
-2XCd8zq8kQKBgD/1FAaU1193HPsf6xaabS5qAIfXwiM+9EaIyRIlRRCUA/S5AfF4
-WpVRLZcM9pzy7eSLdAycfOlEEDGZRsabldjPw2ZlUKXnJRmz8BF9DIP261LuYn9O
-Vrb9/RjIIRkS3po50B84Pq7rg/ILuIkXVO3VJF5bd93n7qhqRlsF5AphAoGAB7m/
-Nj0VeesMdNzAnoKbAh07WZKBP1C3ubfQGFFrAzbUMTTlETaUlgPEyauuV3ytVwxk
-mOKkdew6unZn0BnofqWd8ti9K6ZFqzjZnsApdFmVMHB8lMCJaTr2lEbCguNB8p/D
-rUNNlu8ggI/rkPCVkxFDlUWzSID3byQPeadJ9dECgYBGnKto0GNYI/rbKkq+Zunr
-xvx9s8P+X5MnPt289B/adPJaU6fhDd+tta2ns1WPIT/0i+UmgtpgkM4BwdBl//rm
-aX+yPoxGZpGadIGjT0em31baoZeecqglvoJ69/c2w9Y/YoURl2Du30U3ocXa6svI
-v7YyyAHmNCXe/KCdFtHNJw==
------END PRIVATE KEY-----
-)";
+/// Helper to extract a PEM string from an EVP_PKEY using a BIO.
+std::string evpPkeyToPem(EVP_PKEY* pkey, bool isPrivate) {
+    BIO* bio = BIO_new(BIO_s_mem());
+    if (isPrivate) {
+        PEM_write_bio_PrivateKey(bio, pkey, nullptr, nullptr, 0, nullptr,
+                                 nullptr);
+    } else {
+        PEM_write_bio_PUBKEY(bio, pkey);
+    }
+    char* data = nullptr;
+    auto len = BIO_get_mem_data(bio, &data);
+    std::string pem(data, static_cast<std::size_t>(len));
+    BIO_free(bio);
+    return pem;
+}
 
-constexpr auto kTestRsaPublicKeyPem = R"(-----BEGIN PUBLIC KEY-----
-MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxkwBEXIupK+Wxd10sk8H
-mgP5T912ZljJum8iBuIgQtPzP8hXs5PIr9MaBULeq0UDBVCH2LxTfb+z0RshX7DN
-JvHlchae/4JhucvjfaACHUnAB13JgdjoXG4lGgX3DB5hxFfIFkeIZYGXIyjSlSXS
-dKCv+IUKSW6C3cg1YKlydc0A8SCgfFZ1U00Vd1j56cciYpTpnUtr/cEM7/7Oi35t
-XqlvS9pS+HVla7HIn3qLAwIDGsXQkI02Z9HOgtBw1s/Eoi8y9iF+c48bPaDPYKtq
-k2YvLqF+Mnm2mhhJiIxvB6aD9n0doxBKJ5cQkELV93uxUnk5xfBtspB9rLb6lKcy
-pQIDAQAB
------END PUBLIC KEY-----
-)";
+/// Generate a fresh 2048-bit RSA keypair at test runtime.
+/// Returns {privateKeyPem, publicKeyPem}.
+std::pair<std::string, std::string> generateTestRsaKeypair() {
+    EVP_PKEY* pkey = EVP_RSA_gen(2048);
+    auto privateKeyPem = evpPkeyToPem(pkey, true);
+    auto publicKeyPem = evpPkeyToPem(pkey, false);
+    EVP_PKEY_free(pkey);
+    return {privateKeyPem, publicKeyPem};
+}
+
+/// Lazily-initialized test keypair (generated once per test process).
+const std::pair<std::string, std::string>& testRsaKeypair() {
+    static const auto kp = generateTestRsaKeypair();
+    return kp;
+}
 
 AuthConfig makeRs256Config() {
+    auto& [priv, pub] = testRsaKeypair();
     AuthConfig config;
     config.jwtAlgorithm = JwtAlgorithm::RS256;
-    config.rsaPrivateKeyPem = kTestRsaPrivateKeyPem;
-    config.rsaPublicKeyPem = kTestRsaPublicKeyPem;
+    config.rsaPrivateKeyPem = priv;
+    config.rsaPublicKeyPem = pub;
     return config;
 }
 
@@ -460,9 +455,10 @@ TEST_F(Rs256TokenProviderTest, RS256RejectsHS256Token) {
         hs256Provider.generateAccessToken(claims, std::chrono::seconds{900});
 
     // Create RS256-only verifier (no signing key set).
+    auto& [priv, pub] = testRsaKeypair();
     AuthConfig rs256OnlyConfig;
     rs256OnlyConfig.jwtAlgorithm = JwtAlgorithm::RS256;
-    rs256OnlyConfig.rsaPublicKeyPem = kTestRsaPublicKeyPem;
+    rs256OnlyConfig.rsaPublicKeyPem = pub;
     // Clear signing key so HS256 verification would use empty key.
     rs256OnlyConfig.signingKey = "";
     TokenProvider rs256Verifier(rs256OnlyConfig);

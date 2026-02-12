@@ -69,19 +69,22 @@ set(THREAD_SYSTEM_INCLUDE_DIR "${thread_system_SOURCE_DIR}/include"
     CACHE PATH "Path to thread_system include directory" FORCE)
 
 # Propagate thread_system's C++20 feature-detection definitions (USE_STD_JTHREAD,
-# USE_STD_FORMAT, HAS_STD_LATCH, …) to the top-level project.  thread_system sets
-# these via add_definitions() which is directory-scoped and does NOT propagate to
-# consumer directories.  Without this, CGS translation units that include
-# thread_system headers see a different class layout (e.g. lifecycle_controller
-# uses std::atomic<bool> instead of std::optional<std::stop_source>), causing an
-# ODR violation and heap corruption on GCC / glibc.  (Fixes #80)
+# USE_STD_FORMAT, HAS_STD_LATCH, …) to CGS targets that include thread_system
+# headers.  thread_system sets these via add_definitions() which is directory-scoped
+# and does NOT propagate to consumer directories.  Without this, CGS translation
+# units see a different class layout (e.g. lifecycle_controller uses
+# std::atomic<bool> instead of std::optional<std::stop_source>), causing an ODR
+# violation and heap corruption on GCC / glibc.  (Fixes #80)
+#
+# NOTE: We store these in a cache variable and apply them per-target (not via
+# global add_definitions()) to avoid leaking definitions into other FetchContent
+# dependencies like network_system, which has conditional code paths gated on
+# THREAD_HAS_COMMON_EXECUTOR that assume APIs not present in thread_pool.
 get_directory_property(_thread_system_defs
     DIRECTORY "${thread_system_SOURCE_DIR}"
     COMPILE_DEFINITIONS)
-foreach(_def ${_thread_system_defs})
-    add_definitions(-D${_def})
-endforeach()
-message(STATUS "[2/4] thread_system: propagated ${_thread_system_defs}")
+set(CGS_THREAD_SYSTEM_DEFS "${_thread_system_defs}"
+    CACHE INTERNAL "thread_system compile definitions for CGS targets")
 
 message(STATUS "[2/4] thread_system: ready (${thread_system_SOURCE_DIR})")
 

@@ -48,6 +48,7 @@ struct TokenClaims {
     std::string subject;                              ///< User ID ("sub").
     std::string username;                             ///< Username.
     std::vector<std::string> roles;                   ///< Granted roles.
+    std::string jti;                                  ///< JWT ID for blacklisting.
     std::chrono::system_clock::time_point issuedAt{}; ///< Issued-at ("iat").
     std::chrono::system_clock::time_point expiresAt{};///< Expiry ("exp").
 };
@@ -70,16 +71,34 @@ struct RefreshTokenRecord {
 
 // -- Configuration ------------------------------------------------------------
 
+/// JWT signing algorithm selection.
+enum class JwtAlgorithm : uint8_t {
+    HS256, ///< HMAC-SHA256 (symmetric, default for backward compatibility).
+    RS256  ///< RSA-SHA256 (asymmetric, recommended for production).
+};
+
 /// Configuration for the authentication service.
 struct AuthConfig {
     /// Secret key for HMAC-SHA256 token signing (min 32 bytes recommended).
     std::string signingKey = "change-me-in-production";
+
+    /// PEM-encoded RSA private key for RS256 signing (auth server only).
+    std::string rsaPrivateKeyPem;
+
+    /// PEM-encoded RSA public key for RS256 verification (all services).
+    std::string rsaPublicKeyPem;
+
+    /// JWT signing algorithm (default HS256 for backward compatibility).
+    JwtAlgorithm jwtAlgorithm = JwtAlgorithm::HS256;
 
     /// Access token lifetime.
     std::chrono::seconds accessTokenExpiry{900}; // 15 minutes
 
     /// Refresh token lifetime.
     std::chrono::seconds refreshTokenExpiry{604800}; // 7 days
+
+    /// Interval between blacklist cleanup passes.
+    std::chrono::seconds blacklistCleanupInterval{300}; // 5 minutes
 
     /// Minimum password length.
     uint32_t minPasswordLength = 8;

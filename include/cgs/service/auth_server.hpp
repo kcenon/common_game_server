@@ -4,9 +4,10 @@
 /// @brief Authentication server for registration, login, and token management.
 ///
 /// Orchestrates UserRepository, TokenStore, TokenProvider, PasswordHasher,
-/// and RateLimiter into a complete authentication service.
+/// RateLimiter, and TokenBlacklist into a complete authentication service.
 ///
 /// @see SRS-SVC-001
+/// @see SRS-NFR-014
 
 #include <memory>
 #include <string>
@@ -22,9 +23,11 @@ class ITokenStore;
 class TokenProvider;
 class PasswordHasher;
 class RateLimiter;
+class TokenBlacklist;
 
 /// Authentication server implementing user registration, login/logout,
-/// JWT token issuance, refresh token management, and token revocation.
+/// JWT token issuance, refresh token management, access token revocation,
+/// and token blacklisting.
 ///
 /// Example:
 /// @code
@@ -68,8 +71,20 @@ public:
         std::string_view refreshToken);
 
     /// Validate an access token and return decoded claims.
+    /// Checks the token blacklist after signature verification.
     [[nodiscard]] cgs::foundation::GameResult<TokenClaims> validateToken(
         std::string_view accessToken) const;
+
+    /// Revoke an access token by adding it to the blacklist (SRS-NFR-014).
+    ///
+    /// The token is decoded to extract the jti (JWT ID) and expiry,
+    /// then added to the in-memory blacklist until its natural expiry.
+    [[nodiscard]] cgs::foundation::GameResult<void> revokeAccessToken(
+        std::string_view accessToken);
+
+    /// Run blacklist cleanup to remove expired entries.
+    /// Returns the number of entries removed.
+    std::size_t cleanupBlacklist();
 
 private:
     [[nodiscard]] bool isValidEmail(std::string_view email) const;
@@ -81,6 +96,7 @@ private:
     std::unique_ptr<TokenProvider> tokenProvider_;
     std::unique_ptr<PasswordHasher> passwordHasher_;
     std::unique_ptr<RateLimiter> rateLimiter_;
+    std::unique_ptr<TokenBlacklist> blacklist_;
 };
 
 } // namespace cgs::service

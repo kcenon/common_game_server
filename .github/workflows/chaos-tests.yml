@@ -1,0 +1,330 @@
+name: Chaos & Fault Tolerance Tests
+
+on:
+  schedule:
+    # Run weekly on Sunday at 03:00 UTC (12:00 KST)
+    - cron: "0 3 * * 0"
+  workflow_dispatch:
+    inputs:
+      test_suite:
+        description: "Test suite to run"
+        required: false
+        default: "all"
+        type: choice
+        options:
+          - all
+          - fault-injection
+          - data-loss
+      target_service:
+        description: "Service to test (fault-injection only)"
+        required: false
+        default: "game"
+        type: choice
+        options:
+          - game
+          - auth
+          - gateway
+          - lobby
+          - dbproxy
+      cluster_context:
+        description: "kubectl context (leave empty for kind)"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+  issues: write
+
+env:
+  NAMESPACE: cgs-system
+
+jobs:
+  # -----------------------------------------------------------------------
+  # Job 1: Set up kind cluster and deploy CGS services
+  # -----------------------------------------------------------------------
+  setup-cluster:
+    name: Setup Test Cluster
+    runs-on: ubuntu-24.04
+    outputs:
+      cluster_ready: ${{ steps.verify.outputs.ready }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up kind cluster
+        if: inputs.cluster_context == ''
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: cgs-chaos-test
+          config: |
+            kind: Cluster
+            apiVersion: kind.x-k8s.io/v1alpha4
+            nodes:
+              - role: control-plane
+              - role: worker
+              - role: worker
+
+      - name: Use external cluster
+        if: inputs.cluster_context != ''
+        run: kubectl config use-context "${{ inputs.cluster_context }}"
+
+      - name: Create namespace
+        run: |
+          kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml \
+            | kubectl apply -f -
+
+      - name: Deploy CGS services
+        run: |
+          kubectl apply -f deploy/k8s/base/ -n "$NAMESPACE"
+
+          echo "Waiting for deployments to become ready..."
+          for deploy in auth gateway game lobby dbproxy; do
+            kubectl rollout status deployment/"$deploy" \
+              -n "$NAMESPACE" --timeout=120s 2>/dev/null || \
+            kubectl rollout status statefulset/"$deploy" \
+              -n "$NAMESPACE" --timeout=120s 2>/dev/null || \
+            echo "Warning: $deploy rollout status check skipped"
+          done
+
+      - name: Deploy monitoring stack
+        run: |
+          kubectl apply -f deploy/monitoring/prometheus/ -n "$NAMESPACE" 2>/dev/null || true
+          kubectl apply -f deploy/monitoring/grafana/ -n "$NAMESPACE" 2>/dev/null || true
+
+      - name: Verify cluster readiness
+        id: verify
+        run: |
+          echo "=== Pod Status ==="
+          kubectl get pods -n "$NAMESPACE" -o wide
+
+          echo ""
+          echo "=== Service Status ==="
+          kubectl get svc -n "$NAMESPACE"
+
+          RUNNING=$(kubectl get pods -n "$NAMESPACE" \
+            --field-selector=status.phase=Running \
+            -o name 2>/dev/null | wc -l)
+
+          if (( RUNNING > 0 )); then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+            echo "Cluster ready with $RUNNING running pods"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "Warning: No running pods found"
+          fi
+
+  # -----------------------------------------------------------------------
+  # Job 2: Fault injection test — kill pods, measure MTTR
+  # -----------------------------------------------------------------------
+  fault-injection:
+    name: Fault Injection (MTTR)
+    runs-on: ubuntu-24.04
+    needs: setup-cluster
+    if: >-
+      needs.setup-cluster.outputs.cluster_ready == 'true' &&
+      (inputs.test_suite == 'all' || inputs.test_suite == 'fault-injection' || github.event_name == 'schedule')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up kind cluster
+        if: inputs.cluster_context == ''
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: cgs-chaos-test
+
+      - name: Run fault injection test
+        id: fault_test
+        run: |
+          chmod +x tests/chaos/fault_injection_test.sh
+
+          TARGET="${{ inputs.target_service || 'game' }}"
+          if [[ "${{ inputs.test_suite }}" == "all" || "${{ github.event_name }}" == "schedule" ]]; then
+            TARGET=""  # Test all services
+          fi
+
+          tests/chaos/fault_injection_test.sh $TARGET 2>&1 | tee fault_injection_results.txt
+
+          if grep -q "Failed: 0" fault_injection_results.txt; then
+            echo "status=success" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=failure" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload fault injection results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: fault-injection-results
+          path: fault_injection_results.txt
+          retention-days: 90
+
+      - name: Create regression issue on failure
+        if: steps.fault_test.outputs.status == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const ref = context.sha.substring(0, 8);
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[Regression] MTTR SLO breach detected (${ref})`,
+              body: [
+                `## Fault Injection Test Failure`,
+                ``,
+                `| Field | Value |`,
+                `|-------|-------|`,
+                `| **Commit** | ${context.sha} |`,
+                `| **Run** | [View workflow run](${runUrl}) |`,
+                `| **Triggered by** | ${context.eventName} |`,
+                ``,
+                `### SRS Requirements Affected`,
+                ``,
+                `| SRS ID | Requirement | Target |`,
+                `|--------|-------------|--------|`,
+                `| SRS-NFR-012 | Mean Time To Recovery | <= 5 minutes |`,
+                `| SRS-NFR-011 | Service uptime | >= 99.9% |`,
+                ``,
+                `### Action Required`,
+                ``,
+                `One or more services failed to recover within the MTTR SLO after pod termination.`,
+                `Review the fault injection test artifacts for details.`,
+              ].join('\n'),
+              labels: ['type:performance', 'priority:P0-critical', 'srs:nfr'],
+            });
+
+  # -----------------------------------------------------------------------
+  # Job 3: Data loss test — kill game pod, verify WAL+snapshot recovery
+  # -----------------------------------------------------------------------
+  data-loss:
+    name: Data Loss Verification
+    runs-on: ubuntu-24.04
+    needs: setup-cluster
+    if: >-
+      needs.setup-cluster.outputs.cluster_ready == 'true' &&
+      (inputs.test_suite == 'all' || inputs.test_suite == 'data-loss' || github.event_name == 'schedule')
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up kind cluster
+        if: inputs.cluster_context == ''
+        uses: helm/kind-action@v1
+        with:
+          cluster_name: cgs-chaos-test
+
+      - name: Run data loss test
+        id: data_loss_test
+        run: |
+          chmod +x tests/chaos/data_loss_test.sh
+
+          PLAYER_COUNT=10 tests/chaos/data_loss_test.sh 2>&1 | tee data_loss_results.txt
+
+          if grep -q "PASS" data_loss_results.txt; then
+            echo "status=success" >> "$GITHUB_OUTPUT"
+          else
+            echo "status=failure" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Upload data loss results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: data-loss-results
+          path: data_loss_results.txt
+          retention-days: 90
+
+      - name: Create regression issue on failure
+        if: steps.data_loss_test.outputs.status == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const ref = context.sha.substring(0, 8);
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `[Regression] Data loss detected after crash recovery (${ref})`,
+              body: [
+                `## Data Loss Test Failure`,
+                ``,
+                `| Field | Value |`,
+                `|-------|-------|`,
+                `| **Commit** | ${context.sha} |`,
+                `| **Run** | [View workflow run](${runUrl}) |`,
+                `| **Triggered by** | ${context.eventName} |`,
+                ``,
+                `### SRS Requirements Affected`,
+                ``,
+                `| SRS ID | Requirement | Target |`,
+                `|--------|-------------|--------|`,
+                `| SRS-NFR-013 | Data loss on crash | Zero |`,
+                `| SRS-NFR-012 | Mean Time To Recovery | <= 5 minutes |`,
+                ``,
+                `### Action Required`,
+                ``,
+                `The WAL + snapshot recovery mechanism failed to preserve player data`,
+                `after a simulated crash. Review the data loss test artifacts for details.`,
+                ``,
+                `### Investigation Checklist`,
+                ``,
+                `- [ ] Check WAL file integrity (CRC32 validation)`,
+                `- [ ] Verify snapshot was created before crash`,
+                `- [ ] Confirm WAL replay completed successfully`,
+                `- [ ] Compare pre-crash and post-recovery player counts`,
+              ].join('\n'),
+              labels: ['type:performance', 'priority:P0-critical', 'srs:nfr'],
+            });
+
+  # -----------------------------------------------------------------------
+  # Job 4: Summary report
+  # -----------------------------------------------------------------------
+  summary:
+    name: Test Summary
+    runs-on: ubuntu-24.04
+    needs: [fault-injection, data-loss]
+    if: always()
+
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          merge-multiple: true
+
+      - name: Generate summary
+        run: |
+          echo "## Chaos & Fault Tolerance Test Results" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Test | Status |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|------|--------|" >> "$GITHUB_STEP_SUMMARY"
+
+          FI_STATUS="${{ needs.fault-injection.result }}"
+          DL_STATUS="${{ needs.data-loss.result }}"
+
+          if [[ "$FI_STATUS" == "success" ]]; then
+            echo "| Fault Injection (MTTR) | PASS |" >> "$GITHUB_STEP_SUMMARY"
+          elif [[ "$FI_STATUS" == "skipped" ]]; then
+            echo "| Fault Injection (MTTR) | SKIPPED |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "| Fault Injection (MTTR) | **FAIL** |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          if [[ "$DL_STATUS" == "success" ]]; then
+            echo "| Data Loss Verification | PASS |" >> "$GITHUB_STEP_SUMMARY"
+          elif [[ "$DL_STATUS" == "skipped" ]]; then
+            echo "| Data Loss Verification | SKIPPED |" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "| Data Loss Verification | **FAIL** |" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "### SRS Compliance" >> "$GITHUB_STEP_SUMMARY"
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| SRS ID | Requirement | Target | Verified |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|--------|-------------|--------|----------|" >> "$GITHUB_STEP_SUMMARY"
+          echo "| SRS-NFR-011 | Service uptime | >= 99.9% | $([[ \"$FI_STATUS\" == 'success' ]] && echo 'Yes' || echo 'No') |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| SRS-NFR-012 | MTTR | <= 5 min | $([[ \"$FI_STATUS\" == 'success' ]] && echo 'Yes' || echo 'No') |" >> "$GITHUB_STEP_SUMMARY"
+          echo "| SRS-NFR-013 | Data loss on crash | Zero | $([[ \"$DL_STATUS\" == 'success' ]] && echo 'Yes' || echo 'No') |" >> "$GITHUB_STEP_SUMMARY"

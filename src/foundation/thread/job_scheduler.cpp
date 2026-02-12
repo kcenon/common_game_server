@@ -5,7 +5,7 @@
 
 // kcenon thread_system headers (hidden behind PIMPL)
 #include <kcenon/thread/core/thread_pool.h>
-#include <kcenon/thread/core/thread_worker.h>
+#include <kcenon/thread/core/thread_pool_builder.h>
 #include <kcenon/thread/core/job_builder.h>
 
 #include <atomic>
@@ -60,16 +60,14 @@ struct GameJobScheduler::Impl {
 GameJobScheduler::GameJobScheduler(std::size_t numThreads)
     : impl_(std::make_unique<Impl>())
 {
-    impl_->pool = std::make_shared<kcenon::thread::thread_pool>("GameJobScheduler");
-
-    // Add worker threads
-    std::vector<std::unique_ptr<kcenon::thread::thread_worker>> workers;
-    workers.reserve(numThreads);
-    for (std::size_t i = 0; i < numThreads; ++i) {
-        workers.push_back(std::make_unique<kcenon::thread::thread_worker>());
-    }
-    impl_->pool->enqueue_batch(std::move(workers));
-    impl_->pool->start();
+    // Use thread_pool_builder to create workers with proper initialization.
+    // The builder creates thread_worker(true, context) which fully initialises
+    // all members, then sets job_queue and enqueues each worker individually —
+    // avoiding the heap corruption observed on GCC 14 / glibc when using the
+    // default thread_worker() constructor with enqueue_batch(). (Issue #80)
+    impl_->pool = kcenon::thread::thread_pool_builder("GameJobScheduler")
+        .with_workers(numThreads)
+        .build_and_start();
 }
 
 GameJobScheduler::~GameJobScheduler() {

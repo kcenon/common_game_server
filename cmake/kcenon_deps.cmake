@@ -67,6 +67,22 @@ message(STATUS "[2/4] thread_system: fetching...")
 FetchContent_MakeAvailable(thread_system)
 set(THREAD_SYSTEM_INCLUDE_DIR "${thread_system_SOURCE_DIR}/include"
     CACHE PATH "Path to thread_system include directory" FORCE)
+
+# Propagate thread_system's C++20 feature-detection definitions (USE_STD_JTHREAD,
+# USE_STD_FORMAT, HAS_STD_LATCH, …) to the top-level project.  thread_system sets
+# these via add_definitions() which is directory-scoped and does NOT propagate to
+# consumer directories.  Without this, CGS translation units that include
+# thread_system headers see a different class layout (e.g. lifecycle_controller
+# uses std::atomic<bool> instead of std::optional<std::stop_source>), causing an
+# ODR violation and heap corruption on GCC / glibc.  (Fixes #80)
+get_directory_property(_thread_system_defs
+    DIRECTORY "${thread_system_SOURCE_DIR}"
+    COMPILE_DEFINITIONS)
+foreach(_def ${_thread_system_defs})
+    add_definitions(-D${_def})
+endforeach()
+message(STATUS "[2/4] thread_system: propagated ${_thread_system_defs}")
+
 message(STATUS "[2/4] thread_system: ready (${thread_system_SOURCE_DIR})")
 
 # ── [3/4] network_system (Tier 4) ─────────────────────────────────────────

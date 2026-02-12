@@ -62,7 +62,14 @@ GameJobScheduler::GameJobScheduler(std::size_t numThreads)
 {
     impl_->pool = std::make_shared<kcenon::thread::thread_pool>("GameJobScheduler");
 
-    // Add worker threads
+    // Create workers using the default thread_worker constructor and batch
+    // enqueue — this is the canonical pattern from thread_system's own tests.
+    // The original heap corruption on GCC / glibc (#80) was caused by an ODR
+    // violation: thread_system's add_definitions(-DUSE_STD_JTHREAD) is
+    // directory-scoped and did not reach CGS translation units, making
+    // lifecycle_controller's sizeof differ between the library and its
+    // consumer.  The fix is in cmake/kcenon_deps.cmake which now propagates
+    // thread_system's compile definitions to the top-level project.
     std::vector<std::unique_ptr<kcenon::thread::thread_worker>> workers;
     workers.reserve(numThreads);
     for (std::size_t i = 0; i < numThreads; ++i) {

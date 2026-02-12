@@ -70,5 +70,5 @@ jobs:
         run: |
           ctest --preset ${{ env.CONAN_PRESET }} --output-on-failure \
             -LE "benchmark|integration" \
-            -E "PerformanceTest|GameJobScheduler|GameServerTest\.PlayerSlotReused|^common_|^network_|^database_|^thread_" \
+            -E "PerformanceTest|^common_|^network_|^database_|^thread_|GameServerTest\.PlayerSlotReused" \
             -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)

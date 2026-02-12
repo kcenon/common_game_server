@@ -1,7 +1,11 @@
 # Auth Service - Authentication Server (SDS-MOD-040)
+# OpenSSL 3.x required for RS256 (RSA-SHA256) JWT signing (SRS-NFR-014).
+find_package(OpenSSL 3.0.0 REQUIRED)
+
 add_library(cgs_service_auth
     password_hasher.cpp
     token_provider.cpp
+    token_blacklist.cpp
     user_repository.cpp
     token_store.cpp
     rate_limiter.cpp
@@ -12,6 +16,7 @@ target_include_directories(cgs_service_auth
 )
 target_link_libraries(cgs_service_auth
     PUBLIC cgs_core
+    PRIVATE OpenSSL::Crypto
 )
 add_library(cgs::service_auth ALIAS cgs_service_auth)
 

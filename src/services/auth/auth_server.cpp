@@ -2,6 +2,7 @@
 /// @brief AuthServer implementation orchestrating the full auth workflow.
 ///
 /// @see SRS-SVC-001
+/// @see SRS-NFR-014
 
 #include "cgs/service/auth_server.hpp"
 
@@ -9,6 +10,7 @@
 #include "cgs/foundation/game_error.hpp"
 #include "cgs/service/password_hasher.hpp"
 #include "cgs/service/rate_limiter.hpp"
+#include "cgs/service/token_blacklist.hpp"
 #include "cgs/service/token_provider.hpp"
 #include "cgs/service/token_store.hpp"
 #include "cgs/service/user_repository.hpp"
@@ -30,11 +32,15 @@ AuthServer::AuthServer(AuthConfig config,
     : config_(std::move(config)),
       userRepo_(std::move(userRepo)),
       tokenStore_(std::move(tokenStore)),
-      tokenProvider_(
-          std::make_unique<TokenProvider>(config_.signingKey)),
+      tokenProvider_(std::make_unique<TokenProvider>(config_)),
       passwordHasher_(std::make_unique<PasswordHasher>()),
       rateLimiter_(std::make_unique<RateLimiter>(
-          config_.rateLimitMaxAttempts, config_.rateLimitWindow)) {}
+          config_.rateLimitMaxAttempts, config_.rateLimitWindow)),
+      blacklist_(std::make_unique<TokenBlacklist>(
+          config_.blacklistCleanupInterval)) {
+    // Wire the blacklist into the token provider for validation checks.
+    tokenProvider_->setBlacklist(blacklist_.get());
+}
 
 AuthServer::~AuthServer() = default;
 AuthServer::AuthServer(AuthServer&&) noexcept = default;
@@ -242,7 +248,61 @@ cgs::foundation::GameResult<void> AuthServer::logout(
 
 cgs::foundation::GameResult<TokenClaims> AuthServer::validateToken(
     std::string_view accessToken) const {
+    // TokenProvider::validateAccessToken already checks the blacklist.
     return tokenProvider_->validateAccessToken(accessToken);
+}
+
+// -- Access token revocation (SRS-NFR-014) ------------------------------------
+
+cgs::foundation::GameResult<void> AuthServer::revokeAccessToken(
+    std::string_view accessToken) {
+    // Decode the token to extract jti and expiry (skip blacklist check
+    // during decode since we're about to blacklist it anyway).
+    auto parts = std::vector<std::string>{};
+    {
+        std::size_t start = 0;
+        for (int i = 0; i < 2; ++i) {
+            auto pos = accessToken.find('.', start);
+            if (pos == std::string_view::npos) {
+                return cgs::foundation::GameResult<void>::err(
+                    GameError(ErrorCode::InvalidToken,
+                              "malformed JWT: expected 3 parts"));
+            }
+            parts.emplace_back(accessToken.substr(start, pos - start));
+            start = pos + 1;
+        }
+        parts.emplace_back(accessToken.substr(start));
+    }
+
+    // Validate the token first (this also checks signature and expiry).
+    auto result = tokenProvider_->validateAccessToken(accessToken);
+    if (result.hasError()) {
+        // If the token is already expired, that's fine — no need to blacklist.
+        if (result.error().code() == ErrorCode::TokenExpired) {
+            return cgs::foundation::GameResult<void>::ok();
+        }
+        // If already revoked, also fine.
+        if (result.error().code() == ErrorCode::TokenRevoked) {
+            return cgs::foundation::GameResult<void>::ok();
+        }
+        return cgs::foundation::GameResult<void>::err(result.error());
+    }
+
+    auto& claims = result.value();
+    if (claims.jti.empty()) {
+        return cgs::foundation::GameResult<void>::err(
+            GameError(ErrorCode::InvalidToken,
+                      "token has no jti claim for revocation"));
+    }
+
+    blacklist_->revoke(claims.jti, claims.expiresAt);
+    return cgs::foundation::GameResult<void>::ok();
+}
+
+// -- Blacklist maintenance ----------------------------------------------------
+
+std::size_t AuthServer::cleanupBlacklist() {
+    return blacklist_->cleanup();
 }
 
 // -- Validation helpers -------------------------------------------------------

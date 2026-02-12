@@ -54,6 +54,29 @@ cgs::service::AuthConfig buildAuthConfig(
         cfg.rateLimitWindow = std::chrono::seconds(rateWindow.value());
     }
 
+    // RS256 configuration (optional; falls back to HS256 if not set).
+    auto jwtAlg = config.get<std::string>("auth.jwt_algorithm");
+    if (jwtAlg && jwtAlg.value() == "RS256") {
+        cfg.jwtAlgorithm = cgs::service::JwtAlgorithm::RS256;
+    }
+
+    auto rsaPrivateKey = config.get<std::string>("auth.rsa_private_key_pem");
+    if (rsaPrivateKey) {
+        cfg.rsaPrivateKeyPem = std::move(rsaPrivateKey).value();
+    }
+
+    auto rsaPublicKey = config.get<std::string>("auth.rsa_public_key_pem");
+    if (rsaPublicKey) {
+        cfg.rsaPublicKeyPem = std::move(rsaPublicKey).value();
+    }
+
+    auto blacklistInterval =
+        config.get<int>("auth.blacklist_cleanup_interval_seconds");
+    if (blacklistInterval) {
+        cfg.blacklistCleanupInterval =
+            std::chrono::seconds(blacklistInterval.value());
+    }
+
     return cfg;
 }
 

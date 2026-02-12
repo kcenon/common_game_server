@@ -1,20 +1,24 @@
 /// @file token_provider.cpp
-/// @brief TokenProvider implementation generating HMAC-SHA256 signed JWTs.
+/// @brief TokenProvider implementation with HS256 and RS256 JWT signing.
 ///
 /// Token format (RFC 7519):
 ///   base64url(header) . base64url(payload) . base64url(signature)
 ///
-/// Header:  {"alg":"HS256","typ":"JWT"}
-/// Payload: {"sub":"...","usr":"...","roles":[...],"iat":N,"exp":N}
+/// HS256 Header: {"alg":"HS256","typ":"JWT"}
+/// RS256 Header: {"alg":"RS256","typ":"JWT"}
+/// Payload:      {"sub":"...","usr":"...","roles":[...],"jti":"...","iat":N,"exp":N}
 ///
 /// @see SRS-SVC-001.3
 /// @see SRS-SVC-001.4
+/// @see SRS-NFR-014
 
 #include "cgs/service/token_provider.hpp"
 
 #include "cgs/foundation/error_code.hpp"
 #include "cgs/foundation/game_error.hpp"
+#include "cgs/service/token_blacklist.hpp"
 #include "crypto_utils.hpp"
+#include "rsa_utils.hpp"
 
 #include <charconv>
 #include <sstream>
@@ -140,13 +144,19 @@ std::vector<std::string> extractJsonStringArray(std::string_view json,
 // TokenProvider
 // ---------------------------------------------------------------------------
 
-TokenProvider::TokenProvider(std::string signingKey)
-    : signingKey_(std::move(signingKey)) {}
+TokenProvider::TokenProvider(const AuthConfig& config)
+    : signingKey_(config.signingKey),
+      rsaPrivateKeyPem_(config.rsaPrivateKeyPem),
+      rsaPublicKeyPem_(config.rsaPublicKeyPem),
+      algorithm_(config.jwtAlgorithm) {}
 
 std::string TokenProvider::generateAccessToken(
     const TokenClaims& claims, std::chrono::seconds expiry) const {
-    // Header (fixed for HS256).
-    static const std::string header = R"({"alg":"HS256","typ":"JWT"})";
+    // Select header based on algorithm.
+    const bool useRs256 = (algorithm_ == JwtAlgorithm::RS256);
+    const std::string header = useRs256
+        ? R"({"alg":"RS256","typ":"JWT"})"
+        : R"({"alg":"HS256","typ":"JWT"})";
     auto encodedHeader = detail::base64urlEncode(header);
 
     // Compute timestamps.
@@ -155,6 +165,9 @@ std::string TokenProvider::generateAccessToken(
                            ? claims.issuedAt
                            : now);
     auto exp = toEpoch(now + expiry);
+
+    // Generate a unique JWT ID for blacklist referencing.
+    auto jti = detail::secureRandomHex(16); // 16 bytes -> 32 hex chars
 
     // Build payload JSON.
     std::ostringstream payload;
@@ -165,15 +178,24 @@ std::string TokenProvider::generateAccessToken(
         if (i > 0) { payload << ","; }
         payload << jsonEscape(claims.roles[i]);
     }
-    payload << "],\"iat\":" << iat << ",\"exp\":" << exp << "}";
+    payload << "],\"jti\":" << jsonEscape(jti)
+            << ",\"iat\":" << iat << ",\"exp\":" << exp << "}";
 
     auto encodedPayload = detail::base64urlEncode(payload.str());
 
-    // Sign: HMAC-SHA256(key, header.payload)
+    // Sign: algorithm-specific.
     std::string signingInput = encodedHeader + "." + encodedPayload;
+
+    if (useRs256) {
+        auto sig = detail::rsaSha256Sign(rsaPrivateKeyPem_, signingInput);
+        auto encodedSignature =
+            detail::base64urlEncode(sig.data(), sig.size());
+        return signingInput + "." + encodedSignature;
+    }
+
+    // HS256 (default).
     auto mac = detail::hmacSha256(signingKey_, signingInput);
     auto encodedSignature = detail::base64urlEncode(mac.data(), mac.size());
-
     return signingInput + "." + encodedSignature;
 }
 
@@ -186,14 +208,38 @@ cgs::foundation::GameResult<TokenClaims> TokenProvider::validateAccessToken(
             GameError(ErrorCode::InvalidToken, "malformed JWT: expected 3 parts"));
     }
 
-    // Verify signature.
+    // Decode header to determine algorithm.
+    auto headerJson = detail::base64urlDecodeString(parts[0]);
+    auto alg = extractJsonString(headerJson, "alg");
+
+    // Verify signature based on claimed algorithm.
     std::string signingInput = parts[0] + "." + parts[1];
-    auto expectedMac = detail::hmacSha256(signingKey_, signingInput);
-    auto expectedSig = detail::base64urlEncode(expectedMac.data(),
-                                                expectedMac.size());
-    if (!detail::constantTimeEqual(expectedSig, parts[2])) {
+
+    if (alg == "RS256") {
+        // RS256 verification requires public key.
+        if (rsaPublicKeyPem_.empty()) {
+            return cgs::foundation::GameResult<TokenClaims>::err(
+                GameError(ErrorCode::InvalidToken,
+                          "RS256 token received but no public key configured"));
+        }
+        auto sigBytes = detail::base64urlDecode(parts[2]);
+        if (!detail::rsaSha256Verify(rsaPublicKeyPem_, signingInput, sigBytes)) {
+            return cgs::foundation::GameResult<TokenClaims>::err(
+                GameError(ErrorCode::InvalidToken, "invalid RS256 signature"));
+        }
+    } else if (alg == "HS256") {
+        // HS256 verification.
+        auto expectedMac = detail::hmacSha256(signingKey_, signingInput);
+        auto expectedSig = detail::base64urlEncode(expectedMac.data(),
+                                                    expectedMac.size());
+        if (!detail::constantTimeEqual(expectedSig, parts[2])) {
+            return cgs::foundation::GameResult<TokenClaims>::err(
+                GameError(ErrorCode::InvalidToken, "invalid HS256 signature"));
+        }
+    } else {
         return cgs::foundation::GameResult<TokenClaims>::err(
-            GameError(ErrorCode::InvalidToken, "invalid signature"));
+            GameError(ErrorCode::InvalidToken,
+                      "unsupported JWT algorithm: " + alg));
     }
 
     // Decode payload.
@@ -208,6 +254,7 @@ cgs::foundation::GameResult<TokenClaims> TokenProvider::validateAccessToken(
     claims.subject = extractJsonString(payloadJson, "sub");
     claims.username = extractJsonString(payloadJson, "usr");
     claims.roles = extractJsonStringArray(payloadJson, "roles");
+    claims.jti = extractJsonString(payloadJson, "jti");
     claims.issuedAt = fromEpoch(extractJsonInt(payloadJson, "iat"));
     claims.expiresAt = fromEpoch(extractJsonInt(payloadJson, "exp"));
 
@@ -218,7 +265,17 @@ cgs::foundation::GameResult<TokenClaims> TokenProvider::validateAccessToken(
             GameError(ErrorCode::TokenExpired, "access token has expired"));
     }
 
+    // Check blacklist.
+    if (blacklist_ && !claims.jti.empty() && blacklist_->isRevoked(claims.jti)) {
+        return cgs::foundation::GameResult<TokenClaims>::err(
+            GameError(ErrorCode::TokenRevoked, "access token has been revoked"));
+    }
+
     return cgs::foundation::GameResult<TokenClaims>::ok(std::move(claims));
+}
+
+void TokenProvider::setBlacklist(TokenBlacklist* blacklist) {
+    blacklist_ = blacklist;
 }
 
 std::string TokenProvider::generateRefreshToken() {

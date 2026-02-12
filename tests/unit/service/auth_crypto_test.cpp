@@ -2,12 +2,15 @@
 
 #include "cgs/service/auth_types.hpp"
 #include "cgs/service/password_hasher.hpp"
+#include "cgs/service/token_blacklist.hpp"
 #include "cgs/service/token_provider.hpp"
 
 #include <chrono>
+#include <future>
 #include <set>
 #include <string>
 #include <thread>
+#include <vector>
 
 using namespace cgs::service;
 
@@ -22,6 +25,10 @@ TEST(AuthTypesTest, DefaultAuthConfig) {
     EXPECT_EQ(config.minPasswordLength, 8u);
     EXPECT_EQ(config.rateLimitMaxAttempts, 5u);
     EXPECT_EQ(config.rateLimitWindow, std::chrono::seconds{60});
+    EXPECT_EQ(config.jwtAlgorithm, JwtAlgorithm::HS256);
+    EXPECT_TRUE(config.rsaPrivateKeyPem.empty());
+    EXPECT_TRUE(config.rsaPublicKeyPem.empty());
+    EXPECT_EQ(config.blacklistCleanupInterval, std::chrono::seconds{300});
 }
 
 TEST(AuthTypesTest, DefaultUserRecord) {
@@ -48,6 +55,11 @@ TEST(AuthTypesTest, DefaultRefreshTokenRecord) {
     EXPECT_TRUE(record.token.empty());
     EXPECT_EQ(record.userId, 0u);
     EXPECT_FALSE(record.revoked);
+}
+
+TEST(AuthTypesTest, TokenClaimsHasJti) {
+    TokenClaims claims;
+    EXPECT_TRUE(claims.jti.empty());
 }
 
 // =============================================================================
@@ -125,14 +137,22 @@ TEST_F(PasswordHasherTest, GenerateSaltUniqueness) {
 }
 
 // =============================================================================
-// TokenProvider tests (SRS-SVC-001.3, SRS-SVC-001.4)
+// TokenProvider tests — HS256 backward compatibility (SRS-SVC-001.3, SRS-SVC-001.4)
 // =============================================================================
+
+namespace {
+AuthConfig makeHs256Config() {
+    AuthConfig config;
+    config.signingKey = "test-signing-key-must-be-at-least-32-bytes!!";
+    config.jwtAlgorithm = JwtAlgorithm::HS256;
+    return config;
+}
+} // namespace
 
 class TokenProviderTest : public ::testing::Test {
 protected:
-    static constexpr auto kSigningKey =
-        "test-signing-key-must-be-at-least-32-bytes!!";
-    TokenProvider provider{kSigningKey};
+    AuthConfig config_ = makeHs256Config();
+    TokenProvider provider{config_};
 
     TokenClaims makeTestClaims() {
         TokenClaims claims;
@@ -169,6 +189,30 @@ TEST_F(TokenProviderTest, ValidateAccessToken) {
     ASSERT_EQ(decoded.roles.size(), 2u);
     EXPECT_EQ(decoded.roles[0], "player");
     EXPECT_EQ(decoded.roles[1], "admin");
+}
+
+TEST_F(TokenProviderTest, GeneratedTokenContainsJti) {
+    auto claims = makeTestClaims();
+    auto token = provider.generateAccessToken(claims, std::chrono::seconds{900});
+
+    auto result = provider.validateAccessToken(token);
+    ASSERT_TRUE(result.hasValue());
+    EXPECT_FALSE(result.value().jti.empty());
+    // jti is 16 random bytes = 32 hex chars.
+    EXPECT_EQ(result.value().jti.size(), 32u);
+}
+
+TEST_F(TokenProviderTest, JtiIsUniquePerToken) {
+    auto claims = makeTestClaims();
+    std::set<std::string> jtis;
+    for (int i = 0; i < 50; ++i) {
+        auto token =
+            provider.generateAccessToken(claims, std::chrono::seconds{900});
+        auto result = provider.validateAccessToken(token);
+        ASSERT_TRUE(result.hasValue());
+        jtis.insert(result.value().jti);
+    }
+    EXPECT_EQ(jtis.size(), 50u);
 }
 
 TEST_F(TokenProviderTest, ValidateExpiredToken) {
@@ -220,7 +264,9 @@ TEST_F(TokenProviderTest, ValidateWrongSigningKey) {
     auto token = provider.generateAccessToken(claims, std::chrono::seconds{900});
 
     // Validate with a different key.
-    TokenProvider otherProvider("different-signing-key-also-32-bytes!!");
+    AuthConfig otherConfig;
+    otherConfig.signingKey = "different-signing-key-also-32-bytes!!";
+    TokenProvider otherProvider(otherConfig);
     auto result = otherProvider.validateAccessToken(token);
     ASSERT_TRUE(result.hasError());
     EXPECT_EQ(result.error().code(),
@@ -296,4 +342,305 @@ TEST_F(TokenProviderTest, EmptyTokenString) {
     ASSERT_TRUE(result.hasError());
     EXPECT_EQ(result.error().code(),
               cgs::foundation::ErrorCode::InvalidToken);
+}
+
+// =============================================================================
+// TokenProvider tests — RS256 (SRS-NFR-014)
+// =============================================================================
+
+namespace {
+
+// 2048-bit RSA test keypair (generated for testing only — not used in production).
+constexpr auto kTestRsaPrivateKeyPem = R"(-----BEGIN PRIVATE KEY-----
+MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDGTAERci6kr5bF
+3XSyTweaA/lP3XZmWMm6byIG4iBC0/M/yFezk8iv0xoFQt6rRQMFUIfYvFN9v7PR
+GyFfsM0m8eVyFp7/gmG5y+N9oAIdScAHXcmB2OhcbiUaBfcMHmHEV8gWR4hlgZcj
+KNKVJdJ0oK/4hQpJboLdyDVgqXJ1zQDxIKB8VnVTTRV3WPnpxyJilOmdS2v9wQzv
+/s6Lfm1eqW9L2lL4dWVrscifeosDAgMaxdCQjTZn0c6C0HDWz8SiLzL2IX5zjxs9
+oM9gq2qTZi8uoX4yebaaGEmIjG8HpoP2fR2jEEonlxCQQtX3e7FSeTnF8G2ykH2s
+tvqUpzKlAgMBAAECggEAA4kq6AqlwhopwX+e+1Kf7iiIe0VVvWJIvzozPIqvLGnh
+l5SlBbF1Uwyb/+su6RW7BaRSNnSN4OXjGQUsvZX7jn3NNiZ+Rsw7yFzrl/Dwtgt7
+hlYZ3VFxZpEwjavSDtAC38X4mMxv5kQe3l8LDuLvWKozK7wEOzDNL2heFUoS3alW
+WSh8srKE/LgBxcCskEJOt7dT/zps0wWIdrBGcH/m+eBRPELc7AoFXpi2U8wRgDlg
+IHAXU2cCmEhNcvF5KX4CswskSReACKBvkDnXpyxg4skfC1IH54Stg0y4MPPd7/qp
+V8rOesxJBkAuk9cRrzl+tQFSpSCvYh39sjukj6XtkQKBgQDl5uTeFql0PYHFxQBt
+tiPYVgeqElZshq1KNXapXsufv5YVTNChrNIGOyBar6a5enrE7u8mwunzqEpxIw1d
+mqDrErS2i9Ze6nmNjOL7lCKcot5Ttba6er+1tB9Sosrig08m3zuMpGvv97pSOInI
+u1atzbUDQVniHg5iE8C4ZKJu1QKBgQDczqV0elSDzHZVNTJE6NX9khUUMP3b0snm
+t4WnE6+v0mIHCxVWCc1hSBmdlQvaYMayJ3uCbVaWWZx9nVZbhF1lfzqqOPC/hORe
+D/KO4VIdlwDIszDtQcbP7FRRbSoM7MdiGmGxELrrM9oBnDRYcF8U+JesL9iAMgJ3
+2XCd8zq8kQKBgD/1FAaU1193HPsf6xaabS5qAIfXwiM+9EaIyRIlRRCUA/S5AfF4
+WpVRLZcM9pzy7eSLdAycfOlEEDGZRsabldjPw2ZlUKXnJRmz8BF9DIP261LuYn9O
+Vrb9/RjIIRkS3po50B84Pq7rg/ILuIkXVO3VJF5bd93n7qhqRlsF5AphAoGAB7m/
+Nj0VeesMdNzAnoKbAh07WZKBP1C3ubfQGFFrAzbUMTTlETaUlgPEyauuV3ytVwxk
+mOKkdew6unZn0BnofqWd8ti9K6ZFqzjZnsApdFmVMHB8lMCJaTr2lEbCguNB8p/D
+rUNNlu8ggI/rkPCVkxFDlUWzSID3byQPeadJ9dECgYBGnKto0GNYI/rbKkq+Zunr
+xvx9s8P+X5MnPt289B/adPJaU6fhDd+tta2ns1WPIT/0i+UmgtpgkM4BwdBl//rm
+aX+yPoxGZpGadIGjT0em31baoZeecqglvoJ69/c2w9Y/YoURl2Du30U3ocXa6svI
+v7YyyAHmNCXe/KCdFtHNJw==
+-----END PRIVATE KEY-----
+)";
+
+constexpr auto kTestRsaPublicKeyPem = R"(-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxkwBEXIupK+Wxd10sk8H
+mgP5T912ZljJum8iBuIgQtPzP8hXs5PIr9MaBULeq0UDBVCH2LxTfb+z0RshX7DN
+JvHlchae/4JhucvjfaACHUnAB13JgdjoXG4lGgX3DB5hxFfIFkeIZYGXIyjSlSXS
+dKCv+IUKSW6C3cg1YKlydc0A8SCgfFZ1U00Vd1j56cciYpTpnUtr/cEM7/7Oi35t
+XqlvS9pS+HVla7HIn3qLAwIDGsXQkI02Z9HOgtBw1s/Eoi8y9iF+c48bPaDPYKtq
+k2YvLqF+Mnm2mhhJiIxvB6aD9n0doxBKJ5cQkELV93uxUnk5xfBtspB9rLb6lKcy
+pQIDAQAB
+-----END PUBLIC KEY-----
+)";
+
+AuthConfig makeRs256Config() {
+    AuthConfig config;
+    config.jwtAlgorithm = JwtAlgorithm::RS256;
+    config.rsaPrivateKeyPem = kTestRsaPrivateKeyPem;
+    config.rsaPublicKeyPem = kTestRsaPublicKeyPem;
+    return config;
+}
+
+} // namespace
+
+class Rs256TokenProviderTest : public ::testing::Test {
+protected:
+    AuthConfig config_ = makeRs256Config();
+    TokenProvider provider{config_};
+
+    TokenClaims makeTestClaims() {
+        TokenClaims claims;
+        claims.subject = "user-rs256";
+        claims.username = "rsauser";
+        claims.roles = {"player"};
+        return claims;
+    }
+};
+
+TEST_F(Rs256TokenProviderTest, RS256SignAndVerify) {
+    auto claims = makeTestClaims();
+    auto token = provider.generateAccessToken(claims, std::chrono::seconds{900});
+
+    EXPECT_FALSE(token.empty());
+
+    auto result = provider.validateAccessToken(token);
+    ASSERT_TRUE(result.hasValue());
+    EXPECT_EQ(result.value().subject, "user-rs256");
+    EXPECT_EQ(result.value().username, "rsauser");
+    ASSERT_EQ(result.value().roles.size(), 1u);
+    EXPECT_EQ(result.value().roles[0], "player");
+    EXPECT_FALSE(result.value().jti.empty());
+}
+
+TEST_F(Rs256TokenProviderTest, RS256RejectsTamperedToken) {
+    auto claims = makeTestClaims();
+    auto token = provider.generateAccessToken(claims, std::chrono::seconds{900});
+
+    // Tamper with the payload.
+    auto tampered = token;
+    auto firstDot = tampered.find('.');
+    auto secondDot = tampered.find('.', firstDot + 1);
+    if (secondDot > firstDot + 2) {
+        tampered[firstDot + 1] =
+            (tampered[firstDot + 1] == 'A') ? 'B' : 'A';
+    }
+
+    auto result = provider.validateAccessToken(tampered);
+    ASSERT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code(),
+              cgs::foundation::ErrorCode::InvalidToken);
+}
+
+TEST_F(Rs256TokenProviderTest, RS256RejectsHS256Token) {
+    // Sign a token with HS256.
+    auto hs256Config = makeHs256Config();
+    TokenProvider hs256Provider(hs256Config);
+
+    auto claims = makeTestClaims();
+    auto hs256Token =
+        hs256Provider.generateAccessToken(claims, std::chrono::seconds{900});
+
+    // Create RS256-only verifier (no signing key set).
+    AuthConfig rs256OnlyConfig;
+    rs256OnlyConfig.jwtAlgorithm = JwtAlgorithm::RS256;
+    rs256OnlyConfig.rsaPublicKeyPem = kTestRsaPublicKeyPem;
+    // Clear signing key so HS256 verification would use empty key.
+    rs256OnlyConfig.signingKey = "";
+    TokenProvider rs256Verifier(rs256OnlyConfig);
+
+    // The HS256 token should fail RS256 verification because the header says
+    // "HS256" and HMAC with empty key won't match.
+    auto result = rs256Verifier.validateAccessToken(hs256Token);
+    ASSERT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code(),
+              cgs::foundation::ErrorCode::InvalidToken);
+}
+
+TEST_F(Rs256TokenProviderTest, RS256ExpiredToken) {
+    auto claims = makeTestClaims();
+    auto token = provider.generateAccessToken(claims, std::chrono::seconds{0});
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
+
+    auto result = provider.validateAccessToken(token);
+    ASSERT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code(),
+              cgs::foundation::ErrorCode::TokenExpired);
+}
+
+// =============================================================================
+// TokenBlacklist tests (SRS-NFR-014)
+// =============================================================================
+
+class TokenBlacklistTest : public ::testing::Test {
+protected:
+    TokenBlacklist blacklist{std::chrono::seconds{60}};
+};
+
+TEST_F(TokenBlacklistTest, RevokeAndCheck) {
+    auto expiresAt = std::chrono::system_clock::now() + std::chrono::seconds{300};
+    blacklist.revoke("jti-001", expiresAt);
+
+    EXPECT_TRUE(blacklist.isRevoked("jti-001"));
+    EXPECT_FALSE(blacklist.isRevoked("jti-002"));
+    EXPECT_EQ(blacklist.size(), 1u);
+}
+
+TEST_F(TokenBlacklistTest, MultipleRevocations) {
+    auto expiresAt = std::chrono::system_clock::now() + std::chrono::seconds{300};
+    blacklist.revoke("jti-a", expiresAt);
+    blacklist.revoke("jti-b", expiresAt);
+    blacklist.revoke("jti-c", expiresAt);
+
+    EXPECT_TRUE(blacklist.isRevoked("jti-a"));
+    EXPECT_TRUE(blacklist.isRevoked("jti-b"));
+    EXPECT_TRUE(blacklist.isRevoked("jti-c"));
+    EXPECT_EQ(blacklist.size(), 3u);
+}
+
+TEST_F(TokenBlacklistTest, AutoCleanup) {
+    // Revoke a token that's already expired.
+    auto alreadyExpired =
+        std::chrono::system_clock::now() - std::chrono::seconds{1};
+    blacklist.revoke("expired-jti", alreadyExpired);
+
+    // Revoke a token that's still valid.
+    auto futureExpiry =
+        std::chrono::system_clock::now() + std::chrono::seconds{300};
+    blacklist.revoke("valid-jti", futureExpiry);
+
+    EXPECT_EQ(blacklist.size(), 2u);
+
+    // Cleanup should remove the expired entry.
+    auto removed = blacklist.cleanup();
+    EXPECT_EQ(removed, 1u);
+    EXPECT_EQ(blacklist.size(), 1u);
+
+    EXPECT_FALSE(blacklist.isRevoked("expired-jti"));
+    EXPECT_TRUE(blacklist.isRevoked("valid-jti"));
+}
+
+TEST_F(TokenBlacklistTest, ThreadSafety) {
+    constexpr int kWriterCount = 4;
+    constexpr int kOpsPerWriter = 100;
+
+    std::vector<std::future<void>> futures;
+    auto expiresAt = std::chrono::system_clock::now() + std::chrono::seconds{300};
+
+    // Writers: add entries concurrently.
+    for (int w = 0; w < kWriterCount; ++w) {
+        futures.push_back(std::async(std::launch::async, [&, w]() {
+            for (int i = 0; i < kOpsPerWriter; ++i) {
+                std::string jti = "w" + std::to_string(w) + "-" + std::to_string(i);
+                blacklist.revoke(jti, expiresAt);
+            }
+        }));
+    }
+
+    // Readers: check entries concurrently with writers.
+    for (int r = 0; r < kWriterCount; ++r) {
+        futures.push_back(std::async(std::launch::async, [&]() {
+            for (int i = 0; i < kOpsPerWriter; ++i) {
+                // Just ensure no crash or data race.
+                (void)blacklist.isRevoked("w0-" + std::to_string(i));
+                (void)blacklist.size();
+            }
+        }));
+    }
+
+    for (auto& f : futures) {
+        f.get();
+    }
+
+    EXPECT_EQ(blacklist.size(),
+              static_cast<std::size_t>(kWriterCount * kOpsPerWriter));
+}
+
+// =============================================================================
+// TokenProvider + Blacklist integration (SRS-NFR-014)
+// =============================================================================
+
+TEST(TokenProviderBlacklistTest, BlacklistedTokenIsRejected) {
+    auto config = makeHs256Config();
+    TokenProvider provider(config);
+    TokenBlacklist blacklist(std::chrono::seconds{60});
+    provider.setBlacklist(&blacklist);
+
+    TokenClaims claims;
+    claims.subject = "user-bl";
+    claims.username = "blacklistuser";
+    claims.roles = {"player"};
+
+    auto token = provider.generateAccessToken(claims, std::chrono::seconds{900});
+
+    // Decode to get jti.
+    auto decoded = provider.validateAccessToken(token);
+    ASSERT_TRUE(decoded.hasValue());
+    auto jti = decoded.value().jti;
+    EXPECT_FALSE(jti.empty());
+
+    // Revoke.
+    blacklist.revoke(jti, decoded.value().expiresAt);
+
+    // Validation should now fail.
+    auto result = provider.validateAccessToken(token);
+    ASSERT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code(),
+              cgs::foundation::ErrorCode::TokenRevoked);
+}
+
+TEST(TokenProviderBlacklistTest, NonBlacklistedTokenPasses) {
+    auto config = makeHs256Config();
+    TokenProvider provider(config);
+    TokenBlacklist blacklist(std::chrono::seconds{60});
+    provider.setBlacklist(&blacklist);
+
+    TokenClaims claims;
+    claims.subject = "user-ok";
+    claims.username = "okuser";
+
+    auto token = provider.generateAccessToken(claims, std::chrono::seconds{900});
+
+    // Don't revoke — should pass.
+    auto result = provider.validateAccessToken(token);
+    ASSERT_TRUE(result.hasValue());
+    EXPECT_EQ(result.value().subject, "user-ok");
+}
+
+TEST(TokenProviderBlacklistTest, BackwardCompatibleHS256) {
+    // Default config uses HS256 — ensure everything still works.
+    AuthConfig config;
+    config.signingKey = "backward-compat-key-at-least-32-bytes!!!";
+    TokenProvider provider(config);
+
+    TokenClaims claims;
+    claims.subject = "user-compat";
+    claims.username = "compatuser";
+    claims.roles = {"player"};
+
+    auto token = provider.generateAccessToken(claims, std::chrono::seconds{60});
+    auto result = provider.validateAccessToken(token);
+    ASSERT_TRUE(result.hasValue());
+    EXPECT_EQ(result.value().subject, "user-compat");
+    EXPECT_EQ(result.value().username, "compatuser");
+    EXPECT_FALSE(result.value().jti.empty());
 }

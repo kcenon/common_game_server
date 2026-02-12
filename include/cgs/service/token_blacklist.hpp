@@ -11,6 +11,7 @@
 
 #include <chrono>
 #include <cstddef>
+#include <mutex>
 #include <shared_mutex>
 #include <string>
 #include <string_view>

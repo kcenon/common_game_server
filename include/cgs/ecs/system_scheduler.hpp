@@ -10,7 +10,7 @@
 /// frame rate.
 ///
 /// Parallel execution: systems that declare non-conflicting component
-/// access patterns (via Read<T>/Write<T>) are automatically grouped
+/// access patterns (via `Read<T>`/`Write<T>`) are automatically grouped
 /// into parallel batches.  A user-provided ParallelExecutor dispatches
 /// these batches to a thread pool.
 ///

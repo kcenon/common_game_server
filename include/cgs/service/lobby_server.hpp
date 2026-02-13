@@ -138,8 +138,6 @@ public:
 
     /// Update player ratings after a match result.
     ///
-    /// @param winnerId  The winning player's ID.
-    /// @param loserId   The losing player's ID.
     /// @param winnerRating  The winner's current rating (modified in-place).
     /// @param loserRating   The loser's current rating (modified in-place).
     static void updateRatings(

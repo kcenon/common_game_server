@@ -18,6 +18,7 @@ using cgs::foundation::ErrorCode;
 using cgs::foundation::GameDatabase;
 using cgs::foundation::GameError;
 using cgs::foundation::GameResult;
+using cgs::foundation::PreparedStatement;
 using cgs::foundation::QueryResult;
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -174,6 +175,23 @@ GameResult<uint64_t> ConnectionPoolManager::execute(std::string_view sql) {
     }
 
     return impl_->primaryDb.execute(sql);
+}
+
+// ── query(PreparedStatement) ────────────────────────────────────────────────
+
+GameResult<QueryResult> ConnectionPoolManager::query(
+    const PreparedStatement& stmt) {
+    // Resolve to safe SQL with escaped parameters.
+    auto resolved = stmt.resolve();
+    return query(resolved);
+}
+
+// ── execute(PreparedStatement) ──────────────────────────────────────────────
+
+GameResult<uint64_t> ConnectionPoolManager::execute(
+    const PreparedStatement& stmt) {
+    auto resolved = stmt.resolve();
+    return execute(resolved);
 }
 
 // ── replicaCount() ──────────────────────────────────────────────────────────

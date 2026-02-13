@@ -20,6 +20,7 @@ namespace cgs::service {
 using cgs::foundation::ErrorCode;
 using cgs::foundation::GameError;
 using cgs::foundation::GameResult;
+using cgs::foundation::PreparedStatement;
 using cgs::foundation::QueryResult;
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
@@ -244,6 +245,81 @@ std::future<GameResult<QueryResult>> DBProxyServer::queryAsync(
     return std::async(std::launch::async,
         [this, sqlStr = std::move(sqlStr)]() -> GameResult<QueryResult> {
             return query(sqlStr);
+        });
+}
+
+// ── query(PreparedStatement) ────────────────────────────────────────────────
+
+GameResult<QueryResult> DBProxyServer::query(const PreparedStatement& stmt) {
+    if (!impl_->running.load()) {
+        return GameResult<QueryResult>::err(
+            GameError(ErrorCode::DBProxyNotStarted, "DBProxy not started"));
+    }
+
+    impl_->totalQueryCount.fetch_add(1, std::memory_order_relaxed);
+
+    // Resolve to safe SQL with escaped parameters.
+    auto resolved = stmt.resolve();
+
+    // Check cache using the resolved SQL.
+    if (impl_->config.cache.enabled && isReadQuery(resolved)) {
+        auto cached = impl_->cache.get(resolved);
+        if (cached) {
+            return GameResult<QueryResult>::ok(std::move(*cached));
+        }
+    }
+
+    // Execute via pool manager.
+    auto result = impl_->poolManager.query(stmt);
+    if (result.hasError()) {
+        return result;
+    }
+
+    // Cache the result using the resolved SQL as key.
+    if (impl_->config.cache.enabled && isReadQuery(resolved)) {
+        impl_->cache.put(resolved, result.value());
+    }
+
+    return result;
+}
+
+// ── execute(PreparedStatement) ──────────────────────────────────────────────
+
+GameResult<uint64_t> DBProxyServer::execute(const PreparedStatement& stmt) {
+    if (!impl_->running.load()) {
+        return GameResult<uint64_t>::err(
+            GameError(ErrorCode::DBProxyNotStarted, "DBProxy not started"));
+    }
+
+    impl_->totalQueryCount.fetch_add(1, std::memory_order_relaxed);
+
+    // Execute on primary via pool manager.
+    auto result = impl_->poolManager.execute(stmt);
+    if (result.hasError()) {
+        return result;
+    }
+
+    // Invalidate cache entries for the affected table.
+    if (impl_->config.cache.enabled) {
+        auto resolved = stmt.resolve();
+        auto tableName = extractTableName(resolved);
+        if (!tableName.empty()) {
+            impl_->cache.invalidateByTable(tableName);
+        }
+    }
+
+    return result;
+}
+
+// ── queryAsync(PreparedStatement) ───────────────────────────────────────────
+
+std::future<GameResult<QueryResult>> DBProxyServer::queryAsync(
+    const PreparedStatement& stmt) {
+    // Copy the statement for the async lambda.
+    auto stmtCopy = stmt;
+    return std::async(std::launch::async,
+        [this, stmtCopy = std::move(stmtCopy)]() -> GameResult<QueryResult> {
+            return query(stmtCopy);
         });
 }
 

@@ -10,6 +10,8 @@
 
 #include "cgs/foundation/error_code.hpp"
 #include "cgs/foundation/game_database.hpp"
+#include "cgs/service/connection_pool_manager.hpp"
+#include "cgs/service/dbproxy_server.hpp"
 #include "cgs/service/dbproxy_types.hpp"
 #include "cgs/service/query_cache.hpp"
 
@@ -349,4 +351,157 @@ TEST(SqlHelperTest, InvalidateByTableNoMatch) {
     auto count = cache.invalidateByTable("players");
     EXPECT_EQ(count, 0u);
     EXPECT_EQ(cache.size(), 1u);
+}
+
+// ============================================================================
+// SQL Injection Prevention Tests (SRS-NFR-016)
+// ============================================================================
+
+TEST(SqlInjectionTest, SingleQuoteEscaped) {
+    // Classic SQL injection: ' OR '1'='1
+    PreparedStatement stmt("SELECT * FROM users WHERE name = $name");
+    stmt.bindString("name", "' OR '1'='1");
+    auto resolved = stmt.resolve();
+
+    // The injected quotes should be escaped to double single-quotes.
+    EXPECT_EQ(resolved,
+              "SELECT * FROM users WHERE name = ''' OR ''1''=''1'");
+    // The entire value is wrapped in quotes, so it's treated as a literal string.
+    EXPECT_NE(resolved, "SELECT * FROM users WHERE name = '' OR '1'='1'");
+}
+
+TEST(SqlInjectionTest, DropTableInjection) {
+    // Attempt: '; DROP TABLE users; --
+    PreparedStatement stmt("SELECT * FROM users WHERE id = $id");
+    stmt.bindString("id", "'; DROP TABLE users; --");
+    auto resolved = stmt.resolve();
+
+    // Should be safely escaped: the DROP TABLE is inside a string literal.
+    EXPECT_EQ(resolved,
+              "SELECT * FROM users WHERE id = '''; DROP TABLE users; --'");
+}
+
+TEST(SqlInjectionTest, UnionSelectInjection) {
+    // Attempt: ' UNION SELECT password FROM admin --
+    PreparedStatement stmt(
+        "SELECT * FROM products WHERE category = $cat");
+    stmt.bindString("cat", "' UNION SELECT password FROM admin --");
+    auto resolved = stmt.resolve();
+
+    EXPECT_EQ(resolved,
+              "SELECT * FROM products WHERE category = "
+              "''' UNION SELECT password FROM admin --'");
+}
+
+TEST(SqlInjectionTest, IntegerBindingIsNotVulnerable) {
+    // Integer bindings produce bare numbers, not injectable strings.
+    PreparedStatement stmt("SELECT * FROM users WHERE id = $id");
+    stmt.bindInt("id", 42);
+    EXPECT_EQ(stmt.resolve(), "SELECT * FROM users WHERE id = 42");
+}
+
+TEST(SqlInjectionTest, NullBindingIsSafe) {
+    PreparedStatement stmt("SELECT * FROM users WHERE name = $name");
+    stmt.bindNull("name");
+    EXPECT_EQ(stmt.resolve(), "SELECT * FROM users WHERE name = NULL");
+}
+
+TEST(SqlInjectionTest, BoolBindingIsSafe) {
+    PreparedStatement stmt("SELECT * FROM users WHERE active = $flag");
+    stmt.bindBool("flag", false);
+    EXPECT_EQ(stmt.resolve(), "SELECT * FROM users WHERE active = FALSE");
+}
+
+TEST(SqlInjectionTest, NestedQuotesEscaped) {
+    // Multiple levels of quote nesting.
+    PreparedStatement stmt("INSERT INTO logs (msg) VALUES ($msg)");
+    stmt.bindString("msg", "It's a test with ''nested'' quotes");
+    auto resolved = stmt.resolve();
+
+    EXPECT_EQ(resolved,
+              "INSERT INTO logs (msg) VALUES ("
+              "'It''s a test with ''''nested'''' quotes')");
+}
+
+TEST(SqlInjectionTest, EmptyStringIsSafe) {
+    PreparedStatement stmt("SELECT * FROM t WHERE col = $val");
+    stmt.bindString("val", "");
+    EXPECT_EQ(stmt.resolve(), "SELECT * FROM t WHERE col = ''");
+}
+
+TEST(SqlInjectionTest, BackslashNotSpecial) {
+    // In standard SQL, backslash is not a special character.
+    PreparedStatement stmt("SELECT * FROM t WHERE path = $p");
+    stmt.bindString("p", "C:\\Users\\test");
+    EXPECT_EQ(stmt.resolve(), "SELECT * FROM t WHERE path = 'C:\\Users\\test'");
+}
+
+// ============================================================================
+// DBProxyServer PreparedStatement Tests
+// ============================================================================
+
+TEST(DBProxyServerPreparedTest, QueryReturnsNotStarted) {
+    DBProxyConfig config;
+    DBProxyServer proxy(config);
+
+    PreparedStatement stmt("SELECT * FROM t WHERE id = $id");
+    stmt.bindInt("id", 1);
+
+    auto result = proxy.query(stmt);
+    EXPECT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code(), ErrorCode::DBProxyNotStarted);
+}
+
+TEST(DBProxyServerPreparedTest, ExecuteReturnsNotStarted) {
+    DBProxyConfig config;
+    DBProxyServer proxy(config);
+
+    PreparedStatement stmt("UPDATE t SET x = $x WHERE id = $id");
+    stmt.bindInt("x", 10);
+    stmt.bindInt("id", 1);
+
+    auto result = proxy.execute(stmt);
+    EXPECT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code(), ErrorCode::DBProxyNotStarted);
+}
+
+TEST(DBProxyServerPreparedTest, QueryAsyncReturnsNotStarted) {
+    DBProxyConfig config;
+    DBProxyServer proxy(config);
+
+    PreparedStatement stmt("SELECT * FROM t WHERE id = $id");
+    stmt.bindInt("id", 1);
+
+    auto future = proxy.queryAsync(stmt);
+    auto result = future.get();
+    EXPECT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code(), ErrorCode::DBProxyNotStarted);
+}
+
+// ============================================================================
+// ConnectionPoolManager PreparedStatement Tests
+// ============================================================================
+
+TEST(ConnectionPoolManagerPreparedTest, QueryReturnsNotStarted) {
+    DBProxyConfig config;
+    ConnectionPoolManager pool(config);
+
+    PreparedStatement stmt("SELECT * FROM t WHERE id = $id");
+    stmt.bindInt("id", 1);
+
+    auto result = pool.query(stmt);
+    EXPECT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code(), ErrorCode::DBProxyNotStarted);
+}
+
+TEST(ConnectionPoolManagerPreparedTest, ExecuteReturnsNotStarted) {
+    DBProxyConfig config;
+    ConnectionPoolManager pool(config);
+
+    PreparedStatement stmt("DELETE FROM t WHERE id = $id");
+    stmt.bindInt("id", 1);
+
+    auto result = pool.execute(stmt);
+    EXPECT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code(), ErrorCode::DBProxyNotStarted);
 }

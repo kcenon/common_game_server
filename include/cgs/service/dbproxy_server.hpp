@@ -87,6 +87,27 @@ public:
         cgs::foundation::GameResult<cgs::foundation::QueryResult>>
     queryAsync(std::string_view sql);
 
+    // ── Parameterized query execution (SRS-NFR-016) ──────────────────────
+
+    /// Execute a parameterized SELECT query using PreparedStatement.
+    ///
+    /// Prevents SQL injection by resolving bound parameters with proper
+    /// escaping. Cache lookup uses the resolved SQL string.
+    [[nodiscard]] cgs::foundation::GameResult<cgs::foundation::QueryResult>
+    query(const cgs::foundation::PreparedStatement& stmt);
+
+    /// Execute a parameterized write command using PreparedStatement.
+    ///
+    /// Prevents SQL injection by resolving bound parameters with proper
+    /// escaping. Cache invalidation uses the resolved SQL.
+    [[nodiscard]] cgs::foundation::GameResult<uint64_t>
+    execute(const cgs::foundation::PreparedStatement& stmt);
+
+    /// Execute a parameterized SELECT query asynchronously.
+    [[nodiscard]] std::future<
+        cgs::foundation::GameResult<cgs::foundation::QueryResult>>
+    queryAsync(const cgs::foundation::PreparedStatement& stmt);
+
     // ── Cache management ────────────────────────────────────────────────
 
     /// Manually invalidate all cache entries for a specific table.

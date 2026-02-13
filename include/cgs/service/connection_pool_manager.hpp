@@ -62,6 +62,19 @@ public:
     [[nodiscard]] cgs::foundation::GameResult<uint64_t>
     execute(std::string_view sql);
 
+    /// Execute a parameterized SELECT query, routing to a replica if available.
+    ///
+    /// Uses PreparedStatement for SQL injection prevention (SRS-NFR-016).
+    /// The statement is resolved to safe SQL before execution.
+    [[nodiscard]] cgs::foundation::GameResult<cgs::foundation::QueryResult>
+    query(const cgs::foundation::PreparedStatement& stmt);
+
+    /// Execute a parameterized write command on the primary.
+    ///
+    /// Uses PreparedStatement for SQL injection prevention (SRS-NFR-016).
+    [[nodiscard]] cgs::foundation::GameResult<uint64_t>
+    execute(const cgs::foundation::PreparedStatement& stmt);
+
     /// Get the number of available replicas.
     [[nodiscard]] std::size_t replicaCount() const;
 

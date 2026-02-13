@@ -156,6 +156,17 @@ public:
     /// Check if logging is enabled for the given level and category.
     [[nodiscard]] bool isEnabled(LogLevel level, LogCategory cat) const;
 
+    /// Enable or disable JSON output mode (SRS-NFR-019).
+    ///
+    /// When enabled, log messages are formatted as single-line JSON objects
+    /// compatible with ELK/Grafana Loki ingestion.  The JSON formatter
+    /// automatically includes the current thread's correlation ID if set
+    /// via CorrelationScope.
+    void setJsonMode(bool enabled);
+
+    /// Check if JSON output mode is enabled.
+    [[nodiscard]] bool isJsonMode() const;
+
     /// Flush all buffered log messages.
     GameResult<void> flush();
 

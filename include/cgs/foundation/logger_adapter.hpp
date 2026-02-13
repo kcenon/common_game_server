@@ -7,3 +7,4 @@
 /// with category-based filtering and high-throughput support.
 
 #include "cgs/foundation/game_logger.hpp"
+#include "cgs/foundation/json_log_formatter.hpp"

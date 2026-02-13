@@ -271,6 +271,18 @@ target_link_libraries(cgs_service_auth_server_tests PRIVATE
 )
 gtest_discover_tests(cgs_service_auth_server_tests)
 
+# Integration tests - Service auth server (multi-device, token lifecycle, isolation)
+add_executable(cgs_service_auth_integration_tests
+    integration/service/auth_server_integration_test.cpp
+)
+target_link_libraries(cgs_service_auth_integration_tests PRIVATE
+    cgs::service_auth
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_service_auth_integration_tests
+    PROPERTIES LABELS "integration"
+)
+
 # Unit tests - Service gateway components (session manager, token bucket, route table)
 add_executable(cgs_service_gateway_tests
     unit/service/gateway_components_test.cpp

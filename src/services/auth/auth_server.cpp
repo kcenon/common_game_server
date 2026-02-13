@@ -244,11 +244,16 @@ cgs::foundation::GameResult<TokenPair> AuthServer::refreshToken(
 
 cgs::foundation::GameResult<void> AuthServer::logout(
     std::string_view refreshToken) {
-    if (!tokenStore_->revoke(refreshToken)) {
+    // Look up the refresh token to identify the user.
+    auto recordOpt = tokenStore_->find(refreshToken);
+    if (!recordOpt.has_value()) {
         return cgs::foundation::GameResult<void>::err(
             GameError(ErrorCode::InvalidToken,
                       "refresh token not found"));
     }
+
+    // Revoke ALL refresh tokens belonging to this user (all-device logout).
+    tokenStore_->revokeAllForUser(recordOpt->userId);
     return cgs::foundation::GameResult<void>::ok();
 }
 

@@ -342,6 +342,57 @@ TEST_F(AuthServerTest, LogoutNonexistentToken) {
     EXPECT_EQ(result.error().code(), ErrorCode::InvalidToken);
 }
 
+TEST_F(AuthServerTest, LogoutRevokesAllUserSessions) {
+    registerTestUser();
+
+    // Simulate multiple sessions (e.g., phone, laptop, tablet).
+    auto session1 = server_->login("testuser", "StrongPass1!", "10.0.0.1");
+    auto session2 = server_->login("testuser", "StrongPass1!", "10.0.0.2");
+    auto session3 = server_->login("testuser", "StrongPass1!", "10.0.0.3");
+    ASSERT_TRUE(session1.hasValue());
+    ASSERT_TRUE(session2.hasValue());
+    ASSERT_TRUE(session3.hasValue());
+
+    // Logout from session1 should revoke ALL sessions for this user.
+    auto logoutResult = server_->logout(session1.value().refreshToken);
+    ASSERT_TRUE(logoutResult.hasValue());
+
+    // All refresh tokens should be revoked.
+    auto r1 = server_->refreshToken(session1.value().refreshToken);
+    auto r2 = server_->refreshToken(session2.value().refreshToken);
+    auto r3 = server_->refreshToken(session3.value().refreshToken);
+    EXPECT_TRUE(r1.hasError());
+    EXPECT_TRUE(r2.hasError());
+    EXPECT_TRUE(r3.hasError());
+    EXPECT_EQ(r1.error().code(), ErrorCode::TokenRevoked);
+    EXPECT_EQ(r2.error().code(), ErrorCode::TokenRevoked);
+    EXPECT_EQ(r3.error().code(), ErrorCode::TokenRevoked);
+}
+
+TEST_F(AuthServerTest, LogoutDoesNotAffectOtherUsers) {
+    registerTestUser();
+    UserCredentials alice{"alice", "alice@example.com", "AlicePass1!"};
+    auto regAlice = server_->registerUser(alice);
+    ASSERT_TRUE(regAlice.hasValue());
+
+    auto loginTest = server_->login("testuser", "StrongPass1!", "10.0.0.1");
+    auto loginAlice = server_->login("alice", "AlicePass1!", "10.0.0.2");
+    ASSERT_TRUE(loginTest.hasValue());
+    ASSERT_TRUE(loginAlice.hasValue());
+
+    // Logout testuser — should NOT affect Alice.
+    auto logoutResult = server_->logout(loginTest.value().refreshToken);
+    ASSERT_TRUE(logoutResult.hasValue());
+
+    // testuser's token is revoked.
+    auto r1 = server_->refreshToken(loginTest.value().refreshToken);
+    EXPECT_TRUE(r1.hasError());
+
+    // Alice's token is still valid.
+    auto r2 = server_->refreshToken(loginAlice.value().refreshToken);
+    EXPECT_TRUE(r2.hasValue());
+}
+
 // =============================================================================
 // Token validation tests
 // =============================================================================

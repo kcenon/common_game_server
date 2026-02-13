@@ -43,6 +43,17 @@ target_link_libraries(cgs_foundation_logger_tests PRIVATE
 )
 gtest_discover_tests(cgs_foundation_logger_tests)
 
+# Unit tests - JSON log formatter and correlation IDs (SRS-NFR-019)
+add_executable(cgs_foundation_json_log_formatter_tests
+    unit/foundation/json_log_formatter_test.cpp
+)
+target_link_libraries(cgs_foundation_json_log_formatter_tests PRIVATE
+    cgs::foundation_logger
+    common_system
+    GTest::gtest_main
+)
+gtest_discover_tests(cgs_foundation_json_log_formatter_tests)
+
 # Unit tests - foundation network adapter
 add_executable(cgs_foundation_network_tests
     unit/foundation/network_adapter_test.cpp

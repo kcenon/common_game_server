@@ -1,6 +1,7 @@
 # Foundation Logger Adapter (SDS-MOD-003)
 add_library(cgs_foundation_logger
     game_logger.cpp
+    json_log_formatter.cpp
 )
 target_link_libraries(cgs_foundation_logger
     PUBLIC cgs_core

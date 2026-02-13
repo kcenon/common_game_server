@@ -2,6 +2,7 @@
 /// @brief GameLogger implementation wrapping kcenon logger_system.
 
 #include "cgs/foundation/game_logger.hpp"
+#include "cgs/foundation/json_log_formatter.hpp"
 
 // kcenon logger headers (hidden behind PIMPL)
 #include <kcenon/common/interfaces/global_logger_registry.h>
@@ -89,6 +90,9 @@ struct GameLogger::Impl {
     // Named loggers registered in GlobalLoggerRegistry, one per category
     std::array<std::string, kLogCategoryCount> loggerNames;
 
+    // JSON output mode (SRS-NFR-019)
+    std::atomic<bool> jsonMode{false};
+
     Impl() {
         for (std::size_t i = 0; i < kLogCategoryCount; ++i) {
             categoryLevels[i].store(kDefaultCategoryLevels[i],
@@ -140,6 +144,11 @@ void GameLogger::log(LogLevel level, LogCategory cat, std::string_view msg) {
     auto logger = impl_->getLogger(cat);
     auto kcLevel = mapLevel(level);
 
+    if (impl_->jsonMode.load(std::memory_order_acquire)) {
+        logger->log(kcLevel, JsonLogFormatter::format(level, cat, msg));
+        return;
+    }
+
     // Format: [Category] message
     std::string formatted;
     formatted.reserve(msg.size() + 16);
@@ -163,6 +172,11 @@ void GameLogger::logWithContext(LogLevel level, LogCategory cat,
     auto logger = impl_->getLogger(cat);
     auto kcLevel = mapLevel(level);
 
+    if (impl_->jsonMode.load(std::memory_order_acquire)) {
+        logger->log(kcLevel, JsonLogFormatter::format(level, cat, msg, ctx));
+        return;
+    }
+
     std::string ctxStr = formatContext(ctx);
 
     // Format: [Category] message {key=val, ...}
@@ -179,6 +193,17 @@ void GameLogger::logWithContext(LogLevel level, LogCategory cat,
     }
 
     logger->log(kcLevel, formatted);
+}
+
+// ---------------------------------------------------------------------------
+// JSON mode (SRS-NFR-019)
+// ---------------------------------------------------------------------------
+void GameLogger::setJsonMode(bool enabled) {
+    impl_->jsonMode.store(enabled, std::memory_order_release);
+}
+
+bool GameLogger::isJsonMode() const {
+    return impl_->jsonMode.load(std::memory_order_acquire);
 }
 
 // ---------------------------------------------------------------------------

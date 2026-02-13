@@ -1,0 +1,113 @@
+name: Code Coverage
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: coverage-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  coverage:
+    name: Measure Code Coverage
+    runs-on: ubuntu-24.04
+
+    env:
+      CONAN_PRESET: conan-debug
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install system dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libpq-dev lcov
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Conan
+        run: |
+          pip install conan
+          conan profile detect --force
+
+      - name: Cache Conan packages
+        uses: actions/cache@v4
+        with:
+          path: ~/.conan2
+          key: conan-coverage-${{ hashFiles('conanfile.py') }}
+          restore-keys: |
+            conan-coverage-
+            conan-Linux-Debug-
+
+      - name: Install dependencies via Conan
+        run: |
+          conan install . \
+            --output-folder=build \
+            --build=missing \
+            -s build_type=Debug
+
+      - name: Configure CMake with coverage
+        run: |
+          cmake --preset ${{ env.CONAN_PRESET }} \
+            -DCGS_ENABLE_COVERAGE=ON
+
+      - name: Build
+        run: cmake --build --preset ${{ env.CONAN_PRESET }} -j$(nproc)
+
+      - name: Run unit tests
+        run: |
+          ctest --preset ${{ env.CONAN_PRESET }} --output-on-failure \
+            -LE "benchmark|integration" \
+            -E "PerformanceTest|^common_|^network_|^database_|^thread_|GameServerTest\.PlayerSlotReused" \
+            -j$(nproc) || true
+
+      - name: Capture coverage with lcov
+        run: |
+          lcov --capture \
+            --directory build/ \
+            --output-file build/coverage.info \
+            --ignore-errors mismatch
+
+          # Remove external/test/benchmark code from coverage
+          lcov --remove build/coverage.info \
+            '/usr/*' \
+            '*/build/_deps/*' \
+            '*/tests/*' \
+            '*/benchmarks/*' \
+            '*/test/*' \
+            --output-file build/coverage-filtered.info \
+            --ignore-errors unused
+
+      - name: Generate coverage report
+        run: |
+          genhtml build/coverage-filtered.info \
+            --output-directory build/coverage-html \
+            --title "CGS Code Coverage" \
+            --legend --show-details
+
+      - name: Print coverage summary
+        run: |
+          echo "## Code Coverage Summary" >> $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+          lcov --summary build/coverage-filtered.info 2>&1 | tee -a $GITHUB_STEP_SUMMARY
+          echo '```' >> $GITHUB_STEP_SUMMARY
+
+      - name: Upload coverage HTML report
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-report
+          path: build/coverage-html/
+          retention-days: 30
+
+      - name: Upload lcov data
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-lcov
+          path: build/coverage-filtered.info
+          retention-days: 30

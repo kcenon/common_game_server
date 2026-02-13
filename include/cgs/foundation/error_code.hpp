@@ -30,6 +30,9 @@ enum class ErrorCode : uint32_t {
     ListenFailed = 0x0105,
     SessionNotFound = 0x0106,
     InvalidMessage = 0x0107,
+    TlsHandshakeFailed = 0x0108,
+    TlsCertificateInvalid = 0x0109,
+    TlsNotSupported = 0x010A,
 
     // Database (0x0200 - 0x02FF)
     DatabaseError = 0x0200,

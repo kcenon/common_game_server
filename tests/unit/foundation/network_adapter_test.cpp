@@ -411,6 +411,104 @@ TEST(GameNetworkManagerTest, StopAllNoServers) {
 // missing ASIO context, but the AlreadyExists path is still exercised).
 
 // ===========================================================================
+// TlsConfig: validation
+// ===========================================================================
+
+TEST(TlsConfigTest, ValidConfig) {
+    TlsConfig cfg;
+    cfg.certPath = "/path/to/cert.pem";
+    cfg.keyPath = "/path/to/key.pem";
+    EXPECT_TRUE(cfg.isValid());
+}
+
+TEST(TlsConfigTest, MissingCertPath) {
+    TlsConfig cfg;
+    cfg.keyPath = "/path/to/key.pem";
+    EXPECT_FALSE(cfg.isValid());
+}
+
+TEST(TlsConfigTest, MissingKeyPath) {
+    TlsConfig cfg;
+    cfg.certPath = "/path/to/cert.pem";
+    EXPECT_FALSE(cfg.isValid());
+}
+
+TEST(TlsConfigTest, EmptyConfigIsInvalid) {
+    TlsConfig cfg;
+    EXPECT_FALSE(cfg.isValid());
+}
+
+TEST(TlsConfigTest, DefaultVerifyPeerIsFalse) {
+    TlsConfig cfg;
+    EXPECT_FALSE(cfg.verifyPeer);
+}
+
+// ===========================================================================
+// GameNetworkManager: TLS listen (SRS-NFR-015)
+// ===========================================================================
+
+TEST(GameNetworkManagerTest, TlsListenRejectsUdp) {
+    GameNetworkManager mgr;
+    TlsConfig tls;
+    tls.certPath = "/path/to/cert.pem";
+    tls.keyPath = "/path/to/key.pem";
+
+    auto result = mgr.listen(8443, Protocol::UDP, tls);
+    ASSERT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code(), ErrorCode::TlsNotSupported);
+}
+
+TEST(GameNetworkManagerTest, TlsListenRejectsWebSocket) {
+    GameNetworkManager mgr;
+    TlsConfig tls;
+    tls.certPath = "/path/to/cert.pem";
+    tls.keyPath = "/path/to/key.pem";
+
+    auto result = mgr.listen(8443, Protocol::WebSocket, tls);
+    ASSERT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code(), ErrorCode::TlsNotSupported);
+}
+
+TEST(GameNetworkManagerTest, TlsListenRejectsInvalidConfig) {
+    GameNetworkManager mgr;
+    TlsConfig tls; // Empty — invalid
+
+    auto result = mgr.listen(8443, Protocol::TCP, tls);
+    ASSERT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code(), ErrorCode::TlsCertificateInvalid);
+}
+
+TEST(GameNetworkManagerTest, TlsListenRejectsMissingCert) {
+    GameNetworkManager mgr;
+    TlsConfig tls;
+    tls.keyPath = "/path/to/key.pem"; // certPath missing
+
+    auto result = mgr.listen(8443, Protocol::TCP, tls);
+    ASSERT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code(), ErrorCode::TlsCertificateInvalid);
+}
+
+TEST(GameNetworkManagerTest, TlsListenRejectsMissingKey) {
+    GameNetworkManager mgr;
+    TlsConfig tls;
+    tls.certPath = "/path/to/cert.pem"; // keyPath missing
+
+    auto result = mgr.listen(8443, Protocol::TCP, tls);
+    ASSERT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code(), ErrorCode::TlsCertificateInvalid);
+}
+
+// ===========================================================================
+// TLS error codes: subsystem lookup
+// ===========================================================================
+
+TEST(TlsErrorCodeTest, SubsystemIsNetwork) {
+    EXPECT_EQ(errorSubsystem(ErrorCode::TlsHandshakeFailed), "Network");
+    EXPECT_EQ(errorSubsystem(ErrorCode::TlsCertificateInvalid), "Network");
+    EXPECT_EQ(errorSubsystem(ErrorCode::TlsNotSupported), "Network");
+}
+
+// ===========================================================================
 // Aggregate header test
 // ===========================================================================
 

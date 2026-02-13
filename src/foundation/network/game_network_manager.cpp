@@ -120,17 +120,24 @@ struct GameNetworkManager::Impl {
         return SessionId(nextSessionId.fetch_add(1, std::memory_order_relaxed));
     }
 
-    // Create a protocol server with the given port.
+    // Create a protocol server with the given port and optional TLS config.
     // Note: UDP facade auto-starts the server during creation, so the
     // caller must skip the explicit start() call for UDP.
     std::shared_ptr<kcenon::network::interfaces::i_protocol_server>
-    createServer(Protocol protocol, uint16_t port) {
+    createServer(Protocol protocol, uint16_t port,
+                 const TlsConfig* tls = nullptr) {
         using namespace kcenon::network::facade;
         switch (protocol) {
             case Protocol::TCP: {
                 tcp_facade facade;
                 tcp_facade::server_config cfg{};
                 cfg.port = port;
+                if (tls != nullptr) {
+                    cfg.use_ssl = true;
+                    cfg.cert_path = tls->certPath;
+                    cfg.key_path = tls->keyPath;
+                    cfg.tls_version = "TLSv1.3";
+                }
                 return facade.create_server(cfg);
             }
             case Protocol::UDP: {
@@ -331,6 +338,57 @@ GameResult<void> GameNetworkManager::listen(uint16_t port, Protocol protocol) {
                           "failed to start " + std::string(protocolName(protocol)) +
                               " server on port " + std::to_string(port)));
         }
+    }
+
+    impl_->servers.emplace(protocol, std::move(server));
+    return GameResult<void>::ok();
+}
+
+// ---------------------------------------------------------------------------
+// listen() with TLS (SRS-NFR-015)
+// ---------------------------------------------------------------------------
+
+GameResult<void> GameNetworkManager::listen(uint16_t port, Protocol protocol,
+                                            const TlsConfig& tls) {
+    // TLS is only supported over TCP.
+    if (protocol != Protocol::TCP) {
+        return GameResult<void>::err(
+            GameError(ErrorCode::TlsNotSupported,
+                      std::string(protocolName(protocol)) +
+                          " does not support TLS"));
+    }
+
+    // Validate TLS configuration.
+    if (!tls.isValid()) {
+        return GameResult<void>::err(
+            GameError(ErrorCode::TlsCertificateInvalid,
+                      "TLS config requires both certPath and keyPath"));
+    }
+
+    // Check if already listening on this protocol
+    if (impl_->servers.count(protocol) > 0) {
+        return GameResult<void>::err(
+            GameError(ErrorCode::AlreadyExists,
+                      std::string("already listening on ") +
+                          std::string(protocolName(protocol))));
+    }
+
+    auto server = impl_->createServer(protocol, port, &tls);
+    if (!server) {
+        return GameResult<void>::err(
+            GameError(ErrorCode::ListenFailed,
+                      "failed to create TLS server for " +
+                          std::string(protocolName(protocol))));
+    }
+
+    impl_->setupCallbacks(server, protocol);
+
+    auto result = server->start(port);
+    if (result.is_err()) {
+        return GameResult<void>::err(
+            GameError(ErrorCode::TlsHandshakeFailed,
+                      "failed to start TLS server on port " +
+                          std::to_string(port)));
     }
 
     impl_->servers.emplace(protocol, std::move(server));

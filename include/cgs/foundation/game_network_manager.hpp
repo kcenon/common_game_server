@@ -39,6 +39,30 @@ constexpr std::string_view protocolName(Protocol proto) {
     return "Unknown";
 }
 
+/// TLS configuration for encrypted transport (SRS-NFR-015).
+///
+/// When passed to listen(), the server will require TLS 1.3 connections.
+/// Only TCP protocol is currently supported; requesting TLS on UDP or
+/// WebSocket returns ErrorCode::TlsNotSupported.
+struct TlsConfig {
+    /// Path to the PEM-encoded server certificate.
+    std::string certPath;
+
+    /// Path to the PEM-encoded private key.
+    std::string keyPath;
+
+    /// Optional path to CA certificate for client verification.
+    std::string caPath;
+
+    /// Whether to verify client certificates (mutual TLS).
+    bool verifyPeer = false;
+
+    /// Validate that required fields are present.
+    [[nodiscard]] bool isValid() const {
+        return !certPath.empty() && !keyPath.empty();
+    }
+};
+
 /// Application-level message with opcode and binary payload.
 ///
 /// Wire format (serialize/deserialize):
@@ -111,6 +135,14 @@ public:
 
     /// Start listening on the given port for the specified protocol.
     [[nodiscard]] GameResult<void> listen(uint16_t port, Protocol protocol);
+
+    /// Start listening with TLS enabled (SRS-NFR-015).
+    ///
+    /// Enforces TLS 1.3 minimum and disables insecure cipher suites.
+    /// Currently supported for TCP only; other protocols return
+    /// ErrorCode::TlsNotSupported.
+    [[nodiscard]] GameResult<void> listen(uint16_t port, Protocol protocol,
+                                          const TlsConfig& tls);
 
     /// Stop the server for a specific protocol.
     [[nodiscard]] GameResult<void> stop(Protocol protocol);

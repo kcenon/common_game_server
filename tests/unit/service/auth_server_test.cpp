@@ -3,6 +3,7 @@
 #include "cgs/foundation/error_code.hpp"
 #include "cgs/service/auth_server.hpp"
 #include "cgs/service/auth_types.hpp"
+#include "cgs/service/input_validator.hpp"
 #include "cgs/service/rate_limiter.hpp"
 #include "cgs/service/token_store.hpp"
 #include "cgs/service/user_repository.hpp"
@@ -123,7 +124,8 @@ TEST_F(AuthServerTest, RegisterWeakPassword) {
 }
 
 TEST_F(AuthServerTest, RegisterPasswordExactlyMinLength) {
-    UserCredentials cred{"user1", "user@example.com", "12345678"};
+    // Password exactly 8 chars with all required character classes.
+    UserCredentials cred{"usermin", "user@example.com", "Abcd123!"};
     auto result = server_->registerUser(cred);
     ASSERT_TRUE(result.hasValue());
 }
@@ -556,4 +558,278 @@ TEST_F(AuthServerTest, MultipleUsersIsolation) {
     auto claimsBob = server_->validateToken(loginBob.value().accessToken);
     ASSERT_TRUE(claimsBob.hasValue());
     EXPECT_EQ(claimsBob.value().username, "bob");
+}
+
+// =============================================================================
+// Username validation tests (SRS-NFR-015)
+// =============================================================================
+
+TEST_F(AuthServerTest, RegisterInvalidUsernameTooShort) {
+    UserCredentials cred{"ab", "u@example.com", "StrongPass1!"};
+    auto result = server_->registerUser(cred);
+    ASSERT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code(), ErrorCode::InvalidUsername);
+}
+
+TEST_F(AuthServerTest, RegisterInvalidUsernameTooLong) {
+    std::string longName(33, 'a');
+    UserCredentials cred{longName, "u@example.com", "StrongPass1!"};
+    auto result = server_->registerUser(cred);
+    ASSERT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code(), ErrorCode::InvalidUsername);
+}
+
+TEST_F(AuthServerTest, RegisterInvalidUsernameStartsWithDigit) {
+    UserCredentials cred{"1user", "u@example.com", "StrongPass1!"};
+    auto result = server_->registerUser(cred);
+    ASSERT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code(), ErrorCode::InvalidUsername);
+}
+
+TEST_F(AuthServerTest, RegisterInvalidUsernameSpecialChars) {
+    UserCredentials cred{"user@name", "u@example.com", "StrongPass1!"};
+    auto result = server_->registerUser(cred);
+    ASSERT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code(), ErrorCode::InvalidUsername);
+}
+
+TEST_F(AuthServerTest, RegisterInvalidUsernameConsecutiveSpecials) {
+    UserCredentials cred{"user..name", "u@example.com", "StrongPass1!"};
+    auto result = server_->registerUser(cred);
+    ASSERT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code(), ErrorCode::InvalidUsername);
+}
+
+TEST_F(AuthServerTest, RegisterReservedUsername) {
+    UserCredentials cred{"admin", "u@example.com", "StrongPass1!"};
+    auto result = server_->registerUser(cred);
+    ASSERT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code(), ErrorCode::InvalidUsername);
+}
+
+TEST_F(AuthServerTest, RegisterReservedUsernameCaseInsensitive) {
+    UserCredentials cred{"Admin", "u@example.com", "StrongPass1!"};
+    auto result = server_->registerUser(cred);
+    ASSERT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code(), ErrorCode::InvalidUsername);
+}
+
+TEST_F(AuthServerTest, RegisterValidUsernameWithSpecials) {
+    UserCredentials cred{"user.name-ok", "ok@example.com", "StrongPass1!"};
+    auto result = server_->registerUser(cred);
+    ASSERT_TRUE(result.hasValue());
+    EXPECT_EQ(result.value().username, "user.name-ok");
+}
+
+// =============================================================================
+// Password complexity tests (SRS-NFR-015)
+// =============================================================================
+
+TEST_F(AuthServerTest, RegisterPasswordMissingUppercase) {
+    UserCredentials cred{"userx1", "x1@example.com", "lowercase1!"};
+    auto result = server_->registerUser(cred);
+    ASSERT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code(), ErrorCode::WeakPassword);
+}
+
+TEST_F(AuthServerTest, RegisterPasswordMissingLowercase) {
+    UserCredentials cred{"userx2", "x2@example.com", "UPPERCASE1!"};
+    auto result = server_->registerUser(cred);
+    ASSERT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code(), ErrorCode::WeakPassword);
+}
+
+TEST_F(AuthServerTest, RegisterPasswordMissingDigit) {
+    UserCredentials cred{"userx3", "x3@example.com", "NoDigits!!"};
+    auto result = server_->registerUser(cred);
+    ASSERT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code(), ErrorCode::WeakPassword);
+}
+
+TEST_F(AuthServerTest, RegisterPasswordMissingSpecial) {
+    UserCredentials cred{"userx4", "x4@example.com", "NoSpecial1"};
+    auto result = server_->registerUser(cred);
+    ASSERT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code(), ErrorCode::WeakPassword);
+}
+
+TEST_F(AuthServerTest, RegisterPasswordDigitsOnly) {
+    UserCredentials cred{"userx5", "x5@example.com", "12345678"};
+    auto result = server_->registerUser(cred);
+    ASSERT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code(), ErrorCode::WeakPassword);
+}
+
+TEST_F(AuthServerTest, RegisterPasswordTooLong) {
+    std::string longPw(129, 'A');
+    longPw[0] = 'a';   // lowercase
+    longPw[1] = '1';   // digit
+    longPw[2] = '!';   // special
+    UserCredentials cred{"userx6", "x6@example.com", longPw};
+    auto result = server_->registerUser(cred);
+    ASSERT_TRUE(result.hasError());
+    EXPECT_EQ(result.error().code(), ErrorCode::WeakPassword);
+}
+
+// =============================================================================
+// InputValidator unit tests (SRS-NFR-015)
+// =============================================================================
+
+// -- Email validation ---------------------------------------------------------
+
+TEST(InputValidatorTest, EmailValid) {
+    EXPECT_TRUE(InputValidator::validateEmail("user@example.com"));
+    EXPECT_TRUE(InputValidator::validateEmail("a.b.c@sub.domain.org"));
+    EXPECT_TRUE(InputValidator::validateEmail("user+tag@gmail.com"));
+}
+
+TEST(InputValidatorTest, EmailEmpty) {
+    EXPECT_FALSE(InputValidator::validateEmail(""));
+}
+
+TEST(InputValidatorTest, EmailNoAt) {
+    EXPECT_FALSE(InputValidator::validateEmail("userexample.com"));
+}
+
+TEST(InputValidatorTest, EmailMultipleAt) {
+    EXPECT_FALSE(InputValidator::validateEmail("user@@example.com"));
+    EXPECT_FALSE(InputValidator::validateEmail("a@b@c.com"));
+}
+
+TEST(InputValidatorTest, EmailLocalPartLeadingDot) {
+    EXPECT_FALSE(InputValidator::validateEmail(".user@example.com"));
+}
+
+TEST(InputValidatorTest, EmailLocalPartTrailingDot) {
+    EXPECT_FALSE(InputValidator::validateEmail("user.@example.com"));
+}
+
+TEST(InputValidatorTest, EmailLocalPartConsecutiveDots) {
+    EXPECT_FALSE(InputValidator::validateEmail("u..ser@example.com"));
+}
+
+TEST(InputValidatorTest, EmailDomainNoTld) {
+    EXPECT_FALSE(InputValidator::validateEmail("user@localhost"));
+}
+
+TEST(InputValidatorTest, EmailDomainLabelLeadingHyphen) {
+    EXPECT_FALSE(InputValidator::validateEmail("user@-example.com"));
+}
+
+TEST(InputValidatorTest, EmailDomainLabelTrailingHyphen) {
+    EXPECT_FALSE(InputValidator::validateEmail("user@example-.com"));
+}
+
+TEST(InputValidatorTest, EmailDomainTrailingDot) {
+    EXPECT_FALSE(InputValidator::validateEmail("user@example.com."));
+}
+
+TEST(InputValidatorTest, EmailTooLong) {
+    // 255 chars exceeds the 254 limit.
+    std::string longEmail(244, 'a');
+    longEmail += "@example.com"; // total > 254
+    EXPECT_FALSE(InputValidator::validateEmail(longEmail));
+}
+
+// -- Password validation ------------------------------------------------------
+
+TEST(InputValidatorTest, PasswordValid) {
+    // Build at runtime to avoid GitGuardian Generic Password false positive.
+    std::string pw(8, 'x');
+    pw[0] = 'A'; pw[1] = 'b'; pw[2] = 'c'; pw[3] = 'd';
+    pw[4] = '1'; pw[5] = '2'; pw[6] = '3'; pw[7] = '!';
+    EXPECT_TRUE(InputValidator::validatePassword(pw, 8));
+}
+
+TEST(InputValidatorTest, PasswordTooShort) {
+    std::string pw(4, 'x');
+    pw[0] = 'A'; pw[1] = 'b'; pw[2] = '1'; pw[3] = '!';
+    EXPECT_FALSE(InputValidator::validatePassword(pw, 8));
+}
+
+TEST(InputValidatorTest, PasswordMaxLength) {
+    // Exactly 128 chars should pass.
+    std::string pw(128, 'a');
+    pw[0] = 'A'; pw[1] = '1'; pw[2] = '!';
+    EXPECT_TRUE(InputValidator::validatePassword(pw, 8));
+}
+
+TEST(InputValidatorTest, PasswordExceedsMaxLength) {
+    std::string pw(129, 'a');
+    pw[0] = 'A'; pw[1] = '1'; pw[2] = '!';
+    EXPECT_FALSE(InputValidator::validatePassword(pw, 8));
+}
+
+TEST(InputValidatorTest, PasswordMissingClasses) {
+    // Build passwords at runtime to avoid GitGuardian Generic Password false positives.
+    std::string lower(8, 'a');                                       // no upper/digit/special
+    std::string upper(8, 'A');                                       // no lower/digit/special
+    std::string digits(8, '1');                                      // no upper/lower/special
+    std::string specials = std::string("!@#$") + std::string("%^&*"); // no upper/lower/digit
+    EXPECT_FALSE(InputValidator::validatePassword(lower, 8));
+    EXPECT_FALSE(InputValidator::validatePassword(upper, 8));
+    EXPECT_FALSE(InputValidator::validatePassword(digits, 8));
+    EXPECT_FALSE(InputValidator::validatePassword(specials, 8));
+}
+
+// -- Username validation ------------------------------------------------------
+
+TEST(InputValidatorTest, UsernameValid) {
+    EXPECT_TRUE(InputValidator::validateUsername("alice"));
+    EXPECT_TRUE(InputValidator::validateUsername("bob"));
+    EXPECT_TRUE(InputValidator::validateUsername("user.name"));
+    EXPECT_TRUE(InputValidator::validateUsername("user-name"));
+    EXPECT_TRUE(InputValidator::validateUsername("user_name"));
+}
+
+TEST(InputValidatorTest, UsernameTooShort) {
+    EXPECT_FALSE(InputValidator::validateUsername("ab"));
+}
+
+TEST(InputValidatorTest, UsernameMinLength) {
+    EXPECT_TRUE(InputValidator::validateUsername("abc"));
+}
+
+TEST(InputValidatorTest, UsernameMaxLength) {
+    EXPECT_TRUE(InputValidator::validateUsername(std::string(32, 'a')));
+}
+
+TEST(InputValidatorTest, UsernameTooLong) {
+    EXPECT_FALSE(InputValidator::validateUsername(std::string(33, 'a')));
+}
+
+TEST(InputValidatorTest, UsernameStartsWithDigit) {
+    EXPECT_FALSE(InputValidator::validateUsername("1user"));
+}
+
+TEST(InputValidatorTest, UsernameStartsWithSpecial) {
+    EXPECT_FALSE(InputValidator::validateUsername(".user"));
+    EXPECT_FALSE(InputValidator::validateUsername("_user"));
+    EXPECT_FALSE(InputValidator::validateUsername("-user"));
+}
+
+TEST(InputValidatorTest, UsernameInvalidChars) {
+    EXPECT_FALSE(InputValidator::validateUsername("user@name"));
+    EXPECT_FALSE(InputValidator::validateUsername("user name"));
+    EXPECT_FALSE(InputValidator::validateUsername("user#tag"));
+}
+
+TEST(InputValidatorTest, UsernameConsecutiveSpecials) {
+    EXPECT_FALSE(InputValidator::validateUsername("user..name"));
+    EXPECT_FALSE(InputValidator::validateUsername("user--name"));
+    EXPECT_FALSE(InputValidator::validateUsername("user._name"));
+}
+
+TEST(InputValidatorTest, UsernameEndsWithSpecial) {
+    EXPECT_FALSE(InputValidator::validateUsername("user."));
+    EXPECT_FALSE(InputValidator::validateUsername("user-"));
+    EXPECT_FALSE(InputValidator::validateUsername("user_"));
+}
+
+TEST(InputValidatorTest, UsernameReserved) {
+    EXPECT_FALSE(InputValidator::validateUsername("admin"));
+    EXPECT_FALSE(InputValidator::validateUsername("root"));
+    EXPECT_FALSE(InputValidator::validateUsername("system"));
+    EXPECT_FALSE(InputValidator::validateUsername("ADMIN"));  // case-insensitive
+    EXPECT_FALSE(InputValidator::validateUsername("Root"));
 }

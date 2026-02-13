@@ -8,6 +8,7 @@
 
 #include "cgs/foundation/error_code.hpp"
 #include "cgs/foundation/game_error.hpp"
+#include "cgs/service/input_validator.hpp"
 #include "cgs/service/password_hasher.hpp"
 #include "cgs/service/rate_limiter.hpp"
 #include "cgs/service/token_blacklist.hpp"
@@ -50,19 +51,26 @@ AuthServer& AuthServer::operator=(AuthServer&&) noexcept = default;
 
 cgs::foundation::GameResult<UserRecord> AuthServer::registerUser(
     const UserCredentials& credentials) {
+    // Validate username format.
+    if (!isValidUsername(credentials.username)) {
+        auto result = InputValidator::validateUsername(credentials.username);
+        return cgs::foundation::GameResult<UserRecord>::err(
+            GameError(ErrorCode::InvalidUsername, result.message));
+    }
+
     // Validate email format.
     if (!isValidEmail(credentials.email)) {
+        auto result = InputValidator::validateEmail(credentials.email);
         return cgs::foundation::GameResult<UserRecord>::err(
-            GameError(ErrorCode::InvalidEmail, "invalid email format"));
+            GameError(ErrorCode::InvalidEmail, result.message));
     }
 
     // Validate password strength.
     if (!isStrongPassword(credentials.password)) {
+        auto result = InputValidator::validatePassword(
+            credentials.password, config_.minPasswordLength);
         return cgs::foundation::GameResult<UserRecord>::err(
-            GameError(ErrorCode::WeakPassword,
-                      "password must be at least " +
-                          std::to_string(config_.minPasswordLength) +
-                          " characters"));
+            GameError(ErrorCode::WeakPassword, result.message));
     }
 
     // Check for duplicate username.
@@ -308,28 +316,16 @@ std::size_t AuthServer::cleanupBlacklist() {
 // -- Validation helpers -------------------------------------------------------
 
 bool AuthServer::isValidEmail(std::string_view email) const {
-    // Basic structural check: must have exactly one '@' with non-empty parts
-    // and at least one '.' after '@'.
-    auto atPos = email.find('@');
-    if (atPos == std::string_view::npos || atPos == 0) {
-        return false;
-    }
+    return InputValidator::validateEmail(email).valid;
+}
 
-    auto domain = email.substr(atPos + 1);
-    if (domain.empty() || domain.find('.') == std::string_view::npos) {
-        return false;
-    }
-
-    // No consecutive dots, no trailing dot.
-    if (domain.back() == '.' || domain.find("..") != std::string_view::npos) {
-        return false;
-    }
-
-    return true;
+bool AuthServer::isValidUsername(std::string_view username) const {
+    return InputValidator::validateUsername(username).valid;
 }
 
 bool AuthServer::isStrongPassword(std::string_view password) const {
-    return password.size() >= static_cast<std::size_t>(config_.minPasswordLength);
+    return InputValidator::validatePassword(password, config_.minPasswordLength)
+        .valid;
 }
 
 } // namespace cgs::service

@@ -21,6 +21,18 @@ option(CGS_BUILD_BENCHMARKS "Build performance benchmarks" OFF)
 option(CGS_ENABLE_SANITIZERS "Enable address and undefined behavior sanitizers" OFF)
 option(CGS_HOT_RELOAD "Enable plugin hot reload (development only)" OFF)
 option(CGS_BUILD_SERVICES "Build service executables" OFF)
+option(CGS_ENABLE_COVERAGE "Enable code coverage instrumentation (gcov)" OFF)
+
+# Code coverage instrumentation (GCC/Clang only)
+if(CGS_ENABLE_COVERAGE)
+    if(CMAKE_CXX_COMPILER_ID MATCHES "GNU|Clang|AppleClang")
+        message(STATUS "Code coverage enabled — adding --coverage flags")
+        add_compile_options(--coverage -fprofile-arcs -ftest-coverage -fprofile-update=atomic)
+        add_link_options(--coverage)
+    else()
+        message(WARNING "CGS_ENABLE_COVERAGE is only supported with GCC/Clang")
+    endif()
+endif()
 
 # Compiler warning flags
 add_library(cgs_warnings INTERFACE)

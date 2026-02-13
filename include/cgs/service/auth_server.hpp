@@ -66,7 +66,10 @@ public:
     [[nodiscard]] cgs::foundation::GameResult<TokenPair> refreshToken(
         std::string_view refreshToken);
 
-    /// Logout by revoking the refresh token (SRS-SVC-001.5).
+    /// Logout by revoking all refresh tokens for the user (SRS-SVC-001.5).
+    ///
+    /// Looks up the given refresh token to identify the user, then revokes
+    /// every refresh token belonging to that user (all-device logout).
     [[nodiscard]] cgs::foundation::GameResult<void> logout(
         std::string_view refreshToken);
 

@@ -95,4 +95,4 @@ private:
     std::chrono::milliseconds debounceMs_{200};
 };
 
-} // namespace cgs::plugin
+}  // namespace cgs::plugin

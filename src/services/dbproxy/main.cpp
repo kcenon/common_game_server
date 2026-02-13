@@ -4,11 +4,6 @@
 /// Standalone executable for the database proxy server.
 /// Provides connection pooling, query caching, and read replica routing.
 
-#include <cstdlib>
-#include <iostream>
-#include <string>
-#include <vector>
-
 #include "cgs/foundation/config_manager.hpp"
 #include "cgs/foundation/game_metrics.hpp"
 #include "cgs/service/dbproxy_server.hpp"
@@ -16,11 +11,15 @@
 #include "cgs/service/health_server.hpp"
 #include "cgs/service/service_runner.hpp"
 
+#include <cstdlib>
+#include <iostream>
+#include <string>
+#include <vector>
+
 namespace {
 
-cgs::service::DBEndpointConfig buildEndpointConfig(
-    const cgs::foundation::ConfigManager& config,
-    const std::string& prefix) {
+cgs::service::DBEndpointConfig buildEndpointConfig(const cgs::foundation::ConfigManager& config,
+                                                   const std::string& prefix) {
     cgs::service::DBEndpointConfig ep;
 
     auto connStr = config.get<std::string>(prefix + ".connection_string");
@@ -46,8 +45,7 @@ cgs::service::DBEndpointConfig buildEndpointConfig(
     return ep;
 }
 
-cgs::service::DBProxyConfig buildDBProxyConfig(
-    const cgs::foundation::ConfigManager& config) {
+cgs::service::DBProxyConfig buildDBProxyConfig(const cgs::foundation::ConfigManager& config) {
     cgs::service::DBProxyConfig cfg;
 
     cfg.primary = buildEndpointConfig(config, "dbproxy.primary");
@@ -86,7 +84,7 @@ cgs::service::DBProxyConfig buildDBProxyConfig(
     return cfg;
 }
 
-} // namespace
+}  // namespace
 
 int main(int argc, char* argv[]) {
     cgs::service::SignalHandler signals;
@@ -99,20 +97,17 @@ int main(int argc, char* argv[]) {
     cgs::foundation::ConfigManager config;
     auto loadResult = cgs::service::loadConfig(config, configPath);
     if (!loadResult) {
-        std::cerr << "Failed to load config: "
-                  << loadResult.error().message() << "\n";
+        std::cerr << "Failed to load config: " << loadResult.error().message() << "\n";
         return EXIT_FAILURE;
     }
 
     // Health server + metrics.
     auto& metrics = cgs::foundation::GameMetrics::instance();
-    cgs::service::HealthServer health(
-        {.port = 9103, .serviceName = "dbproxy"}, metrics);
+    cgs::service::HealthServer health({.port = 9103, .serviceName = "dbproxy"}, metrics);
 
     auto healthResult = health.start();
     if (!healthResult) {
-        std::cerr << "Failed to start health server: "
-                  << healthResult.error().message() << "\n";
+        std::cerr << "Failed to start health server: " << healthResult.error().message() << "\n";
         return EXIT_FAILURE;
     }
 
@@ -121,17 +116,14 @@ int main(int argc, char* argv[]) {
 
     auto startResult = server.start();
     if (!startResult) {
-        std::cerr << "Failed to start dbproxy server: "
-                  << startResult.error().message() << "\n";
+        std::cerr << "Failed to start dbproxy server: " << startResult.error().message() << "\n";
         return EXIT_FAILURE;
     }
 
     health.setReady(true);
 
-    std::cout << "DBProxy server started (primary: "
-              << dbCfg.primary.connectionString
-              << ", replicas: " << dbCfg.replicas.size()
-              << ", health_port: 9103)\n";
+    std::cout << "DBProxy server started (primary: " << dbCfg.primary.connectionString
+              << ", replicas: " << dbCfg.replicas.size() << ", health_port: 9103)\n";
 
     signals.waitForShutdown();
 

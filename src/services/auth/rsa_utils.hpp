@@ -9,14 +9,13 @@
 /// @see SRS-NFR-014
 
 #include <cstdint>
-#include <string>
-#include <string_view>
-#include <vector>
-
 #include <openssl/bio.h>
 #include <openssl/err.h>
 #include <openssl/evp.h>
 #include <openssl/pem.h>
+#include <string>
+#include <string_view>
+#include <vector>
 
 namespace cgs::service::detail {
 
@@ -25,11 +24,10 @@ namespace cgs::service::detail {
 /// @param privateKeyPem PEM-encoded RSA private key string.
 /// @param message       The data to sign.
 /// @return Raw signature bytes, or empty vector on failure.
-[[nodiscard]] inline std::vector<uint8_t> rsaSha256Sign(
-    std::string_view privateKeyPem, std::string_view message) {
+[[nodiscard]] inline std::vector<uint8_t> rsaSha256Sign(std::string_view privateKeyPem,
+                                                        std::string_view message) {
     // Load private key from PEM string via BIO.
-    auto* bio = BIO_new_mem_buf(privateKeyPem.data(),
-                                static_cast<int>(privateKeyPem.size()));
+    auto* bio = BIO_new_mem_buf(privateKeyPem.data(), static_cast<int>(privateKeyPem.size()));
     if (!bio) {
         return {};
     }
@@ -55,10 +53,8 @@ namespace cgs::service::detail {
         return {};
     }
 
-    if (EVP_DigestSignUpdate(mdCtx,
-                             reinterpret_cast<const unsigned char*>(
-                                 message.data()),
-                             message.size()) != 1) {
+    if (EVP_DigestSignUpdate(
+            mdCtx, reinterpret_cast<const unsigned char*>(message.data()), message.size()) != 1) {
         EVP_MD_CTX_free(mdCtx);
         EVP_PKEY_free(pkey);
         return {};
@@ -92,11 +88,10 @@ namespace cgs::service::detail {
 /// @param signature    The signature bytes to verify.
 /// @return True if the signature is valid.
 [[nodiscard]] inline bool rsaSha256Verify(std::string_view publicKeyPem,
-                                           std::string_view message,
-                                           const std::vector<uint8_t>& signature) {
+                                          std::string_view message,
+                                          const std::vector<uint8_t>& signature) {
     // Load public key from PEM string via BIO.
-    auto* bio = BIO_new_mem_buf(publicKeyPem.data(),
-                                static_cast<int>(publicKeyPem.size()));
+    auto* bio = BIO_new_mem_buf(publicKeyPem.data(), static_cast<int>(publicKeyPem.size()));
     if (!bio) {
         return false;
     }
@@ -120,10 +115,8 @@ namespace cgs::service::detail {
         return false;
     }
 
-    if (EVP_DigestVerifyUpdate(mdCtx,
-                               reinterpret_cast<const unsigned char*>(
-                                   message.data()),
-                               message.size()) != 1) {
+    if (EVP_DigestVerifyUpdate(
+            mdCtx, reinterpret_cast<const unsigned char*>(message.data()), message.size()) != 1) {
         EVP_MD_CTX_free(mdCtx);
         EVP_PKEY_free(pkey);
         return false;
@@ -136,4 +129,4 @@ namespace cgs::service::detail {
     return result == 1;
 }
 
-} // namespace cgs::service::detail
+}  // namespace cgs::service::detail

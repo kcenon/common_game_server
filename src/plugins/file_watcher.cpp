@@ -27,10 +27,7 @@ bool FileWatcher::Watch(const fs::path& path) {
 
     std::lock_guard lock(mutex_);
     auto key = path.string();
-    entries_[key] = WatchEntry{
-        writeTime,
-        std::chrono::steady_clock::time_point{},
-        false};
+    entries_[key] = WatchEntry{writeTime, std::chrono::steady_clock::time_point{}, false};
     return true;
 }
 
@@ -97,4 +94,4 @@ bool FileWatcher::IsWatching(const fs::path& path) const {
     return entries_.count(path.string()) > 0;
 }
 
-} // namespace cgs::plugin
+}  // namespace cgs::plugin

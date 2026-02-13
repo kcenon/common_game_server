@@ -10,18 +10,15 @@
 namespace cgs::service {
 
 float EloCalculator::expectedScore(int32_t ratingA, int32_t ratingB) {
-    float exponent =
-        static_cast<float>(ratingB - ratingA) / 400.0f;
+    float exponent = static_cast<float>(ratingB - ratingA) / 400.0f;
     return 1.0f / (1.0f + std::pow(10.0f, exponent));
 }
 
-int32_t EloCalculator::newRating(
-    int32_t currentRating,
-    float actualScore,
-    float expected,
-    int32_t kFactor) {
-    float delta =
-        static_cast<float>(kFactor) * (actualScore - expected);
+int32_t EloCalculator::newRating(int32_t currentRating,
+                                 float actualScore,
+                                 float expected,
+                                 int32_t kFactor) {
+    float delta = static_cast<float>(kFactor) * (actualScore - expected);
     return currentRating + static_cast<int32_t>(std::round(delta));
 }
 
@@ -48,19 +45,18 @@ float EloCalculator::matchQuality(const std::vector<int32_t>& ratings) {
     return std::clamp(quality, 0.0f, 1.0f);
 }
 
-bool EloCalculator::isWithinTolerance(
-    int32_t ratingA, int32_t ratingB, int32_t tolerance) {
+bool EloCalculator::isWithinTolerance(int32_t ratingA, int32_t ratingB, int32_t tolerance) {
     return std::abs(ratingA - ratingB) <= tolerance;
 }
 
 int32_t EloCalculator::suggestedKFactor(uint32_t gamesPlayed) {
     if (gamesPlayed < 30) {
-        return 40; // Provisional: converge quickly.
+        return 40;  // Provisional: converge quickly.
     }
     if (gamesPlayed < 100) {
-        return 32; // Standard.
+        return 32;  // Standard.
     }
-    return 16; // Veteran: stable rating.
+    return 16;  // Veteran: stable rating.
 }
 
-} // namespace cgs::service
+}  // namespace cgs::service

@@ -9,12 +9,12 @@
 /// @see SRS-GML-002.4
 /// @see SDS-MOD-021
 
-#include <string_view>
-
 #include "cgs/ecs/component_storage.hpp"
 #include "cgs/ecs/system_scheduler.hpp"
 #include "cgs/game/combat_components.hpp"
 #include "cgs/game/components.hpp"
+
+#include <string_view>
 
 namespace cgs::game {
 
@@ -59,20 +59,17 @@ public:
         return cgs::ecs::SystemStage::Update;
     }
 
-    [[nodiscard]] std::string_view GetName() const override {
-        return "CombatSystem";
-    }
+    [[nodiscard]] std::string_view GetName() const override { return "CombatSystem"; }
 
     [[nodiscard]] cgs::ecs::SystemAccessInfo GetAccessInfo() const override;
 
     /// Calculate final damage after mitigation.
     ///
     /// This is a pure function exposed for testability.
-    [[nodiscard]] static int32_t CalculateDamage(
-        int32_t baseDamage,
-        DamageType type,
-        bool isCritical,
-        const DamageCalcParams& params);
+    [[nodiscard]] static int32_t CalculateDamage(int32_t baseDamage,
+                                                 DamageType type,
+                                                 bool isCritical,
+                                                 const DamageCalcParams& params);
 
 private:
     /// Update spell cast timers.
@@ -91,4 +88,4 @@ private:
     cgs::ecs::ComponentStorage<ThreatList>& threatLists_;
 };
 
-} // namespace cgs::game
+}  // namespace cgs::game

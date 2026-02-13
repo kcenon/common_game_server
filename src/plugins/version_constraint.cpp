@@ -5,9 +5,9 @@
 
 #include "cgs/plugin/version_constraint.hpp"
 
-#include <charconv>
-
 #include "cgs/foundation/error_code.hpp"
+
+#include <charconv>
 
 using cgs::foundation::ErrorCode;
 using cgs::foundation::GameError;
@@ -40,8 +40,7 @@ GameResult<Version> ParseVersion(std::string_view str) {
         std::from_chars(majorStr.data(), majorStr.data() + majorStr.size(), ver.major);
     if (ecMaj != std::errc()) {
         return GameResult<Version>::err(
-            GameError(ErrorCode::InvalidArgument,
-                      "Invalid major version: " + std::string(str)));
+            GameError(ErrorCode::InvalidArgument, "Invalid major version: " + std::string(str)));
     }
 
     if (dotPos == std::string_view::npos) {
@@ -56,8 +55,7 @@ GameResult<Version> ParseVersion(std::string_view str) {
         std::from_chars(minorStr.data(), minorStr.data() + minorStr.size(), ver.minor);
     if (ecMin != std::errc()) {
         return GameResult<Version>::err(
-            GameError(ErrorCode::InvalidArgument,
-                      "Invalid minor version: " + std::string(str)));
+            GameError(ErrorCode::InvalidArgument, "Invalid minor version: " + std::string(str)));
     }
 
     if (dotPos == std::string_view::npos) {
@@ -66,12 +64,10 @@ GameResult<Version> ParseVersion(std::string_view str) {
 
     // Parse patch.
     str.remove_prefix(dotPos + 1);
-    auto [pPat, ecPat] =
-        std::from_chars(str.data(), str.data() + str.size(), ver.patch);
+    auto [pPat, ecPat] = std::from_chars(str.data(), str.data() + str.size(), ver.patch);
     if (ecPat != std::errc()) {
         return GameResult<Version>::err(
-            GameError(ErrorCode::InvalidArgument,
-                      "Invalid patch version: " + std::string(str)));
+            GameError(ErrorCode::InvalidArgument, "Invalid patch version: " + std::string(str)));
     }
 
     return GameResult<Version>::ok(ver);
@@ -147,15 +143,26 @@ GameResult<VersionConstraint> VersionConstraint::Parse(std::string_view spec) {
 std::string VersionConstraint::ToString() const {
     std::string result;
     switch (op) {
-        case ConstraintOp::GreaterEqual:      result = ">="; break;
-        case ConstraintOp::GreaterThan:       result = ">";  break;
-        case ConstraintOp::LessEqual:         result = "<="; break;
-        case ConstraintOp::LessThan:          result = "<";  break;
-        case ConstraintOp::Equal:             result = "=="; break;
-        case ConstraintOp::CompatibleRelease: result = "~="; break;
+        case ConstraintOp::GreaterEqual:
+            result = ">=";
+            break;
+        case ConstraintOp::GreaterThan:
+            result = ">";
+            break;
+        case ConstraintOp::LessEqual:
+            result = "<=";
+            break;
+        case ConstraintOp::LessThan:
+            result = "<";
+            break;
+        case ConstraintOp::Equal:
+            result = "==";
+            break;
+        case ConstraintOp::CompatibleRelease:
+            result = "~=";
+            break;
     }
-    result += std::to_string(version.major) + "." +
-              std::to_string(version.minor) + "." +
+    result += std::to_string(version.major) + "." + std::to_string(version.minor) + "." +
               std::to_string(version.patch);
     return result;
 }
@@ -204,9 +211,8 @@ GameResult<DependencySpec> DependencySpec::Parse(std::string_view dep) {
     }
 
     if (spec.name.empty()) {
-        return GameResult<DependencySpec>::err(
-            GameError(ErrorCode::InvalidArgument,
-                      "Missing plugin name in dependency: " + std::string(dep)));
+        return GameResult<DependencySpec>::err(GameError(
+            ErrorCode::InvalidArgument, "Missing plugin name in dependency: " + std::string(dep)));
     }
 
     // Parse comma-separated constraints.
@@ -245,4 +251,4 @@ std::string DependencySpec::ConstraintsToString() const {
     return result;
 }
 
-} // namespace cgs::plugin
+}  // namespace cgs::plugin

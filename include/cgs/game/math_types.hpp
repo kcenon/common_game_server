@@ -57,14 +57,10 @@ struct Vector3 {
     }
 
     /// Squared magnitude (avoids sqrt).
-    [[nodiscard]] constexpr float LengthSquared() const noexcept {
-        return Dot(*this);
-    }
+    [[nodiscard]] constexpr float LengthSquared() const noexcept { return Dot(*this); }
 
     /// Magnitude.
-    [[nodiscard]] float Length() const noexcept {
-        return std::sqrt(LengthSquared());
-    }
+    [[nodiscard]] float Length() const noexcept { return std::sqrt(LengthSquared()); }
 
     /// Return a normalized copy, or zero vector if length is near zero.
     [[nodiscard]] Vector3 Normalized() const noexcept {
@@ -100,8 +96,7 @@ struct Quaternion {
     float z = 0.0f;
 
     constexpr Quaternion() = default;
-    constexpr Quaternion(float w, float x, float y, float z)
-        : w(w), x(x), y(y), z(z) {}
+    constexpr Quaternion(float w, float x, float y, float z) : w(w), x(x), y(y), z(z) {}
 
     /// The identity rotation.
     [[nodiscard]] static constexpr Quaternion Identity() noexcept { return {}; }
@@ -109,4 +104,4 @@ struct Quaternion {
     constexpr auto operator<=>(const Quaternion&) const = default;
 };
 
-} // namespace cgs::game
+}  // namespace cgs::game

@@ -25,9 +25,7 @@ struct ValidationResult {
     explicit operator bool() const noexcept { return valid; }
 
     static ValidationResult ok() { return {true, {}}; }
-    static ValidationResult fail(std::string msg) {
-        return {false, std::move(msg)};
-    }
+    static ValidationResult fail(std::string msg) { return {false, std::move(msg)}; }
 };
 
 /// Stateless input validation utilities.
@@ -54,8 +52,7 @@ public:
     ///
     /// Checks: length limits, single '@', local part characters and dot rules,
     /// domain label structure and character rules.
-    [[nodiscard]] static inline ValidationResult validateEmail(
-        std::string_view email) {
+    [[nodiscard]] static inline ValidationResult validateEmail(std::string_view email) {
         if (email.empty()) {
             return ValidationResult::fail("email must not be empty");
         }
@@ -77,23 +74,21 @@ public:
 
         // -- Local part validation --
         if (local.size() > kMaxLocalPartLength) {
-            return ValidationResult::fail(
-                "email local part exceeds 64 characters");
+            return ValidationResult::fail("email local part exceeds 64 characters");
         }
         if (local.front() == '.' || local.back() == '.') {
-            return ValidationResult::fail(
-                "email local part must not start or end with '.'");
+            return ValidationResult::fail("email local part must not start or end with '.'");
         }
         if (local.find("..") != std::string_view::npos) {
-            return ValidationResult::fail(
-                "email local part must not contain consecutive dots");
+            return ValidationResult::fail("email local part must not contain consecutive dots");
         }
         // RFC 5322 atext: alphanumeric + !#$%&'*+/=?^_`{|}~-.
         for (char c : local) {
-            if (std::isalnum(static_cast<unsigned char>(c))) continue;
-            if (isLocalSpecialChar(c)) continue;
-            return ValidationResult::fail(
-                "email local part contains invalid character");
+            if (std::isalnum(static_cast<unsigned char>(c)))
+                continue;
+            if (isLocalSpecialChar(c))
+                continue;
+            return ValidationResult::fail("email local part contains invalid character");
         }
 
         // -- Domain validation --
@@ -101,38 +96,32 @@ public:
             return ValidationResult::fail("email domain is invalid");
         }
         if (domain.front() == '.' || domain.back() == '.') {
-            return ValidationResult::fail(
-                "email domain must not start or end with '.'");
+            return ValidationResult::fail("email domain must not start or end with '.'");
         }
         if (domain.find("..") != std::string_view::npos) {
-            return ValidationResult::fail(
-                "email domain must not contain consecutive dots");
+            return ValidationResult::fail("email domain must not contain consecutive dots");
         }
         // Must have at least one dot (TLD).
         if (domain.find('.') == std::string_view::npos) {
-            return ValidationResult::fail(
-                "email domain must have at least one dot");
+            return ValidationResult::fail("email domain must have at least one dot");
         }
 
         // Validate each label.
         std::size_t labelStart = 0;
         while (labelStart < domain.size()) {
             auto dotPos = domain.find('.', labelStart);
-            auto labelEnd =
-                (dotPos == std::string_view::npos) ? domain.size() : dotPos;
+            auto labelEnd = (dotPos == std::string_view::npos) ? domain.size() : dotPos;
             auto label = domain.substr(labelStart, labelEnd - labelStart);
 
             if (label.empty() || label.size() > kMaxDomainLabelLength) {
                 return ValidationResult::fail("email domain label is invalid");
             }
             if (label.front() == '-' || label.back() == '-') {
-                return ValidationResult::fail(
-                    "email domain label must not start or end with '-'");
+                return ValidationResult::fail("email domain label must not start or end with '-'");
             }
             for (char c : label) {
                 if (!std::isalnum(static_cast<unsigned char>(c)) && c != '-') {
-                    return ValidationResult::fail(
-                        "email domain contains invalid character");
+                    return ValidationResult::fail("email domain contains invalid character");
                 }
             }
 
@@ -148,17 +137,15 @@ public:
     ///
     /// Requires: minimum length, at most kMaxPasswordLength, and at least one
     /// each of uppercase, lowercase, digit, and special character.
-    [[nodiscard]] static inline ValidationResult validatePassword(
-        std::string_view password, uint32_t minLength) {
+    [[nodiscard]] static inline ValidationResult validatePassword(std::string_view password,
+                                                                  uint32_t minLength) {
         if (password.size() < static_cast<std::size_t>(minLength)) {
-            return ValidationResult::fail(
-                "password must be at least " + std::to_string(minLength) +
-                " characters");
+            return ValidationResult::fail("password must be at least " + std::to_string(minLength) +
+                                          " characters");
         }
         if (password.size() > kMaxPasswordLength) {
-            return ValidationResult::fail(
-                "password must not exceed " +
-                std::to_string(kMaxPasswordLength) + " characters");
+            return ValidationResult::fail("password must not exceed " +
+                                          std::to_string(kMaxPasswordLength) + " characters");
         }
 
         bool hasUpper = false;
@@ -168,27 +155,27 @@ public:
 
         for (char c : password) {
             auto uc = static_cast<unsigned char>(c);
-            if (std::isupper(uc)) hasUpper = true;
-            else if (std::islower(uc)) hasLower = true;
-            else if (std::isdigit(uc)) hasDigit = true;
-            else hasSpecial = true;
+            if (std::isupper(uc))
+                hasUpper = true;
+            else if (std::islower(uc))
+                hasLower = true;
+            else if (std::isdigit(uc))
+                hasDigit = true;
+            else
+                hasSpecial = true;
         }
 
         if (!hasUpper) {
-            return ValidationResult::fail(
-                "password must contain at least one uppercase letter");
+            return ValidationResult::fail("password must contain at least one uppercase letter");
         }
         if (!hasLower) {
-            return ValidationResult::fail(
-                "password must contain at least one lowercase letter");
+            return ValidationResult::fail("password must contain at least one lowercase letter");
         }
         if (!hasDigit) {
-            return ValidationResult::fail(
-                "password must contain at least one digit");
+            return ValidationResult::fail("password must contain at least one digit");
         }
         if (!hasSpecial) {
-            return ValidationResult::fail(
-                "password must contain at least one special character");
+            return ValidationResult::fail("password must contain at least one special character");
         }
 
         return ValidationResult::ok();
@@ -200,17 +187,14 @@ public:
     ///
     /// Rules: 3-32 characters, starts with a letter, allowed characters are
     /// [a-zA-Z0-9._-], no consecutive special characters, not a reserved name.
-    [[nodiscard]] static inline ValidationResult validateUsername(
-        std::string_view username) {
+    [[nodiscard]] static inline ValidationResult validateUsername(std::string_view username) {
         if (username.size() < kMinUsernameLength) {
-            return ValidationResult::fail(
-                "username must be at least " +
-                std::to_string(kMinUsernameLength) + " characters");
+            return ValidationResult::fail("username must be at least " +
+                                          std::to_string(kMinUsernameLength) + " characters");
         }
         if (username.size() > kMaxUsernameLength) {
-            return ValidationResult::fail(
-                "username must not exceed " +
-                std::to_string(kMaxUsernameLength) + " characters");
+            return ValidationResult::fail("username must not exceed " +
+                                          std::to_string(kMaxUsernameLength) + " characters");
         }
 
         // Must start with a letter.
@@ -225,8 +209,7 @@ public:
             bool isSpecial = (c == '.' || c == '_' || c == '-');
 
             if (!std::isalnum(uc) && !isSpecial) {
-                return ValidationResult::fail(
-                    "username contains invalid character");
+                return ValidationResult::fail("username contains invalid character");
             }
             if (isSpecial && prevSpecial) {
                 return ValidationResult::fail(
@@ -236,10 +219,8 @@ public:
         }
 
         // Must not end with a special character.
-        if (username.back() == '.' || username.back() == '_' ||
-            username.back() == '-') {
-            return ValidationResult::fail(
-                "username must not end with a special character");
+        if (username.back() == '.' || username.back() == '_' || username.back() == '-') {
+            return ValidationResult::fail("username must not end with a special character");
         }
 
         // Reserved names check (case-insensitive).
@@ -254,10 +235,26 @@ private:
     /// Characters allowed in the email local part (RFC 5322 atext specials).
     static constexpr bool isLocalSpecialChar(char c) noexcept {
         switch (c) {
-            case '.': case '!': case '#': case '$': case '%': case '&':
-            case '\'': case '*': case '+': case '/': case '=': case '?':
-            case '^': case '_': case '`': case '{': case '|': case '}':
-            case '~': case '-':
+            case '.':
+            case '!':
+            case '#':
+            case '$':
+            case '%':
+            case '&':
+            case '\'':
+            case '*':
+            case '+':
+            case '/':
+            case '=':
+            case '?':
+            case '^':
+            case '_':
+            case '`':
+            case '{':
+            case '|':
+            case '}':
+            case '~':
+            case '-':
                 return true;
             default:
                 return false;
@@ -265,25 +262,32 @@ private:
     }
 
     /// Check if a username matches a reserved name (case-insensitive).
-    [[nodiscard]] static inline bool isReservedUsername(
-        std::string_view username) {
-        static constexpr std::array<std::string_view, 12> kReserved = {{
-            "admin", "administrator", "root", "system", "moderator", "mod",
-            "support", "help", "server", "guest", "test", "null"
-        }};
+    [[nodiscard]] static inline bool isReservedUsername(std::string_view username) {
+        static constexpr std::array<std::string_view, 12> kReserved = {{"admin",
+                                                                        "administrator",
+                                                                        "root",
+                                                                        "system",
+                                                                        "moderator",
+                                                                        "mod",
+                                                                        "support",
+                                                                        "help",
+                                                                        "server",
+                                                                        "guest",
+                                                                        "test",
+                                                                        "null"}};
 
         // Build lowercase copy for comparison.
         std::string lower(username.size(), '\0');
-        std::transform(username.begin(), username.end(), lower.begin(),
-                        [](unsigned char c) {
-                            return static_cast<char>(std::tolower(c));
-                        });
+        std::transform(username.begin(), username.end(), lower.begin(), [](unsigned char c) {
+            return static_cast<char>(std::tolower(c));
+        });
 
         for (auto reserved : kReserved) {
-            if (lower == reserved) return true;
+            if (lower == reserved)
+                return true;
         }
         return false;
     }
 };
 
-} // namespace cgs::service
+}  // namespace cgs::service

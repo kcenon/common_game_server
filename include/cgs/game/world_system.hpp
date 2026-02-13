@@ -10,17 +10,17 @@
 /// @see SRS-GML-003.3, SRS-GML-003.4, SRS-GML-003.5
 /// @see SDS-MOD-022
 
-#include <cstdint>
-#include <string_view>
-#include <unordered_map>
-#include <vector>
-
 #include "cgs/ecs/component_storage.hpp"
 #include "cgs/ecs/entity.hpp"
 #include "cgs/ecs/system_scheduler.hpp"
 #include "cgs/game/components.hpp"
 #include "cgs/game/spatial_index.hpp"
 #include "cgs/game/world_components.hpp"
+
+#include <cstdint>
+#include <string_view>
+#include <unordered_map>
+#include <vector>
 
 namespace cgs::game {
 
@@ -34,13 +34,12 @@ namespace cgs::game {
 /// Map transitions are performed on-demand via TransferEntity().
 class WorldSystem final : public cgs::ecs::ISystem {
 public:
-    WorldSystem(
-        cgs::ecs::ComponentStorage<Transform>& transforms,
-        cgs::ecs::ComponentStorage<MapMembership>& memberships,
-        cgs::ecs::ComponentStorage<MapInstance>& mapInstances,
-        cgs::ecs::ComponentStorage<VisibilityRange>& visibilityRanges,
-        cgs::ecs::ComponentStorage<Zone>& zones,
-        float cellSize = kDefaultCellSize);
+    WorldSystem(cgs::ecs::ComponentStorage<Transform>& transforms,
+                cgs::ecs::ComponentStorage<MapMembership>& memberships,
+                cgs::ecs::ComponentStorage<MapInstance>& mapInstances,
+                cgs::ecs::ComponentStorage<VisibilityRange>& visibilityRanges,
+                cgs::ecs::ComponentStorage<Zone>& zones,
+                float cellSize = kDefaultCellSize);
 
     void Execute(float deltaTime) override;
 
@@ -48,9 +47,7 @@ public:
         return cgs::ecs::SystemStage::PreUpdate;
     }
 
-    [[nodiscard]] std::string_view GetName() const override {
-        return "WorldSystem";
-    }
+    [[nodiscard]] std::string_view GetName() const override { return "WorldSystem"; }
 
     [[nodiscard]] cgs::ecs::SystemAccessInfo GetAccessInfo() const override;
 
@@ -61,15 +58,13 @@ public:
     ///
     /// Returns an empty vector if the viewer has no Transform or
     /// MapMembership.
-    [[nodiscard]] std::vector<cgs::ecs::Entity>
-    GetVisibleEntities(cgs::ecs::Entity viewer) const;
+    [[nodiscard]] std::vector<cgs::ecs::Entity> GetVisibleEntities(cgs::ecs::Entity viewer) const;
 
     /// Return all entities in a given radius from a world position
     /// within a specific map instance entity.
-    [[nodiscard]] std::vector<cgs::ecs::Entity>
-    QueryRadius(cgs::ecs::Entity mapEntity,
-                const Vector3& center,
-                float radius) const;
+    [[nodiscard]] std::vector<cgs::ecs::Entity> QueryRadius(cgs::ecs::Entity mapEntity,
+                                                            const Vector3& center,
+                                                            float radius) const;
 
     // -- Map transitions (SRS-GML-003.5) --------------------------------
 
@@ -80,23 +75,19 @@ public:
     /// are updated atomically.
     ///
     /// @return TransitionResult indicating success or failure reason.
-    [[nodiscard]] TransitionResult TransferEntity(
-        cgs::ecs::Entity entity,
-        cgs::ecs::Entity targetMapEntity,
-        const Vector3& destination);
+    [[nodiscard]] TransitionResult TransferEntity(cgs::ecs::Entity entity,
+                                                  cgs::ecs::Entity targetMapEntity,
+                                                  const Vector3& destination);
 
     // -- Accessors ------------------------------------------------------
 
     /// Get the spatial index for a given map instance entity.
     ///
     /// @return Pointer to the index, or nullptr if the map has no index.
-    [[nodiscard]] const SpatialIndex*
-    GetSpatialIndex(cgs::ecs::Entity mapEntity) const;
+    [[nodiscard]] const SpatialIndex* GetSpatialIndex(cgs::ecs::Entity mapEntity) const;
 
     /// Number of tracked map spatial indices.
-    [[nodiscard]] std::size_t MapCount() const noexcept {
-        return spatialIndices_.size();
-    }
+    [[nodiscard]] std::size_t MapCount() const noexcept { return spatialIndices_.size(); }
 
     // -- Zone queries ---------------------------------------------------
 
@@ -124,4 +115,4 @@ private:
     float cellSize_;
 };
 
-} // namespace cgs::game
+}  // namespace cgs::game

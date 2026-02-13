@@ -9,15 +9,15 @@
 /// @see SRS-GML-004.4
 /// @see SDS-MOD-023
 
-#include <cstdint>
-#include <memory>
-#include <string_view>
-
 #include "cgs/ecs/component_storage.hpp"
 #include "cgs/ecs/system_scheduler.hpp"
 #include "cgs/game/ai_components.hpp"
 #include "cgs/game/combat_components.hpp"
 #include "cgs/game/components.hpp"
+
+#include <cstdint>
+#include <memory>
+#include <string_view>
 
 namespace cgs::game {
 
@@ -45,9 +45,7 @@ public:
         return cgs::ecs::SystemStage::Update;
     }
 
-    [[nodiscard]] std::string_view GetName() const override {
-        return "AISystem";
-    }
+    [[nodiscard]] std::string_view GetName() const override { return "AISystem"; }
 
     [[nodiscard]] cgs::ecs::SystemAccessInfo GetAccessInfo() const override;
 
@@ -82,14 +80,10 @@ public:
     void SetDefaultTickInterval(float interval);
 
     /// Get the current default tick interval.
-    [[nodiscard]] float GetDefaultTickInterval() const noexcept {
-        return defaultTickInterval_;
-    }
+    [[nodiscard]] float GetDefaultTickInterval() const noexcept { return defaultTickInterval_; }
 
     /// Get the number of AI entities updated on the last Execute call.
-    [[nodiscard]] uint32_t GetLastTickUpdateCount() const noexcept {
-        return lastTickUpdateCount_;
-    }
+    [[nodiscard]] uint32_t GetLastTickUpdateCount() const noexcept { return lastTickUpdateCount_; }
 
 private:
     cgs::ecs::ComponentStorage<AIBrain>& brains_;
@@ -102,4 +96,4 @@ private:
     uint32_t lastTickUpdateCount_ = 0;
 };
 
-} // namespace cgs::game
+}  // namespace cgs::game

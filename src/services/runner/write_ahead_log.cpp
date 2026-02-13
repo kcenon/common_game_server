@@ -3,14 +3,14 @@
 
 #include "cgs/service/write_ahead_log.hpp"
 
+#include "cgs/foundation/error_code.hpp"
+#include "cgs/foundation/game_error.hpp"
+
 #include <algorithm>
 #include <cstring>
 #include <fstream>
 #include <mutex>
 #include <numeric>
-
-#include "cgs/foundation/error_code.hpp"
-#include "cgs/foundation/game_error.hpp"
 
 namespace cgs::service {
 
@@ -52,13 +52,18 @@ std::vector<uint8_t> serializeEntry(const WalEntry& entry) {
 
     auto* p = buf.data();
 
-    std::memcpy(p, &entry.sequence, 8);     p += 8;
-    std::memcpy(p, &entry.timestampUs, 8);  p += 8;
+    std::memcpy(p, &entry.sequence, 8);
+    p += 8;
+    std::memcpy(p, &entry.timestampUs, 8);
+    p += 8;
     auto pid = entry.playerId.value();
-    std::memcpy(p, &pid, 8);               p += 8;
-    *p = static_cast<uint8_t>(entry.operation); p += 1;
+    std::memcpy(p, &pid, 8);
+    p += 8;
+    *p = static_cast<uint8_t>(entry.operation);
+    p += 1;
     auto dataSize = static_cast<uint32_t>(entry.data.size());
-    std::memcpy(p, &dataSize, 4);           p += 4;
+    std::memcpy(p, &dataSize, 4);
+    p += 4;
 
     if (!entry.data.empty()) {
         std::memcpy(p, entry.data.data(), entry.data.size());
@@ -75,14 +80,19 @@ bool deserializeEntry(const uint8_t* data, std::size_t length, WalEntry& out) {
     }
 
     const auto* p = data;
-    std::memcpy(&out.sequence, p, 8);      p += 8;
-    std::memcpy(&out.timestampUs, p, 8);   p += 8;
+    std::memcpy(&out.sequence, p, 8);
+    p += 8;
+    std::memcpy(&out.timestampUs, p, 8);
+    p += 8;
     uint64_t pid = 0;
-    std::memcpy(&pid, p, 8);              p += 8;
+    std::memcpy(&pid, p, 8);
+    p += 8;
     out.playerId = cgs::foundation::PlayerId(pid);
-    out.operation = static_cast<WalOperation>(*p); p += 1;
+    out.operation = static_cast<WalOperation>(*p);
+    p += 1;
     uint32_t dataSize = 0;
-    std::memcpy(&dataSize, p, 4);          p += 4;
+    std::memcpy(&dataSize, p, 4);
+    p += 4;
 
     if (kHeaderSize + dataSize > length) {
         return false;
@@ -96,11 +106,10 @@ bool deserializeEntry(const uint8_t* data, std::size_t length, WalEntry& out) {
 uint64_t nowMicros() {
     auto now = std::chrono::system_clock::now();
     return static_cast<uint64_t>(
-        std::chrono::duration_cast<std::chrono::microseconds>(
-            now.time_since_epoch()).count());
+        std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count());
 }
 
-} // namespace
+}  // namespace
 
 // -- Impl -------------------------------------------------------------------
 
@@ -126,17 +135,14 @@ struct WriteAheadLog::Impl {
 
     explicit Impl(WalConfig cfg) : config(std::move(cfg)) {}
 
-    std::filesystem::path walFilePath() const {
-        return config.directory / "wal.bin";
-    }
+    std::filesystem::path walFilePath() const { return config.directory / "wal.bin"; }
 
     GameResult<void> ensureDirectory() {
         std::error_code ec;
         std::filesystem::create_directories(config.directory, ec);
         if (ec) {
-            return GameResult<void>::err(
-                GameError(ErrorCode::PersistenceError,
-                          "failed to create WAL directory: " + ec.message()));
+            return GameResult<void>::err(GameError(
+                ErrorCode::PersistenceError, "failed to create WAL directory: " + ec.message()));
         }
         return GameResult<void>::ok();
     }
@@ -151,8 +157,7 @@ struct WriteAheadLog::Impl {
         std::ifstream reader(path, std::ios::binary);
         if (!reader) {
             return GameResult<void>::err(
-                GameError(ErrorCode::WalReadFailed,
-                          "cannot open WAL file for reading"));
+                GameError(ErrorCode::WalReadFailed, "cannot open WAL file for reading"));
         }
 
         entries.clear();
@@ -201,8 +206,7 @@ struct WriteAheadLog::Impl {
         }
 
         nextSequence = maxSeq + 1;
-        currentFileSize = static_cast<std::size_t>(
-            std::filesystem::file_size(path));
+        currentFileSize = static_cast<std::size_t>(std::filesystem::file_size(path));
 
         return GameResult<void>::ok();
     }
@@ -210,8 +214,7 @@ struct WriteAheadLog::Impl {
 
 // -- Construction / destruction ----------------------------------------------
 
-WriteAheadLog::WriteAheadLog(WalConfig config)
-    : impl_(std::make_unique<Impl>(std::move(config))) {}
+WriteAheadLog::WriteAheadLog(WalConfig config) : impl_(std::make_unique<Impl>(std::move(config))) {}
 
 WriteAheadLog::~WriteAheadLog() {
     if (impl_ && impl_->open) {
@@ -240,12 +243,10 @@ GameResult<void> WriteAheadLog::open() {
     }
 
     // Open file for appending.
-    impl_->writer.open(impl_->walFilePath(),
-                       std::ios::binary | std::ios::app);
+    impl_->writer.open(impl_->walFilePath(), std::ios::binary | std::ios::app);
     if (!impl_->writer) {
         return GameResult<void>::err(
-            GameError(ErrorCode::WalWriteFailed,
-                      "cannot open WAL file for writing"));
+            GameError(ErrorCode::WalWriteFailed, "cannot open WAL file for writing"));
     }
 
     impl_->open = true;
@@ -274,8 +275,7 @@ GameResult<uint64_t> WriteAheadLog::append(WalEntry entry) {
 
     if (!impl_->open) {
         return GameResult<uint64_t>::err(
-            GameError(ErrorCode::PersistenceNotStarted,
-                      "WAL is not open"));
+            GameError(ErrorCode::PersistenceNotStarted, "WAL is not open"));
     }
 
     // Assign sequence and timestamp.
@@ -298,8 +298,7 @@ GameResult<uint64_t> WriteAheadLog::append(WalEntry entry) {
 
     if (!impl_->writer) {
         return GameResult<uint64_t>::err(
-            GameError(ErrorCode::WalWriteFailed,
-                      "failed to write WAL entry"));
+            GameError(ErrorCode::WalWriteFailed, "failed to write WAL entry"));
     }
 
     if (impl_->config.syncOnWrite) {
@@ -316,10 +315,8 @@ GameResult<uint64_t> WriteAheadLog::append(WalEntry entry) {
 
 // -- Read operations ---------------------------------------------------------
 
-GameResult<uint64_t> WriteAheadLog::replay(
-    uint64_t afterSequence,
-    std::function<void(const WalEntry&)> callback) const {
-
+GameResult<uint64_t> WriteAheadLog::replay(uint64_t afterSequence,
+                                           std::function<void(const WalEntry&)> callback) const {
     std::lock_guard lock(impl_->mutex);
 
     uint64_t count = 0;
@@ -340,17 +337,15 @@ GameResult<void> WriteAheadLog::truncateBefore(uint64_t beforeSequence) {
 
     if (!impl_->open) {
         return GameResult<void>::err(
-            GameError(ErrorCode::PersistenceNotStarted,
-                      "WAL is not open"));
+            GameError(ErrorCode::PersistenceNotStarted, "WAL is not open"));
     }
 
     // Remove entries from in-memory index.
-    auto it = std::remove_if(impl_->entries.begin(), impl_->entries.end(),
-                              [beforeSequence](const Impl::IndexEntry& e) {
-                                  return e.sequence <= beforeSequence;
-                              });
-    auto removed = static_cast<std::size_t>(
-        std::distance(it, impl_->entries.end()));
+    auto it = std::remove_if(
+        impl_->entries.begin(), impl_->entries.end(), [beforeSequence](const Impl::IndexEntry& e) {
+            return e.sequence <= beforeSequence;
+        });
+    auto removed = static_cast<std::size_t>(std::distance(it, impl_->entries.end()));
     impl_->entries.erase(it, impl_->entries.end());
     impl_->totalEntries -= removed;
 
@@ -363,8 +358,7 @@ GameResult<void> WriteAheadLog::truncateBefore(uint64_t beforeSequence) {
         // Re-open in append mode even on failure.
         impl_->writer.open(path, std::ios::binary | std::ios::app);
         return GameResult<void>::err(
-            GameError(ErrorCode::WalTruncateFailed,
-                      "failed to rewrite WAL after truncation"));
+            GameError(ErrorCode::WalTruncateFailed, "failed to rewrite WAL after truncation"));
     }
 
     std::size_t newFileSize = 0;
@@ -389,8 +383,7 @@ GameResult<void> WriteAheadLog::truncateBefore(uint64_t beforeSequence) {
     impl_->writer.open(path, std::ios::binary | std::ios::app);
     if (!impl_->writer) {
         return GameResult<void>::err(
-            GameError(ErrorCode::WalWriteFailed,
-                      "failed to re-open WAL after truncation"));
+            GameError(ErrorCode::WalWriteFailed, "failed to re-open WAL after truncation"));
     }
 
     return GameResult<void>::ok();
@@ -401,15 +394,12 @@ GameResult<void> WriteAheadLog::flush() {
 
     if (!impl_->open) {
         return GameResult<void>::err(
-            GameError(ErrorCode::PersistenceNotStarted,
-                      "WAL is not open"));
+            GameError(ErrorCode::PersistenceNotStarted, "WAL is not open"));
     }
 
     impl_->writer.flush();
     if (!impl_->writer) {
-        return GameResult<void>::err(
-            GameError(ErrorCode::WalWriteFailed,
-                      "WAL flush failed"));
+        return GameResult<void>::err(GameError(ErrorCode::WalWriteFailed, "WAL flush failed"));
     }
 
     return GameResult<void>::ok();
@@ -432,4 +422,4 @@ bool WriteAheadLog::isOpen() const {
     return impl_->open;
 }
 
-} // namespace cgs::service
+}  // namespace cgs::service

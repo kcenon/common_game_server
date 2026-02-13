@@ -7,8 +7,10 @@
 
 namespace cgs::service {
 
-void RouteTable::addRoute(uint16_t opcodeMin, uint16_t opcodeMax,
-                          std::string service, bool requiresAuth) {
+void RouteTable::addRoute(uint16_t opcodeMin,
+                          uint16_t opcodeMax,
+                          std::string service,
+                          bool requiresAuth) {
     RouteEntry entry;
     entry.opcodeMin = opcodeMin;
     entry.opcodeMax = opcodeMax;
@@ -43,12 +45,10 @@ const std::vector<RouteEntry>& RouteTable::routes() const {
 
 void RouteTable::removeRoutesForService(std::string_view service) {
     std::lock_guard<std::mutex> lock(mutex_);
-    routes_.erase(
-        std::remove_if(routes_.begin(), routes_.end(),
-                       [&](const RouteEntry& e) {
-                           return e.service == service;
-                       }),
-        routes_.end());
+    routes_.erase(std::remove_if(routes_.begin(),
+                                 routes_.end(),
+                                 [&](const RouteEntry& e) { return e.service == service; }),
+                  routes_.end());
 }
 
 void RouteTable::clear() {
@@ -56,4 +56,4 @@ void RouteTable::clear() {
     routes_.clear();
 }
 
-} // namespace cgs::service
+}  // namespace cgs::service

@@ -9,13 +9,13 @@
 /// @see SRS-SVC-002
 /// @see SDS-MOD-041
 
+#include "cgs/foundation/types.hpp"
+#include "cgs/service/auth_types.hpp"
+
 #include <chrono>
 #include <cstdint>
 #include <string>
 #include <vector>
-
-#include "cgs/foundation/types.hpp"
-#include "cgs/service/auth_types.hpp"
 
 namespace cgs::service {
 
@@ -36,10 +36,14 @@ enum class ClientState : uint8_t {
 /// Return the string name for a client state.
 constexpr std::string_view clientStateName(ClientState state) {
     switch (state) {
-        case ClientState::Unauthenticated: return "Unauthenticated";
-        case ClientState::Authenticated:   return "Authenticated";
-        case ClientState::Migrating:       return "Migrating";
-        case ClientState::Disconnecting:   return "Disconnecting";
+        case ClientState::Unauthenticated:
+            return "Unauthenticated";
+        case ClientState::Authenticated:
+            return "Authenticated";
+        case ClientState::Migrating:
+            return "Migrating";
+        case ClientState::Disconnecting:
+            return "Disconnecting";
     }
     return "Unknown";
 }
@@ -94,24 +98,24 @@ struct RouteEntry {
 
 /// Reserved gateway-level opcodes (0x0000-0x00FF).
 namespace GatewayOpcode {
-    /// Client → Gateway: authenticate with JWT access token.
-    constexpr uint16_t Authenticate = 0x0001;
+/// Client → Gateway: authenticate with JWT access token.
+constexpr uint16_t Authenticate = 0x0001;
 
-    /// Gateway → Client: authentication result.
-    constexpr uint16_t AuthResult = 0x0002;
+/// Gateway → Client: authentication result.
+constexpr uint16_t AuthResult = 0x0002;
 
-    /// Gateway → Client: server transfer notification.
-    constexpr uint16_t ServerTransfer = 0x0010;
+/// Gateway → Client: server transfer notification.
+constexpr uint16_t ServerTransfer = 0x0010;
 
-    /// Client → Gateway: migration acknowledgement.
-    constexpr uint16_t MigrationAck = 0x0011;
+/// Client → Gateway: migration acknowledgement.
+constexpr uint16_t MigrationAck = 0x0011;
 
-    /// Gateway → Client: heartbeat ping.
-    constexpr uint16_t Ping = 0x00FE;
+/// Gateway → Client: heartbeat ping.
+constexpr uint16_t Ping = 0x00FE;
 
-    /// Client → Gateway: heartbeat pong.
-    constexpr uint16_t Pong = 0x00FF;
-} // namespace GatewayOpcode
+/// Client → Gateway: heartbeat pong.
+constexpr uint16_t Pong = 0x00FF;
+}  // namespace GatewayOpcode
 
 // -- Configuration ------------------------------------------------------------
 
@@ -139,4 +143,4 @@ struct GatewayConfig {
     std::chrono::seconds idleTimeout{300};
 };
 
-} // namespace cgs::service
+}  // namespace cgs::service

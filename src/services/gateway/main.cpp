@@ -5,10 +5,6 @@
 /// Creates an embedded AuthServer (in-memory backends) and starts
 /// the GatewayServer for client connection management.
 
-#include <cstdlib>
-#include <iostream>
-#include <memory>
-
 #include "cgs/foundation/config_manager.hpp"
 #include "cgs/foundation/game_metrics.hpp"
 #include "cgs/service/auth_server.hpp"
@@ -20,10 +16,13 @@
 #include "cgs/service/token_store.hpp"
 #include "cgs/service/user_repository.hpp"
 
+#include <cstdlib>
+#include <iostream>
+#include <memory>
+
 namespace {
 
-cgs::service::AuthConfig buildAuthConfig(
-    const cgs::foundation::ConfigManager& config) {
+cgs::service::AuthConfig buildAuthConfig(const cgs::foundation::ConfigManager& config) {
     cgs::service::AuthConfig cfg;
 
     auto signingKey = config.get<std::string>("auth.signing_key");
@@ -44,8 +43,7 @@ cgs::service::AuthConfig buildAuthConfig(
     return cfg;
 }
 
-cgs::service::GatewayConfig buildGatewayConfig(
-    const cgs::foundation::ConfigManager& config) {
+cgs::service::GatewayConfig buildGatewayConfig(const cgs::foundation::ConfigManager& config) {
     cgs::service::GatewayConfig cfg;
 
     auto tcpPort = config.get<int>("gateway.tcp_port");
@@ -86,7 +84,7 @@ cgs::service::GatewayConfig buildGatewayConfig(
     return cfg;
 }
 
-} // namespace
+}  // namespace
 
 int main(int argc, char* argv[]) {
     cgs::service::SignalHandler signals;
@@ -99,20 +97,17 @@ int main(int argc, char* argv[]) {
     cgs::foundation::ConfigManager config;
     auto loadResult = cgs::service::loadConfig(config, configPath);
     if (!loadResult) {
-        std::cerr << "Failed to load config: "
-                  << loadResult.error().message() << "\n";
+        std::cerr << "Failed to load config: " << loadResult.error().message() << "\n";
         return EXIT_FAILURE;
     }
 
     // Health server + metrics.
     auto& metrics = cgs::foundation::GameMetrics::instance();
-    cgs::service::HealthServer health(
-        {.port = 9100, .serviceName = "gateway"}, metrics);
+    cgs::service::HealthServer health({.port = 9100, .serviceName = "gateway"}, metrics);
 
     auto healthResult = health.start();
     if (!healthResult) {
-        std::cerr << "Failed to start health server: "
-                  << healthResult.error().message() << "\n";
+        std::cerr << "Failed to start health server: " << healthResult.error().message() << "\n";
         return EXIT_FAILURE;
     }
 
@@ -120,24 +115,21 @@ int main(int argc, char* argv[]) {
     auto authConfig = buildAuthConfig(config);
     auto userRepo = std::make_shared<cgs::service::InMemoryUserRepository>();
     auto tokenStore = std::make_shared<cgs::service::InMemoryTokenStore>();
-    auto authServer = std::make_shared<cgs::service::AuthServer>(
-        authConfig, userRepo, tokenStore);
+    auto authServer = std::make_shared<cgs::service::AuthServer>(authConfig, userRepo, tokenStore);
 
     auto gwConfig = buildGatewayConfig(config);
     cgs::service::GatewayServer gateway(gwConfig, authServer);
 
     auto startResult = gateway.start();
     if (!startResult) {
-        std::cerr << "Failed to start gateway: "
-                  << startResult.error().message() << "\n";
+        std::cerr << "Failed to start gateway: " << startResult.error().message() << "\n";
         return EXIT_FAILURE;
     }
 
     health.setReady(true);
 
     std::cout << "Gateway server started (tcp:" << gwConfig.tcpPort
-              << " ws:" << gwConfig.webSocketPort
-              << ", health_port: 9100)\n";
+              << " ws:" << gwConfig.webSocketPort << ", health_port: 9100)\n";
 
     signals.waitForShutdown();
 

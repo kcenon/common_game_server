@@ -13,12 +13,10 @@ GameResult<void> ConfigManager::load(const std::filesystem::path& path) {
         return GameResult<void>::ok();
     } catch (const YAML::BadFile&) {
         return GameResult<void>::err(
-            GameError(ErrorCode::ConfigLoadFailed,
-                      "failed to open config file: " + path.string()));
+            GameError(ErrorCode::ConfigLoadFailed, "failed to open config file: " + path.string()));
     } catch (const YAML::ParserException& e) {
         return GameResult<void>::err(
-            GameError(ErrorCode::ConfigLoadFailed,
-                      std::string("YAML parse error: ") + e.what()));
+            GameError(ErrorCode::ConfigLoadFailed, std::string("YAML parse error: ") + e.what()));
     }
 }
 
@@ -55,4 +53,4 @@ void ConfigManager::notifyWatchers(std::string_view key) {
     }
 }
 
-} // namespace cgs::foundation
+}  // namespace cgs::foundation

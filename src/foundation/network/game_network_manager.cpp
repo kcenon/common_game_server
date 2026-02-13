@@ -4,15 +4,14 @@
 #include "cgs/foundation/game_network_manager.hpp"
 
 // kcenon facade headers (hidden behind PIMPL)
+#include <algorithm>
+#include <chrono>
+#include <cstring>
 #include <kcenon/network/facade/tcp_facade.h>
 #include <kcenon/network/facade/udp_facade.h>
 #include <kcenon/network/facade/websocket_facade.h>
 #include <kcenon/network/interfaces/i_protocol_server.h>
 #include <kcenon/network/interfaces/i_session.h>
-
-#include <algorithm>
-#include <chrono>
-#include <cstring>
 #include <mutex>
 #include <shared_mutex>
 #include <unordered_map>
@@ -47,8 +46,7 @@ std::vector<uint8_t> NetworkMessage::serialize() const {
     return buf;
 }
 
-std::optional<NetworkMessage> NetworkMessage::deserialize(
-    const uint8_t* data, std::size_t size) {
+std::optional<NetworkMessage> NetworkMessage::deserialize(const uint8_t* data, std::size_t size) {
     // Minimum: 4 (length) + 2 (opcode) = 6 bytes
     constexpr std::size_t kHeaderSize = 6;
     if (size < kHeaderSize) {
@@ -57,18 +55,15 @@ std::optional<NetworkMessage> NetworkMessage::deserialize(
 
     // Read total length (network order)
     const uint32_t totalLen =
-        (static_cast<uint32_t>(data[0]) << 24) |
-        (static_cast<uint32_t>(data[1]) << 16) |
-        (static_cast<uint32_t>(data[2]) << 8) |
-        static_cast<uint32_t>(data[3]);
+        (static_cast<uint32_t>(data[0]) << 24) | (static_cast<uint32_t>(data[1]) << 16) |
+        (static_cast<uint32_t>(data[2]) << 8) | static_cast<uint32_t>(data[3]);
 
     if (totalLen < kHeaderSize || totalLen > size) {
         return std::nullopt;
     }
 
     NetworkMessage msg;
-    msg.opcode = static_cast<uint16_t>(
-        (static_cast<uint16_t>(data[4]) << 8) | data[5]);
+    msg.opcode = static_cast<uint16_t>((static_cast<uint16_t>(data[4]) << 8) | data[5]);
 
     const auto payloadSize = totalLen - kHeaderSize;
     if (payloadSize > 0) {
@@ -78,8 +73,7 @@ std::optional<NetworkMessage> NetworkMessage::deserialize(
     return msg;
 }
 
-std::optional<NetworkMessage> NetworkMessage::deserialize(
-    const std::vector<uint8_t>& data) {
+std::optional<NetworkMessage> NetworkMessage::deserialize(const std::vector<uint8_t>& data) {
     return deserialize(data.data(), data.size());
 }
 
@@ -89,14 +83,13 @@ std::optional<NetworkMessage> NetworkMessage::deserialize(
 
 struct GameNetworkManager::Impl {
     // Active protocol servers keyed by protocol
-    std::unordered_map<Protocol,
-                       std::shared_ptr<kcenon::network::interfaces::i_protocol_server>>
+    std::unordered_map<Protocol, std::shared_ptr<kcenon::network::interfaces::i_protocol_server>>
         servers;
 
     // Internal session data: maps our SessionId → kcenon session + metadata
     struct InternalSession {
         Protocol protocol;
-        std::string kcSessionId;   // kcenon's string session ID
+        std::string kcSessionId;  // kcenon's string session ID
         std::shared_ptr<kcenon::network::interfaces::i_session> kcSession;
         SessionInfo info;
     };
@@ -123,9 +116,8 @@ struct GameNetworkManager::Impl {
     // Create a protocol server with the given port and optional TLS config.
     // Note: UDP facade auto-starts the server during creation, so the
     // caller must skip the explicit start() call for UDP.
-    std::shared_ptr<kcenon::network::interfaces::i_protocol_server>
-    createServer(Protocol protocol, uint16_t port,
-                 const TlsConfig* tls = nullptr) {
+    std::shared_ptr<kcenon::network::interfaces::i_protocol_server> createServer(
+        Protocol protocol, uint16_t port, const TlsConfig* tls = nullptr) {
         using namespace kcenon::network::facade;
         switch (protocol) {
             case Protocol::TCP: {
@@ -157,13 +149,10 @@ struct GameNetworkManager::Impl {
     }
 
     // Wire up kcenon callbacks to our internal dispatch
-    void setupCallbacks(
-        std::shared_ptr<kcenon::network::interfaces::i_protocol_server>& server,
-        Protocol protocol) {
-
+    void setupCallbacks(std::shared_ptr<kcenon::network::interfaces::i_protocol_server>& server,
+                        Protocol protocol) {
         server->set_connection_callback(
-            [this, protocol](
-                std::shared_ptr<kcenon::network::interfaces::i_session> kcSession) {
+            [this, protocol](std::shared_ptr<kcenon::network::interfaces::i_session> kcSession) {
                 auto sid = allocateSessionId();
                 auto kcId = std::string(kcSession->id());
                 auto now = std::chrono::steady_clock::now();
@@ -200,31 +189,28 @@ struct GameNetworkManager::Impl {
                     // Update last activity
                     auto sit = sessions.find(sid);
                     if (sit != sessions.end()) {
-                        sit->second.info.lastActivity =
-                            std::chrono::steady_clock::now();
+                        sit->second.info.lastActivity = std::chrono::steady_clock::now();
                     }
                 }
 
                 // Parse all messages from the buffer. TCP streams may
                 // deliver multiple serialized messages in a single callback.
-                constexpr std::size_t kMinFrameSize = 6; // 4 length + 2 opcode
+                constexpr std::size_t kMinFrameSize = 6;  // 4 length + 2 opcode
                 std::size_t offset = 0;
 
                 while (offset + kMinFrameSize <= data.size()) {
                     auto remaining = data.size() - offset;
-                    auto msg = NetworkMessage::deserialize(
-                        data.data() + offset, remaining);
+                    auto msg = NetworkMessage::deserialize(data.data() + offset, remaining);
                     if (!msg) {
                         owner->onError.emit(sid, ErrorCode::InvalidMessage);
                         break;
                     }
 
                     // Read total length from header to advance the offset
-                    uint32_t totalLen =
-                        (static_cast<uint32_t>(data[offset]) << 24) |
-                        (static_cast<uint32_t>(data[offset + 1]) << 16) |
-                        (static_cast<uint32_t>(data[offset + 2]) << 8) |
-                        static_cast<uint32_t>(data[offset + 3]);
+                    uint32_t totalLen = (static_cast<uint32_t>(data[offset]) << 24) |
+                                        (static_cast<uint32_t>(data[offset + 1]) << 16) |
+                                        (static_cast<uint32_t>(data[offset + 2]) << 8) |
+                                        static_cast<uint32_t>(data[offset + 3]);
                     offset += totalLen;
 
                     MessageHandler handler;
@@ -241,38 +227,36 @@ struct GameNetworkManager::Impl {
                 }
             });
 
-        server->set_disconnection_callback(
-            [this](std::string_view kcId) {
-                SessionId sid;
-                {
-                    std::unique_lock lock(sessionMutex);
-                    auto it = reverseMap.find(std::string(kcId));
-                    if (it == reverseMap.end()) {
-                        return;
-                    }
-                    sid = it->second;
-                    sessions.erase(sid);
-                    reverseMap.erase(it);
+        server->set_disconnection_callback([this](std::string_view kcId) {
+            SessionId sid;
+            {
+                std::unique_lock lock(sessionMutex);
+                auto it = reverseMap.find(std::string(kcId));
+                if (it == reverseMap.end()) {
+                    return;
                 }
+                sid = it->second;
+                sessions.erase(sid);
+                reverseMap.erase(it);
+            }
 
-                owner->onDisconnected.emit(sid);
-            });
+            owner->onDisconnected.emit(sid);
+        });
 
-        server->set_error_callback(
-            [this](std::string_view kcId, std::error_code ec) {
-                SessionId sid;
-                {
-                    std::shared_lock lock(sessionMutex);
-                    auto it = reverseMap.find(std::string(kcId));
-                    if (it == reverseMap.end()) {
-                        return;
-                    }
-                    sid = it->second;
+        server->set_error_callback([this](std::string_view kcId, std::error_code ec) {
+            SessionId sid;
+            {
+                std::shared_lock lock(sessionMutex);
+                auto it = reverseMap.find(std::string(kcId));
+                if (it == reverseMap.end()) {
+                    return;
                 }
-                // Map system error to our ErrorCode
-                auto code = ec ? ErrorCode::NetworkError : ErrorCode::Success;
-                owner->onError.emit(sid, code);
-            });
+                sid = it->second;
+            }
+            // Map system error to our ErrorCode
+            auto code = ec ? ErrorCode::NetworkError : ErrorCode::Success;
+            owner->onError.emit(sid, code);
+        });
     }
 };
 
@@ -280,8 +264,7 @@ struct GameNetworkManager::Impl {
 // Construction / Destruction / Move
 // ---------------------------------------------------------------------------
 
-GameNetworkManager::GameNetworkManager()
-    : impl_(std::make_unique<Impl>()) {
+GameNetworkManager::GameNetworkManager() : impl_(std::make_unique<Impl>()) {
     impl_->owner = this;
 }
 
@@ -315,16 +298,14 @@ GameResult<void> GameNetworkManager::listen(uint16_t port, Protocol protocol) {
     if (impl_->servers.count(protocol) > 0) {
         return GameResult<void>::err(
             GameError(ErrorCode::AlreadyExists,
-                      std::string("already listening on ") +
-                          std::string(protocolName(protocol))));
+                      std::string("already listening on ") + std::string(protocolName(protocol))));
     }
 
     auto server = impl_->createServer(protocol, port);
     if (!server) {
         return GameResult<void>::err(
             GameError(ErrorCode::ListenFailed,
-                      "failed to create server for " +
-                          std::string(protocolName(protocol))));
+                      "failed to create server for " + std::string(protocolName(protocol))));
     }
 
     impl_->setupCallbacks(server, protocol);
@@ -333,10 +314,10 @@ GameResult<void> GameNetworkManager::listen(uint16_t port, Protocol protocol) {
     if (protocol != Protocol::UDP) {
         auto result = server->start(port);
         if (result.is_err()) {
-            return GameResult<void>::err(
-                GameError(ErrorCode::ListenFailed,
-                          "failed to start " + std::string(protocolName(protocol)) +
-                              " server on port " + std::to_string(port)));
+            return GameResult<void>::err(GameError(ErrorCode::ListenFailed,
+                                                   "failed to start " +
+                                                       std::string(protocolName(protocol)) +
+                                                       " server on port " + std::to_string(port)));
         }
     }
 
@@ -348,37 +329,34 @@ GameResult<void> GameNetworkManager::listen(uint16_t port, Protocol protocol) {
 // listen() with TLS (SRS-NFR-015)
 // ---------------------------------------------------------------------------
 
-GameResult<void> GameNetworkManager::listen(uint16_t port, Protocol protocol,
+GameResult<void> GameNetworkManager::listen(uint16_t port,
+                                            Protocol protocol,
                                             const TlsConfig& tls) {
     // TLS is only supported over TCP.
     if (protocol != Protocol::TCP) {
         return GameResult<void>::err(
             GameError(ErrorCode::TlsNotSupported,
-                      std::string(protocolName(protocol)) +
-                          " does not support TLS"));
+                      std::string(protocolName(protocol)) + " does not support TLS"));
     }
 
     // Validate TLS configuration.
     if (!tls.isValid()) {
-        return GameResult<void>::err(
-            GameError(ErrorCode::TlsCertificateInvalid,
-                      "TLS config requires both certPath and keyPath"));
+        return GameResult<void>::err(GameError(ErrorCode::TlsCertificateInvalid,
+                                               "TLS config requires both certPath and keyPath"));
     }
 
     // Check if already listening on this protocol
     if (impl_->servers.count(protocol) > 0) {
         return GameResult<void>::err(
             GameError(ErrorCode::AlreadyExists,
-                      std::string("already listening on ") +
-                          std::string(protocolName(protocol))));
+                      std::string("already listening on ") + std::string(protocolName(protocol))));
     }
 
     auto server = impl_->createServer(protocol, port, &tls);
     if (!server) {
         return GameResult<void>::err(
             GameError(ErrorCode::ListenFailed,
-                      "failed to create TLS server for " +
-                          std::string(protocolName(protocol))));
+                      "failed to create TLS server for " + std::string(protocolName(protocol))));
     }
 
     impl_->setupCallbacks(server, protocol);
@@ -387,8 +365,7 @@ GameResult<void> GameNetworkManager::listen(uint16_t port, Protocol protocol,
     if (result.is_err()) {
         return GameResult<void>::err(
             GameError(ErrorCode::TlsHandshakeFailed,
-                      "failed to start TLS server on port " +
-                          std::to_string(port)));
+                      "failed to start TLS server on port " + std::to_string(port)));
     }
 
     impl_->servers.emplace(protocol, std::move(server));
@@ -402,9 +379,8 @@ GameResult<void> GameNetworkManager::listen(uint16_t port, Protocol protocol,
 GameResult<void> GameNetworkManager::stop(Protocol protocol) {
     auto it = impl_->servers.find(protocol);
     if (it == impl_->servers.end()) {
-        return GameResult<void>::err(
-            GameError(ErrorCode::NotFound,
-                      std::string(protocolName(protocol)) + " server not running"));
+        return GameResult<void>::err(GameError(
+            ErrorCode::NotFound, std::string(protocolName(protocol)) + " server not running"));
     }
 
     (void)it->second->stop();
@@ -445,8 +421,7 @@ void GameNetworkManager::stopAll() {
 // send()
 // ---------------------------------------------------------------------------
 
-GameResult<void> GameNetworkManager::send(
-    SessionId session, const NetworkMessage& msg) {
+GameResult<void> GameNetworkManager::send(SessionId session, const NetworkMessage& msg) {
     std::shared_ptr<kcenon::network::interfaces::i_session> kcSession;
     {
         std::shared_lock lock(impl_->sessionMutex);
@@ -454,8 +429,7 @@ GameResult<void> GameNetworkManager::send(
         if (it == impl_->sessions.end()) {
             return GameResult<void>::err(
                 GameError(ErrorCode::SessionNotFound,
-                          "session " + std::to_string(session.value()) +
-                              " not found"));
+                          "session " + std::to_string(session.value()) + " not found"));
         }
         kcSession = it->second.kcSession;
     }
@@ -463,10 +437,8 @@ GameResult<void> GameNetworkManager::send(
     auto wireData = msg.serialize();
     auto result = kcSession->send(std::move(wireData));
     if (result.is_err()) {
-        return GameResult<void>::err(
-            GameError(ErrorCode::SendFailed,
-                      "send failed for session " +
-                          std::to_string(session.value())));
+        return GameResult<void>::err(GameError(
+            ErrorCode::SendFailed, "send failed for session " + std::to_string(session.value())));
     }
 
     return GameResult<void>::ok();
@@ -547,4 +519,4 @@ std::size_t GameNetworkManager::sessionCount() const {
     return impl_->sessions.size();
 }
 
-} // namespace cgs::foundation
+}  // namespace cgs::foundation

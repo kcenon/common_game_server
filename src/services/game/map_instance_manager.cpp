@@ -8,18 +8,17 @@
 
 namespace cgs::service {
 
-MapInstanceManager::MapInstanceManager(uint32_t maxInstances)
-    : maxInstances_(maxInstances) {}
+MapInstanceManager::MapInstanceManager(uint32_t maxInstances) : maxInstances_(maxInstances) {}
 
-cgs::foundation::GameResult<uint32_t> MapInstanceManager::createInstance(
-    uint32_t mapId, cgs::game::MapType type, uint32_t maxPlayers) {
+cgs::foundation::GameResult<uint32_t> MapInstanceManager::createInstance(uint32_t mapId,
+                                                                         cgs::game::MapType type,
+                                                                         uint32_t maxPlayers) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     if (instances_.size() >= static_cast<std::size_t>(maxInstances_)) {
         return cgs::Result<uint32_t, cgs::foundation::GameError>::err(
-            cgs::foundation::GameError(
-                cgs::foundation::ErrorCode::MapInstanceLimitReached,
-                "Maximum number of map instances reached"));
+            cgs::foundation::GameError(cgs::foundation::ErrorCode::MapInstanceLimitReached,
+                                       "Maximum number of map instances reached"));
     }
 
     MapInstanceInfo info;
@@ -37,31 +36,26 @@ cgs::foundation::GameResult<uint32_t> MapInstanceManager::createInstance(
     return cgs::Result<uint32_t, cgs::foundation::GameError>::ok(id);
 }
 
-cgs::foundation::GameResult<void> MapInstanceManager::destroyInstance(
-    uint32_t instanceId) {
+cgs::foundation::GameResult<void> MapInstanceManager::destroyInstance(uint32_t instanceId) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     auto it = instances_.find(instanceId);
     if (it == instances_.end()) {
-        return cgs::Result<void, cgs::foundation::GameError>::err(
-            cgs::foundation::GameError(
-                cgs::foundation::ErrorCode::MapInstanceNotFound,
-                "Map instance not found"));
+        return cgs::Result<void, cgs::foundation::GameError>::err(cgs::foundation::GameError(
+            cgs::foundation::ErrorCode::MapInstanceNotFound, "Map instance not found"));
     }
 
     if (it->second.playerCount > 0) {
         return cgs::Result<void, cgs::foundation::GameError>::err(
-            cgs::foundation::GameError(
-                cgs::foundation::ErrorCode::MapInstanceInvalidState,
-                "Cannot destroy instance with active players"));
+            cgs::foundation::GameError(cgs::foundation::ErrorCode::MapInstanceInvalidState,
+                                       "Cannot destroy instance with active players"));
     }
 
     instances_.erase(it);
     return cgs::Result<void, cgs::foundation::GameError>::ok();
 }
 
-bool MapInstanceManager::setInstanceState(
-    uint32_t instanceId, InstanceState state) {
+bool MapInstanceManager::setInstanceState(uint32_t instanceId, InstanceState state) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     auto it = instances_.find(instanceId);
@@ -72,12 +66,10 @@ bool MapInstanceManager::setInstanceState(
     auto current = it->second.state;
 
     // Enforce valid transitions: Active → Draining → ShuttingDown.
-    if (state == InstanceState::Draining &&
-        current != InstanceState::Active) {
+    if (state == InstanceState::Draining && current != InstanceState::Active) {
         return false;
     }
-    if (state == InstanceState::ShuttingDown &&
-        current != InstanceState::Draining) {
+    if (state == InstanceState::ShuttingDown && current != InstanceState::Draining) {
         return false;
     }
     if (state == InstanceState::Active) {
@@ -89,8 +81,7 @@ bool MapInstanceManager::setInstanceState(
     return true;
 }
 
-std::optional<MapInstanceInfo> MapInstanceManager::getInstance(
-    uint32_t instanceId) const {
+std::optional<MapInstanceInfo> MapInstanceManager::getInstance(uint32_t instanceId) const {
     std::lock_guard<std::mutex> lock(mutex_);
 
     auto it = instances_.find(instanceId);
@@ -100,8 +91,7 @@ std::optional<MapInstanceInfo> MapInstanceManager::getInstance(
     return it->second;
 }
 
-std::vector<MapInstanceInfo> MapInstanceManager::getInstancesByMap(
-    uint32_t mapId) const {
+std::vector<MapInstanceInfo> MapInstanceManager::getInstancesByMap(uint32_t mapId) const {
     std::lock_guard<std::mutex> lock(mutex_);
 
     std::vector<MapInstanceInfo> result;
@@ -113,8 +103,7 @@ std::vector<MapInstanceInfo> MapInstanceManager::getInstancesByMap(
     return result;
 }
 
-std::vector<MapInstanceInfo> MapInstanceManager::getInstancesByState(
-    InstanceState state) const {
+std::vector<MapInstanceInfo> MapInstanceManager::getInstancesByState(InstanceState state) const {
     std::lock_guard<std::mutex> lock(mutex_);
 
     std::vector<MapInstanceInfo> result;
@@ -191,14 +180,12 @@ std::vector<uint32_t> MapInstanceManager::findEmptyInstances() const {
     return result;
 }
 
-std::vector<uint32_t> MapInstanceManager::findAvailableInstances(
-    uint32_t mapId) const {
+std::vector<uint32_t> MapInstanceManager::findAvailableInstances(uint32_t mapId) const {
     std::lock_guard<std::mutex> lock(mutex_);
 
     std::vector<uint32_t> result;
     for (const auto& [id, info] : instances_) {
-        if (info.mapId == mapId &&
-            info.state == InstanceState::Active &&
+        if (info.mapId == mapId && info.state == InstanceState::Active &&
             info.playerCount < info.maxPlayers) {
             result.push_back(id);
         }
@@ -206,4 +193,4 @@ std::vector<uint32_t> MapInstanceManager::findAvailableInstances(
     return result;
 }
 
-} // namespace cgs::service
+}  // namespace cgs::service

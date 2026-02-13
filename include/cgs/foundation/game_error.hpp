@@ -3,12 +3,12 @@
 /// @file game_error.hpp
 /// @brief Game-specific error type used with Result<T, GameError>.
 
+#include "cgs/foundation/error_code.hpp"
+
 #include <any>
 #include <string>
 #include <string_view>
 #include <utility>
-
-#include "cgs/foundation/error_code.hpp"
 
 namespace cgs::foundation {
 
@@ -18,11 +18,9 @@ class GameError {
 public:
     GameError() = default;
 
-    explicit GameError(ErrorCode code)
-        : code_(code) {}
+    explicit GameError(ErrorCode code) : code_(code) {}
 
-    GameError(ErrorCode code, std::string message)
-        : code_(code), message_(std::move(message)) {}
+    GameError(ErrorCode code, std::string message) : code_(code), message_(std::move(message)) {}
 
     GameError(ErrorCode code, std::string message, std::any context)
         : code_(code), message_(std::move(message)), context_(std::move(context)) {}
@@ -34,9 +32,7 @@ public:
     [[nodiscard]] std::string_view message() const noexcept { return message_; }
 
     /// The subsystem that produced this error.
-    [[nodiscard]] std::string_view subsystem() const noexcept {
-        return errorSubsystem(code_);
-    }
+    [[nodiscard]] std::string_view subsystem() const noexcept { return errorSubsystem(code_); }
 
     /// Access typed context data (returns nullptr if type mismatch or empty).
     template <typename T>
@@ -48,9 +44,7 @@ public:
     [[nodiscard]] bool hasContext() const noexcept { return context_.has_value(); }
 
     /// Check if this represents a success (no error).
-    [[nodiscard]] bool isSuccess() const noexcept {
-        return code_ == ErrorCode::Success;
-    }
+    [[nodiscard]] bool isSuccess() const noexcept { return code_ == ErrorCode::Success; }
 
 private:
     ErrorCode code_ = ErrorCode::Unknown;
@@ -58,4 +52,4 @@ private:
     std::any context_;
 };
 
-} // namespace cgs::foundation
+}  // namespace cgs::foundation

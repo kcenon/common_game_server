@@ -28,7 +28,7 @@ uint32_t RateLimiter::remaining(const std::string& key) const {
         return maxAttempts_;
     }
 
-    auto timestamps = it->second; // copy to purge
+    auto timestamps = it->second;  // copy to purge
     purgeExpired(timestamps);
 
     auto used = static_cast<uint32_t>(timestamps.size());
@@ -47,4 +47,4 @@ void RateLimiter::purgeExpired(std::deque<TimePoint>& timestamps) const {
     }
 }
 
-} // namespace cgs::service
+}  // namespace cgs::service

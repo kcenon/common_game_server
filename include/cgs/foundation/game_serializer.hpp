@@ -10,6 +10,8 @@
 /// CMakeLists.txt need to change.
 /// Part of the Container System Adapter (SDS-MOD-007).
 
+#include "cgs/foundation/game_result.hpp"
+
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
@@ -21,8 +23,6 @@
 #include <tuple>
 #include <type_traits>
 #include <vector>
-
-#include "cgs/foundation/game_result.hpp"
 
 namespace cgs::foundation {
 
@@ -41,12 +41,12 @@ struct SerializableTraits {
 template <typename T, typename M>
 struct FieldDescriptor {
     const char* name;
-    M T::*pointer;
+    M T::* pointer;
 };
 
 /// Create a FieldDescriptor from a name and pointer-to-member.
 template <typename T, typename M>
-constexpr FieldDescriptor<T, M> field(const char* name, M T::*ptr) {
+constexpr FieldDescriptor<T, M> field(const char* name, M T::* ptr) {
     return {name, ptr};
 }
 
@@ -59,8 +59,7 @@ template <typename T, typename = void>
 struct is_serializable : std::false_type {};
 
 template <typename T>
-struct is_serializable<
-    T, std::void_t<decltype(SerializableTraits<T>::schema_version)>>
+struct is_serializable<T, std::void_t<decltype(SerializableTraits<T>::schema_version)>>
     : std::true_type {};
 
 template <typename T>
@@ -76,14 +75,12 @@ void forEachFieldImpl(const Tuple& t, Func&& f, std::index_sequence<Is...>) {
 template <typename Tuple, typename Func>
 void forEachField(const Tuple& t, Func&& f) {
     forEachFieldImpl(
-        t, std::forward<Func>(f),
-        std::make_index_sequence<std::tuple_size_v<Tuple>>{});
+        t, std::forward<Func>(f), std::make_index_sequence<std::tuple_size_v<Tuple>>{});
 }
 
 // ── Binary write helpers ────────────────────────────────────────────────
 
-inline void writeBytes(std::vector<uint8_t>& buf, const void* data,
-                       std::size_t n) {
+inline void writeBytes(std::vector<uint8_t>& buf, const void* data, std::size_t n) {
     const auto* p = static_cast<const uint8_t*>(data);
     buf.insert(buf.end(), p, p + n);
 }
@@ -117,13 +114,12 @@ struct BinaryReader {
     std::span<const uint8_t> data;
     std::size_t pos = 0;
 
-    [[nodiscard]] bool canRead(std::size_t n) const {
-        return pos + n <= data.size();
-    }
+    [[nodiscard]] bool canRead(std::size_t n) const { return pos + n <= data.size(); }
 
     template <typename T>
     bool readPrimitive(T& val) {
-        if (!canRead(sizeof(T))) return false;
+        if (!canRead(sizeof(T)))
+            return false;
         std::memcpy(&val, data.data() + pos, sizeof(T));
         pos += sizeof(T);
         return true;
@@ -131,8 +127,10 @@ struct BinaryReader {
 
     bool readString(std::string& val) {
         uint32_t len = 0;
-        if (!readPrimitive(len)) return false;
-        if (!canRead(len)) return false;
+        if (!readPrimitive(len))
+            return false;
+        if (!canRead(len))
+            return false;
         val.assign(reinterpret_cast<const char*>(data.data() + pos), len);
         pos += len;
         return true;
@@ -143,7 +141,8 @@ template <typename T>
 bool readBinaryField(BinaryReader& reader, T& val) {
     if constexpr (std::is_same_v<T, bool>) {
         uint8_t b = 0;
-        if (!reader.readPrimitive(b)) return false;
+        if (!reader.readPrimitive(b))
+            return false;
         val = (b != 0);
         return true;
     } else if constexpr (std::is_same_v<T, std::string>) {
@@ -161,14 +160,30 @@ inline std::string escapeJson(std::string_view sv) {
     out.reserve(sv.size());
     for (char c : sv) {
         switch (c) {
-            case '"':  out += "\\\""; break;
-            case '\\': out += "\\\\"; break;
-            case '\b': out += "\\b"; break;
-            case '\f': out += "\\f"; break;
-            case '\n': out += "\\n"; break;
-            case '\r': out += "\\r"; break;
-            case '\t': out += "\\t"; break;
-            default:   out += c; break;
+            case '"':
+                out += "\\\"";
+                break;
+            case '\\':
+                out += "\\\\";
+                break;
+            case '\b':
+                out += "\\b";
+                break;
+            case '\f':
+                out += "\\f";
+                break;
+            case '\n':
+                out += "\\n";
+                break;
+            case '\r':
+                out += "\\r";
+                break;
+            case '\t':
+                out += "\\t";
+                break;
+            default:
+                out += c;
+                break;
         }
     }
     return out;
@@ -198,8 +213,7 @@ struct JsonReader {
 
     void skipWhitespace() {
         while (pos < data.size() &&
-               (data[pos] == ' ' || data[pos] == '\t' ||
-                data[pos] == '\n' || data[pos] == '\r')) {
+               (data[pos] == ' ' || data[pos] == '\t' || data[pos] == '\n' || data[pos] == '\r')) {
             ++pos;
         }
     }
@@ -215,29 +229,48 @@ struct JsonReader {
 
     bool readQuotedString(std::string& out) {
         skipWhitespace();
-        if (pos >= data.size() || data[pos] != '"') return false;
+        if (pos >= data.size() || data[pos] != '"')
+            return false;
         ++pos;
         out.clear();
         while (pos < data.size() && data[pos] != '"') {
             if (data[pos] == '\\') {
                 ++pos;
-                if (pos >= data.size()) return false;
+                if (pos >= data.size())
+                    return false;
                 switch (data[pos]) {
-                    case '"':  out += '"'; break;
-                    case '\\': out += '\\'; break;
-                    case 'b':  out += '\b'; break;
-                    case 'f':  out += '\f'; break;
-                    case 'n':  out += '\n'; break;
-                    case 'r':  out += '\r'; break;
-                    case 't':  out += '\t'; break;
-                    default:   out += data[pos]; break;
+                    case '"':
+                        out += '"';
+                        break;
+                    case '\\':
+                        out += '\\';
+                        break;
+                    case 'b':
+                        out += '\b';
+                        break;
+                    case 'f':
+                        out += '\f';
+                        break;
+                    case 'n':
+                        out += '\n';
+                        break;
+                    case 'r':
+                        out += '\r';
+                        break;
+                    case 't':
+                        out += '\t';
+                        break;
+                    default:
+                        out += data[pos];
+                        break;
                 }
             } else {
                 out += data[pos];
             }
             ++pos;
         }
-        if (pos >= data.size()) return false;
+        if (pos >= data.size())
+            return false;
         ++pos;  // skip closing quote
         return true;
     }
@@ -246,14 +279,14 @@ struct JsonReader {
     /// For numbers/bools/null, returns the raw text.
     bool readRawValue(std::string& out) {
         skipWhitespace();
-        if (pos >= data.size()) return false;
+        if (pos >= data.size())
+            return false;
         if (data[pos] == '"') {
             return readQuotedString(out);
         }
         std::size_t start = pos;
-        while (pos < data.size() && data[pos] != ',' && data[pos] != '}' &&
-               data[pos] != ' ' && data[pos] != '\t' &&
-               data[pos] != '\n' && data[pos] != '\r') {
+        while (pos < data.size() && data[pos] != ',' && data[pos] != '}' && data[pos] != ' ' &&
+               data[pos] != '\t' && data[pos] != '\n' && data[pos] != '\r') {
             ++pos;
         }
         out = std::string(data.substr(start, pos - start));
@@ -263,13 +296,13 @@ struct JsonReader {
     /// Skip a JSON value (for unrecognized fields).
     void skipValue() {
         skipWhitespace();
-        if (pos >= data.size()) return;
+        if (pos >= data.size())
+            return;
         if (data[pos] == '"') {
             std::string dummy;
             readQuotedString(dummy);
         } else {
-            while (pos < data.size() && data[pos] != ',' &&
-                   data[pos] != '}') {
+            while (pos < data.size() && data[pos] != ',' && data[pos] != '}') {
                 ++pos;
             }
         }
@@ -279,8 +312,14 @@ struct JsonReader {
 template <typename T>
 bool parseJsonValue(const std::string& raw, T& val) {
     if constexpr (std::is_same_v<T, bool>) {
-        if (raw == "true") { val = true; return true; }
-        if (raw == "false") { val = false; return true; }
+        if (raw == "true") {
+            val = true;
+            return true;
+        }
+        if (raw == "false") {
+            val = false;
+            return true;
+        }
         return false;
     } else if constexpr (std::is_same_v<T, std::string>) {
         val = raw;
@@ -293,7 +332,9 @@ bool parseJsonValue(const std::string& raw, T& val) {
                 val = std::stod(raw);
             }
             return true;
-        } catch (...) { return false; }
+        } catch (...) {
+            return false;
+        }
     } else if constexpr (std::is_integral_v<T>) {
         try {
             if constexpr (std::is_signed_v<T>) {
@@ -302,7 +343,9 @@ bool parseJsonValue(const std::string& raw, T& val) {
                 val = static_cast<T>(std::stoull(raw));
             }
             return true;
-        } catch (...) { return false; }
+        } catch (...) {
+            return false;
+        }
     }
     return false;
 }
@@ -369,8 +412,7 @@ public:
         detail::writePrimitive(buf, version);
 
         auto fields = SerializableTraits<T>::fields();
-        constexpr auto numFields =
-            static_cast<uint32_t>(std::tuple_size_v<decltype(fields)>);
+        constexpr auto numFields = static_cast<uint32_t>(std::tuple_size_v<decltype(fields)>);
         detail::writePrimitive(buf, numFields);
 
         // Fields in declaration order
@@ -384,8 +426,7 @@ public:
     /// Deserialize an object from binary format.
     /// Missing fields (from older schema versions) retain default values.
     template <typename T>
-    [[nodiscard]] GameResult<T> deserializeBinary(
-        std::span<const uint8_t> data) const {
+    [[nodiscard]] GameResult<T> deserializeBinary(std::span<const uint8_t> data) const {
         static_assert(detail::is_serializable_v<T>,
                       "Type must be registered with CGS_SERIALIZABLE");
 
@@ -395,8 +436,8 @@ public:
         uint8_t magic[4]{};
         for (auto& m : magic) {
             if (!reader.readPrimitive(m)) {
-                return GameResult<T>::err(GameError(
-                    ErrorCode::InvalidBinaryData, "truncated binary header"));
+                return GameResult<T>::err(
+                    GameError(ErrorCode::InvalidBinaryData, "truncated binary header"));
             }
         }
         if (std::memcmp(magic, kBinaryMagic, 4) != 0) {
@@ -407,15 +448,15 @@ public:
         // Schema version (stored for forward compatibility)
         uint32_t version = 0;
         if (!reader.readPrimitive(version)) {
-            return GameResult<T>::err(GameError(
-                ErrorCode::InvalidBinaryData, "truncated version field"));
+            return GameResult<T>::err(
+                GameError(ErrorCode::InvalidBinaryData, "truncated version field"));
         }
 
         // Field count from the serialized data
         uint32_t storedFieldCount = 0;
         if (!reader.readPrimitive(storedFieldCount)) {
-            return GameResult<T>::err(GameError(
-                ErrorCode::InvalidBinaryData, "truncated field count"));
+            return GameResult<T>::err(
+                GameError(ErrorCode::InvalidBinaryData, "truncated field count"));
         }
 
         T obj{};
@@ -424,8 +465,7 @@ public:
             static_cast<uint32_t>(std::tuple_size_v<decltype(fields)>);
 
         // Read min(stored, current) fields; extra fields keep defaults
-        uint32_t fieldsToRead =
-            std::min(storedFieldCount, currentFieldCount);
+        uint32_t fieldsToRead = std::min(storedFieldCount, currentFieldCount);
 
         detail::forEachField(fields, [&](const auto& fd, std::size_t idx) {
             if (static_cast<uint32_t>(idx) < fieldsToRead) {
@@ -467,8 +507,7 @@ public:
         detail::JsonReader reader{json};
 
         if (!reader.expect('{')) {
-            return GameResult<T>::err(
-                GameError(ErrorCode::InvalidJsonData, "expected '{'"));
+            return GameResult<T>::err(GameError(ErrorCode::InvalidJsonData, "expected '{'"));
         }
 
         T obj{};
@@ -478,8 +517,8 @@ public:
         while (true) {
             reader.skipWhitespace();
             if (reader.pos >= reader.data.size()) {
-                return GameResult<T>::err(GameError(
-                    ErrorCode::InvalidJsonData, "unexpected end of JSON"));
+                return GameResult<T>::err(
+                    GameError(ErrorCode::InvalidJsonData, "unexpected end of JSON"));
             }
             if (reader.data[reader.pos] == '}') {
                 ++reader.pos;
@@ -497,12 +536,11 @@ public:
             // Read key
             std::string key;
             if (!reader.readQuotedString(key)) {
-                return GameResult<T>::err(GameError(
-                    ErrorCode::InvalidJsonData, "expected key string"));
+                return GameResult<T>::err(
+                    GameError(ErrorCode::InvalidJsonData, "expected key string"));
             }
             if (!reader.expect(':')) {
-                return GameResult<T>::err(
-                    GameError(ErrorCode::InvalidJsonData, "expected ':'"));
+                return GameResult<T>::err(GameError(ErrorCode::InvalidJsonData, "expected ':'"));
             }
 
             // Skip version field
@@ -514,11 +552,12 @@ public:
             // Match against known fields
             bool matched = false;
             detail::forEachField(fields, [&](const auto& fd, std::size_t) {
-                if (matched) return;
-                if (key != fd.name) return;
+                if (matched)
+                    return;
+                if (key != fd.name)
+                    return;
 
-                using FieldType =
-                    std::remove_reference_t<decltype(obj.*(fd.pointer))>;
+                using FieldType = std::remove_reference_t<decltype(obj.*(fd.pointer))>;
                 std::string rawVal;
                 if (reader.readRawValue(rawVal)) {
                     FieldType val{};
@@ -565,13 +604,13 @@ private:
 ///   );
 /// @endcode
 // NOLINTNEXTLINE(cppcoreguidelines-macro-usage)
-#define CGS_SERIALIZABLE(Type, Version, ...)                                   \
-    template <>                                                                \
-    struct cgs::foundation::SerializableTraits<Type> {                         \
-        static constexpr bool is_serializable = true;                          \
-        static constexpr uint32_t schema_version = Version;                    \
-        static constexpr auto fields() {                                       \
-            using cgs::foundation::field;                                      \
-            return std::make_tuple(__VA_ARGS__);                               \
-        }                                                                      \
+#define CGS_SERIALIZABLE(Type, Version, ...)                \
+    template <>                                             \
+    struct cgs::foundation::SerializableTraits<Type> {      \
+        static constexpr bool is_serializable = true;       \
+        static constexpr uint32_t schema_version = Version; \
+        static constexpr auto fields() {                    \
+            using cgs::foundation::field;                   \
+            return std::make_tuple(__VA_ARGS__);            \
+        }                                                   \
     }

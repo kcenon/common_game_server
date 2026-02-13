@@ -25,7 +25,7 @@ struct Entity {
     // Bit layout constants.
     static constexpr uint32_t kIdBits = 24;
     static constexpr uint32_t kVersionBits = 8;
-    static constexpr uint32_t kIdMask = (1u << kIdBits) - 1;          // 0x00FFFFFF
+    static constexpr uint32_t kIdMask = (1u << kIdBits) - 1;  // 0x00FFFFFF
     static constexpr uint32_t kVersionShift = kIdBits;
     static constexpr uint32_t kInvalidRaw = std::numeric_limits<uint32_t>::max();
     static constexpr uint32_t kMaxId = kIdMask - 1;  // 0x00FFFFFE (reserve 0x00FFFFFF for invalid)
@@ -56,7 +56,7 @@ struct Entity {
 
 static_assert(sizeof(Entity) == 4, "Entity must be exactly 32 bits");
 
-} // namespace cgs::ecs
+}  // namespace cgs::ecs
 
 // Hash support for unordered containers.
 template <>

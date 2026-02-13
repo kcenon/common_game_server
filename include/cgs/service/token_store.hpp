@@ -9,14 +9,14 @@
 /// @see SRS-SVC-001.4
 /// @see SRS-SVC-001.5
 
+#include "cgs/service/auth_types.hpp"
+
 #include <cstdint>
 #include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <unordered_map>
-
-#include "cgs/service/auth_types.hpp"
 
 namespace cgs::service {
 
@@ -31,8 +31,7 @@ public:
     virtual void store(RefreshTokenRecord record) = 0;
 
     /// Find a refresh token by its value.
-    [[nodiscard]] virtual std::optional<RefreshTokenRecord> find(
-        std::string_view token) const = 0;
+    [[nodiscard]] virtual std::optional<RefreshTokenRecord> find(std::string_view token) const = 0;
 
     /// Revoke a specific refresh token. Returns false if not found.
     virtual bool revoke(std::string_view token) = 0;
@@ -51,8 +50,7 @@ class InMemoryTokenStore : public ITokenStore {
 public:
     void store(RefreshTokenRecord record) override;
 
-    [[nodiscard]] std::optional<RefreshTokenRecord> find(
-        std::string_view token) const override;
+    [[nodiscard]] std::optional<RefreshTokenRecord> find(std::string_view token) const override;
 
     bool revoke(std::string_view token) override;
 
@@ -65,4 +63,4 @@ private:
     std::unordered_map<std::string, RefreshTokenRecord> tokens_;
 };
 
-} // namespace cgs::service
+}  // namespace cgs::service

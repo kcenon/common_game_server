@@ -10,15 +10,15 @@
 /// @see SRS-GML-005.1 .. SRS-GML-005.4
 /// @see SDS-MOD-034
 
+#include "cgs/ecs/entity.hpp"
+#include "cgs/game/quest_types.hpp"
+
 #include <algorithm>
 #include <cstdint>
 #include <optional>
 #include <string>
 #include <unordered_set>
 #include <vector>
-
-#include "cgs/ecs/entity.hpp"
-#include "cgs/game/quest_types.hpp"
 
 namespace cgs::game {
 
@@ -27,14 +27,16 @@ namespace cgs::game {
 /// A single objective within a quest.
 struct QuestObjective {
     ObjectiveType type = ObjectiveType::Kill;
-    uint32_t targetId = 0;       ///< Creature entry, item ID, zone ID, or object ID.
-    int32_t current = 0;         ///< Current progress count.
-    int32_t required = 1;        ///< Required count for completion.
-    bool completed = false;      ///< Whether this objective is fulfilled.
+    uint32_t targetId = 0;   ///< Creature entry, item ID, zone ID, or object ID.
+    int32_t current = 0;     ///< Current progress count.
+    int32_t required = 1;    ///< Required count for completion.
+    bool completed = false;  ///< Whether this objective is fulfilled.
 
     /// Update progress and check completion.
     void AddProgress(int32_t amount) noexcept {
-        if (completed) { return; }
+        if (completed) {
+            return;
+        }
         current = std::min(current + amount, required);
         if (current >= required) {
             completed = true;
@@ -42,9 +44,7 @@ struct QuestObjective {
     }
 
     /// Check if the objective is fulfilled.
-    [[nodiscard]] bool IsComplete() const noexcept {
-        return completed || current >= required;
-    }
+    [[nodiscard]] bool IsComplete() const noexcept { return completed || current >= required; }
 };
 
 // -- QuestReward --------------------------------------------------------------
@@ -53,7 +53,7 @@ struct QuestObjective {
 struct QuestReward {
     int64_t experience = 0;
     int64_t currency = 0;
-    std::vector<std::pair<uint32_t, uint32_t>> items; ///< {itemId, count}
+    std::vector<std::pair<uint32_t, uint32_t>> items;  ///< {itemId, count}
 };
 
 // -- QuestTemplate ------------------------------------------------------------
@@ -64,12 +64,12 @@ struct QuestTemplate {
     std::string name;
     std::string description;
     uint32_t level = 0;
-    std::vector<uint32_t> prerequisites;         ///< Required completed quest IDs.
-    std::optional<uint32_t> chainNext;           ///< Next quest in chain.
-    std::vector<QuestObjective> objectives;      ///< Objective templates.
+    std::vector<uint32_t> prerequisites;     ///< Required completed quest IDs.
+    std::optional<uint32_t> chainNext;       ///< Next quest in chain.
+    std::vector<QuestObjective> objectives;  ///< Objective templates.
     QuestReward rewards;
     QuestFlags flags = QuestFlags::None;
-    float timeLimitSeconds = 0.0f;               ///< Time limit (0 = no limit).
+    float timeLimitSeconds = 0.0f;  ///< Time limit (0 = no limit).
 };
 
 // -- QuestEntry ---------------------------------------------------------------
@@ -80,23 +80,23 @@ struct QuestEntry {
     uint32_t templateId = 0;
     QuestState state = QuestState::Accepted;
     std::vector<QuestObjective> objectives;
-    float elapsedTime = 0.0f;                    ///< Time since acceptance.
-    float timeLimit = 0.0f;                      ///< 0 = no limit.
+    float elapsedTime = 0.0f;  ///< Time since acceptance.
+    float timeLimit = 0.0f;    ///< 0 = no limit.
 
     /// Check if all objectives are complete.
     [[nodiscard]] bool AllObjectivesComplete() const {
-        return std::all_of(objectives.begin(), objectives.end(),
-                           [](const QuestObjective& obj) {
-                               return obj.IsComplete();
-                           });
+        return std::all_of(objectives.begin(), objectives.end(), [](const QuestObjective& obj) {
+            return obj.IsComplete();
+        });
     }
 
     /// Update objective progress for a matching event.
     ///
     /// @return true if any objective was updated.
-    bool UpdateObjective(ObjectiveType type, uint32_t targetId,
-                         int32_t amount = 1) {
-        if (state != QuestState::Accepted) { return false; }
+    bool UpdateObjective(ObjectiveType type, uint32_t targetId, int32_t amount = 1) {
+        if (state != QuestState::Accepted) {
+            return false;
+        }
         bool updated = false;
         for (auto& obj : objectives) {
             if (obj.type == type && obj.targetId == targetId && !obj.completed) {
@@ -126,9 +126,15 @@ struct QuestLog {
     ///
     /// @return true if the quest was accepted.
     bool Accept(const QuestTemplate& tmpl) {
-        if (activeQuests.size() >= maxActiveQuests) { return false; }
-        if (HasQuest(tmpl.id)) { return false; }
-        if (!CanAccept(tmpl)) { return false; }
+        if (activeQuests.size() >= maxActiveQuests) {
+            return false;
+        }
+        if (HasQuest(tmpl.id)) {
+            return false;
+        }
+        if (!CanAccept(tmpl)) {
+            return false;
+        }
 
         QuestEntry entry;
         entry.questId = tmpl.id;
@@ -144,11 +150,12 @@ struct QuestLog {
     ///
     /// @return true if the quest was found and removed.
     bool Abandon(uint32_t questId) {
-        auto it = std::find_if(activeQuests.begin(), activeQuests.end(),
-                               [questId](const QuestEntry& e) {
-                                   return e.questId == questId;
-                               });
-        if (it == activeQuests.end()) { return false; }
+        auto it = std::find_if(activeQuests.begin(),
+                               activeQuests.end(),
+                               [questId](const QuestEntry& e) { return e.questId == questId; });
+        if (it == activeQuests.end()) {
+            return false;
+        }
         activeQuests.erase(it);
         return true;
     }
@@ -169,7 +176,9 @@ struct QuestLog {
     /// Get an active quest entry by ID.
     [[nodiscard]] QuestEntry* GetQuest(uint32_t questId) {
         for (auto& entry : activeQuests) {
-            if (entry.questId == questId) { return &entry; }
+            if (entry.questId == questId) {
+                return &entry;
+            }
         }
         return nullptr;
     }
@@ -177,17 +186,18 @@ struct QuestLog {
     /// Get an active quest entry by ID (const).
     [[nodiscard]] const QuestEntry* GetQuest(uint32_t questId) const {
         for (const auto& entry : activeQuests) {
-            if (entry.questId == questId) { return &entry; }
+            if (entry.questId == questId) {
+                return &entry;
+            }
         }
         return nullptr;
     }
 
     /// Check if a quest is currently active.
     [[nodiscard]] bool HasQuest(uint32_t questId) const {
-        return std::any_of(activeQuests.begin(), activeQuests.end(),
-                           [questId](const QuestEntry& e) {
-                               return e.questId == questId;
-                           });
+        return std::any_of(activeQuests.begin(),
+                           activeQuests.end(),
+                           [questId](const QuestEntry& e) { return e.questId == questId; });
     }
 
     /// Check if a quest has been completed (turned in) before.
@@ -197,22 +207,21 @@ struct QuestLog {
 
     /// Check if all prerequisites for a quest template are met.
     [[nodiscard]] bool CanAccept(const QuestTemplate& tmpl) const {
-        if (HasQuest(tmpl.id)) { return false; }
-        if (IsCompleted(tmpl.id)
-            && !HasQuestFlag(tmpl.flags, QuestFlags::Repeatable)) {
+        if (HasQuest(tmpl.id)) {
             return false;
         }
-        return std::all_of(tmpl.prerequisites.begin(), tmpl.prerequisites.end(),
-                           [this](uint32_t prereqId) {
-                               return IsCompleted(prereqId);
-                           });
+        if (IsCompleted(tmpl.id) && !HasQuestFlag(tmpl.flags, QuestFlags::Repeatable)) {
+            return false;
+        }
+        return std::all_of(tmpl.prerequisites.begin(),
+                           tmpl.prerequisites.end(),
+                           [this](uint32_t prereqId) { return IsCompleted(prereqId); });
     }
 
     /// Remove turned-in and failed quests from active list.
     void CleanupFinished() {
         std::erase_if(activeQuests, [](const QuestEntry& e) {
-            return e.state == QuestState::TurnedIn
-                   || e.state == QuestState::Failed;
+            return e.state == QuestState::TurnedIn || e.state == QuestState::Failed;
         });
     }
 };
@@ -232,4 +241,4 @@ struct QuestEvent {
     bool processed = false;  ///< Set to true after QuestSystem handles it.
 };
 
-} // namespace cgs::game
+}  // namespace cgs::game

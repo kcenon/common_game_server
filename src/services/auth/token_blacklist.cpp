@@ -8,12 +8,9 @@
 namespace cgs::service {
 
 TokenBlacklist::TokenBlacklist(std::chrono::seconds cleanupInterval)
-    : cleanupInterval_(cleanupInterval),
-      lastCleanup_(std::chrono::system_clock::now()) {}
+    : cleanupInterval_(cleanupInterval), lastCleanup_(std::chrono::system_clock::now()) {}
 
-void TokenBlacklist::revoke(
-    std::string_view jti,
-    std::chrono::system_clock::time_point expiresAt) {
+void TokenBlacklist::revoke(std::string_view jti, std::chrono::system_clock::time_point expiresAt) {
     std::unique_lock lock(mutex_);
     entries_.emplace(std::string(jti), expiresAt);
 
@@ -58,4 +55,4 @@ std::size_t TokenBlacklist::size() const {
     return entries_.size();
 }
 
-} // namespace cgs::service
+}  // namespace cgs::service

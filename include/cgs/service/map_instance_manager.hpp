@@ -11,6 +11,9 @@
 /// @see SRS-SVC-003.2
 /// @see SDS-MOD-032
 
+#include "cgs/foundation/game_result.hpp"
+#include "cgs/game/world_types.hpp"
+
 #include <chrono>
 #include <cstdint>
 #include <mutex>
@@ -18,9 +21,6 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-#include "cgs/foundation/game_result.hpp"
-#include "cgs/game/world_types.hpp"
 
 namespace cgs::service {
 
@@ -64,26 +64,21 @@ public:
     /// Destroy an instance immediately.
     ///
     /// Fails if the instance has players (must drain first).
-    [[nodiscard]] cgs::foundation::GameResult<void> destroyInstance(
-        uint32_t instanceId);
+    [[nodiscard]] cgs::foundation::GameResult<void> destroyInstance(uint32_t instanceId);
 
     /// Transition an instance to a new state.
     ///
     /// Valid transitions: Active → Draining → ShuttingDown.
-    [[nodiscard]] bool setInstanceState(
-        uint32_t instanceId, InstanceState state);
+    [[nodiscard]] bool setInstanceState(uint32_t instanceId, InstanceState state);
 
     /// Get metadata for a specific instance.
-    [[nodiscard]] std::optional<MapInstanceInfo> getInstance(
-        uint32_t instanceId) const;
+    [[nodiscard]] std::optional<MapInstanceInfo> getInstance(uint32_t instanceId) const;
 
     /// Get all instances for a given map ID.
-    [[nodiscard]] std::vector<MapInstanceInfo> getInstancesByMap(
-        uint32_t mapId) const;
+    [[nodiscard]] std::vector<MapInstanceInfo> getInstancesByMap(uint32_t mapId) const;
 
     /// Get all instances in a given state.
-    [[nodiscard]] std::vector<MapInstanceInfo> getInstancesByState(
-        InstanceState state) const;
+    [[nodiscard]] std::vector<MapInstanceInfo> getInstancesByState(InstanceState state) const;
 
     /// Increment the player count for an instance.
     ///
@@ -105,8 +100,7 @@ public:
     [[nodiscard]] std::vector<uint32_t> findEmptyInstances() const;
 
     /// Find instances that can accept more players.
-    [[nodiscard]] std::vector<uint32_t> findAvailableInstances(
-        uint32_t mapId) const;
+    [[nodiscard]] std::vector<uint32_t> findAvailableInstances(uint32_t mapId) const;
 
 private:
     uint32_t maxInstances_;
@@ -115,4 +109,4 @@ private:
     mutable std::mutex mutex_;
 };
 
-} // namespace cgs::service
+}  // namespace cgs::service

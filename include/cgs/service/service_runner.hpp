@@ -6,15 +6,15 @@
 /// Provides signal handling, configuration loading, graceful shutdown
 /// coordination, and CLI argument parsing for all CGS service executables.
 
+#include "cgs/foundation/config_manager.hpp"
+#include "cgs/foundation/game_result.hpp"
+
 #include <atomic>
 #include <chrono>
 #include <filesystem>
 #include <functional>
 #include <string_view>
 #include <vector>
-
-#include "cgs/foundation/config_manager.hpp"
-#include "cgs/foundation/game_result.hpp"
 
 namespace cgs::service {
 
@@ -108,14 +108,12 @@ private:
 /// @param config      ConfigManager to populate.
 /// @param defaultPath Fallback config file path.
 /// @return Success or ConfigLoadFailed error.
-[[nodiscard]] cgs::foundation::GameResult<void>
-loadConfig(cgs::foundation::ConfigManager& config,
-           const std::filesystem::path& defaultPath);
+[[nodiscard]] cgs::foundation::GameResult<void> loadConfig(
+    cgs::foundation::ConfigManager& config, const std::filesystem::path& defaultPath);
 
 /// Parse `--config <path>` from command-line arguments.
 ///
 /// @return Config file path, or empty path if not specified.
-[[nodiscard]] std::filesystem::path
-parseConfigArg(int argc, char* argv[]);
+[[nodiscard]] std::filesystem::path parseConfigArg(int argc, char* argv[]);
 
-} // namespace cgs::service
+}  // namespace cgs::service

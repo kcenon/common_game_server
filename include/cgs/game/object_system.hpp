@@ -10,12 +10,12 @@
 /// @see SRS-GML-001.5
 /// @see SDS-MOD-020
 
-#include <string_view>
-
 #include "cgs/ecs/component_storage.hpp"
 #include "cgs/ecs/query.hpp"
 #include "cgs/ecs/system_scheduler.hpp"
 #include "cgs/game/components.hpp"
+
+#include <string_view>
 
 namespace cgs::game {
 
@@ -43,9 +43,7 @@ public:
         return cgs::ecs::SystemStage::Update;
     }
 
-    [[nodiscard]] std::string_view GetName() const override {
-        return "ObjectUpdateSystem";
-    }
+    [[nodiscard]] std::string_view GetName() const override { return "ObjectUpdateSystem"; }
 
     /// Declare component access for parallel scheduling.
     [[nodiscard]] cgs::ecs::SystemAccessInfo GetAccessInfo() const override;
@@ -55,4 +53,4 @@ private:
     cgs::ecs::ComponentStorage<Movement>& movements_;
 };
 
-} // namespace cgs::game
+}  // namespace cgs::game

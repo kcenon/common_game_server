@@ -78,4 +78,4 @@ private:
     std::unordered_map<std::type_index, std::any> services_;
 };
 
-} // namespace cgs::foundation
+}  // namespace cgs::foundation

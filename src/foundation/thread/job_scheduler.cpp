@@ -4,12 +4,11 @@
 #include "cgs/foundation/job_scheduler.hpp"
 
 // kcenon thread_system headers (hidden behind PIMPL)
-#include <kcenon/thread/core/thread_pool.h>
-#include <kcenon/thread/core/thread_worker.h>
-#include <kcenon/thread/core/job_builder.h>
-
 #include <atomic>
 #include <future>
+#include <kcenon/thread/core/job_builder.h>
+#include <kcenon/thread/core/thread_pool.h>
+#include <kcenon/thread/core/thread_worker.h>
 #include <mutex>
 #include <unordered_map>
 #include <vector>
@@ -21,10 +20,14 @@ namespace cgs::foundation {
 // ---------------------------------------------------------------------------
 static kcenon::thread::job_priority mapPriority(JobPriority p) {
     switch (p) {
-        case JobPriority::Critical: return kcenon::thread::job_priority::highest;
-        case JobPriority::High:     return kcenon::thread::job_priority::high;
-        case JobPriority::Normal:   return kcenon::thread::job_priority::normal;
-        case JobPriority::Low:      return kcenon::thread::job_priority::low;
+        case JobPriority::Critical:
+            return kcenon::thread::job_priority::highest;
+        case JobPriority::High:
+            return kcenon::thread::job_priority::high;
+        case JobPriority::Normal:
+            return kcenon::thread::job_priority::normal;
+        case JobPriority::Low:
+            return kcenon::thread::job_priority::low;
     }
     return kcenon::thread::job_priority::normal;
 }
@@ -57,9 +60,7 @@ struct GameJobScheduler::Impl {
 // ---------------------------------------------------------------------------
 // Construction / Destruction / Move
 // ---------------------------------------------------------------------------
-GameJobScheduler::GameJobScheduler(std::size_t numThreads)
-    : impl_(std::make_unique<Impl>())
-{
+GameJobScheduler::GameJobScheduler(std::size_t numThreads) : impl_(std::make_unique<Impl>()) {
     impl_->pool = std::make_shared<kcenon::thread::thread_pool>("GameJobScheduler");
 
     // Create workers using the default thread_worker constructor and batch
@@ -81,7 +82,7 @@ GameJobScheduler::GameJobScheduler(std::size_t numThreads)
 
 GameJobScheduler::~GameJobScheduler() {
     if (impl_ && impl_->pool) {
-        impl_->pool->stop(false); // graceful: wait for running jobs
+        impl_->pool->stop(false);  // graceful: wait for running jobs
     }
 }
 
@@ -91,35 +92,33 @@ GameJobScheduler& GameJobScheduler::operator=(GameJobScheduler&&) noexcept = def
 // ---------------------------------------------------------------------------
 // schedule()
 // ---------------------------------------------------------------------------
-GameResult<GameJobScheduler::JobId> GameJobScheduler::schedule(
-    JobFunc job, JobPriority priority)
-{
+GameResult<GameJobScheduler::JobId> GameJobScheduler::schedule(JobFunc job, JobPriority priority) {
     auto id = impl_->nextJobId.fetch_add(1, std::memory_order_relaxed);
     auto cancelFlag = std::make_shared<std::atomic<bool>>(false);
     auto promise = std::make_shared<std::promise<void>>();
     auto future = promise->get_future().share();
 
     // Build a kcenon job with priority and cancellation awareness
-    auto threadJob = kcenon::thread::job_builder()
-        .name("cgs_job_" + std::to_string(id))
-        .priority(mapPriority(priority))
-        .work([fn = std::move(job), cancelFlag, promise]()
-              -> kcenon::common::VoidResult {
-            try {
-                if (!cancelFlag->load(std::memory_order_acquire)) {
-                    fn();
-                }
-                promise->set_value();
-            } catch (...) {
+    auto threadJob =
+        kcenon::thread::job_builder()
+            .name("cgs_job_" + std::to_string(id))
+            .priority(mapPriority(priority))
+            .work([fn = std::move(job), cancelFlag, promise]() -> kcenon::common::VoidResult {
                 try {
-                    promise->set_exception(std::current_exception());
+                    if (!cancelFlag->load(std::memory_order_acquire)) {
+                        fn();
+                    }
+                    promise->set_value();
                 } catch (...) {
-                    // promise already satisfied — ignore
+                    try {
+                        promise->set_exception(std::current_exception());
+                    } catch (...) {
+                        // promise already satisfied — ignore
+                    }
                 }
-            }
-            return kcenon::common::VoidResult::ok(std::monostate{});
-        })
-        .build();
+                return kcenon::common::VoidResult::ok(std::monostate{});
+            })
+            .build();
 
     auto enqResult = impl_->pool->enqueue(std::move(threadJob));
     if (enqResult.is_err()) {
@@ -139,9 +138,7 @@ GameResult<GameJobScheduler::JobId> GameJobScheduler::schedule(
 // ---------------------------------------------------------------------------
 // scheduleAfter()
 // ---------------------------------------------------------------------------
-GameResult<GameJobScheduler::JobId> GameJobScheduler::scheduleAfter(
-    JobId dependency, JobFunc job)
-{
+GameResult<GameJobScheduler::JobId> GameJobScheduler::scheduleAfter(JobId dependency, JobFunc job) {
     std::shared_future<void> depFuture;
     {
         std::lock_guard lock(impl_->mutex);
@@ -166,14 +163,12 @@ GameResult<GameJobScheduler::JobId> GameJobScheduler::scheduleAfter(
 // scheduleTick()
 // ---------------------------------------------------------------------------
 GameResult<GameJobScheduler::JobId> GameJobScheduler::scheduleTick(
-    std::chrono::milliseconds interval, JobFunc job)
-{
+    std::chrono::milliseconds interval, JobFunc job) {
     auto id = impl_->nextJobId.fetch_add(1, std::memory_order_relaxed);
 
     std::lock_guard lock(impl_->mutex);
     impl_->tickJobs.push_back(
-        Impl::TickEntry{id, interval, std::chrono::milliseconds{0},
-                        std::move(job), true});
+        Impl::TickEntry{id, interval, std::chrono::milliseconds{0}, std::move(job), true});
 
     return GameResult<JobId>::ok(id);
 }
@@ -194,12 +189,12 @@ void GameJobScheduler::processTick(std::chrono::milliseconds deltaTime) {
             // Copy the function and dispatch into the pool (no lock held during enqueue)
             auto fn = tick.func;
             auto threadJob = kcenon::thread::job_builder()
-                .name("cgs_tick_" + std::to_string(tick.id))
-                .work([fn]() -> kcenon::common::VoidResult {
-                    fn();
-                    return kcenon::common::VoidResult::ok(std::monostate{});
-                })
-                .build();
+                                 .name("cgs_tick_" + std::to_string(tick.id))
+                                 .work([fn]() -> kcenon::common::VoidResult {
+                                     fn();
+                                     return kcenon::common::VoidResult::ok(std::monostate{});
+                                 })
+                                 .build();
             impl_->pool->enqueue(std::move(threadJob));
         }
     }
@@ -214,8 +209,7 @@ GameResult<void> GameJobScheduler::wait(JobId id) {
         std::lock_guard lock(impl_->mutex);
         auto it = impl_->futures.find(id);
         if (it == impl_->futures.end()) {
-            return GameResult<void>::err(
-                GameError(ErrorCode::JobNotFound, "job not found"));
+            return GameResult<void>::err(GameError(ErrorCode::JobNotFound, "job not found"));
         }
         future = it->second;
     }
@@ -223,8 +217,7 @@ GameResult<void> GameJobScheduler::wait(JobId id) {
     try {
         future.get();
     } catch (...) {
-        return GameResult<void>::err(
-            GameError(ErrorCode::ThreadError, "job execution failed"));
+        return GameResult<void>::err(GameError(ErrorCode::ThreadError, "job execution failed"));
     }
 
     return GameResult<void>::ok();
@@ -245,8 +238,7 @@ GameResult<void> GameJobScheduler::cancel(JobId id) {
                 return GameResult<void>::ok();
             }
         }
-        return GameResult<void>::err(
-            GameError(ErrorCode::JobNotFound, "job not found"));
+        return GameResult<void>::err(GameError(ErrorCode::JobNotFound, "job not found"));
     }
 
     // Check if already completed
@@ -263,4 +255,4 @@ GameResult<void> GameJobScheduler::cancel(JobId id) {
     return GameResult<void>::ok();
 }
 
-} // namespace cgs::foundation
+}  // namespace cgs::foundation

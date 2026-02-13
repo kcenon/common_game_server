@@ -9,12 +9,12 @@
 /// @see SRS-SVC-001
 /// @see SRS-NFR-014
 
+#include "cgs/foundation/game_result.hpp"
+#include "cgs/service/auth_types.hpp"
+
 #include <memory>
 #include <string>
 #include <string_view>
-
-#include "cgs/foundation/game_result.hpp"
-#include "cgs/service/auth_types.hpp"
 
 namespace cgs::service {
 
@@ -57,10 +57,9 @@ public:
         const UserCredentials& credentials);
 
     /// Authenticate and issue tokens (SRS-SVC-001.2, SRS-SVC-001.3).
-    [[nodiscard]] cgs::foundation::GameResult<TokenPair> login(
-        std::string_view username,
-        std::string_view password,
-        const std::string& clientIp);
+    [[nodiscard]] cgs::foundation::GameResult<TokenPair> login(std::string_view username,
+                                                               std::string_view password,
+                                                               const std::string& clientIp);
 
     /// Refresh an access token using a refresh token (SRS-SVC-001.4).
     [[nodiscard]] cgs::foundation::GameResult<TokenPair> refreshToken(
@@ -70,8 +69,7 @@ public:
     ///
     /// Looks up the given refresh token to identify the user, then revokes
     /// every refresh token belonging to that user (all-device logout).
-    [[nodiscard]] cgs::foundation::GameResult<void> logout(
-        std::string_view refreshToken);
+    [[nodiscard]] cgs::foundation::GameResult<void> logout(std::string_view refreshToken);
 
     /// Validate an access token and return decoded claims.
     /// Checks the token blacklist after signature verification.
@@ -82,8 +80,7 @@ public:
     ///
     /// The token is decoded to extract the jti (JWT ID) and expiry,
     /// then added to the in-memory blacklist until its natural expiry.
-    [[nodiscard]] cgs::foundation::GameResult<void> revokeAccessToken(
-        std::string_view accessToken);
+    [[nodiscard]] cgs::foundation::GameResult<void> revokeAccessToken(std::string_view accessToken);
 
     /// Run blacklist cleanup to remove expired entries.
     /// Returns the number of entries removed.
@@ -103,4 +100,4 @@ private:
     std::unique_ptr<TokenBlacklist> blacklist_;
 };
 
-} // namespace cgs::service
+}  // namespace cgs::service

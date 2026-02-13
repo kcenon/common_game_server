@@ -42,11 +42,10 @@ public:
     /// @param expectedScore  Expected score from expectedScore().
     /// @param kFactor        Rating change sensitivity.
     /// @return Updated rating.
-    [[nodiscard]] static int32_t newRating(
-        int32_t currentRating,
-        float actualScore,
-        float expectedScore,
-        int32_t kFactor = kDefaultKFactor);
+    [[nodiscard]] static int32_t newRating(int32_t currentRating,
+                                           float actualScore,
+                                           float expectedScore,
+                                           int32_t kFactor = kDefaultKFactor);
 
     /// Assess the quality of a potential match.
     ///
@@ -59,8 +58,9 @@ public:
     [[nodiscard]] static float matchQuality(const std::vector<int32_t>& ratings);
 
     /// Check whether two ratings are within the given tolerance.
-    [[nodiscard]] static bool isWithinTolerance(
-        int32_t ratingA, int32_t ratingB, int32_t tolerance);
+    [[nodiscard]] static bool isWithinTolerance(int32_t ratingA,
+                                                int32_t ratingB,
+                                                int32_t tolerance);
 
     /// Determine an appropriate K-factor based on games played.
     ///
@@ -70,4 +70,4 @@ public:
     [[nodiscard]] static int32_t suggestedKFactor(uint32_t gamesPlayed);
 };
 
-} // namespace cgs::service
+}  // namespace cgs::service

@@ -5,15 +5,15 @@
 
 #include "cgs/plugin/mmorpg_plugin.hpp"
 
-#include <algorithm>
-#include <cstring>
-
 #include "cgs/game/ai_system.hpp"
 #include "cgs/game/combat_system.hpp"
 #include "cgs/game/inventory_system.hpp"
 #include "cgs/game/object_system.hpp"
 #include "cgs/game/quest_system.hpp"
 #include "cgs/game/world_system.hpp"
+
+#include <algorithm>
+#include <cstring>
 
 namespace cgs::plugin {
 
@@ -54,11 +54,9 @@ bool MMORPGPlugin::OnInit() {
     //   PostUpdate: QuestSystem, InventorySystem
 
     scheduler_.Register<cgs::game::WorldSystem>(
-        transforms_, mapMemberships_, mapInstances_,
-        visibilityRanges_, zones_);
+        transforms_, mapMemberships_, mapInstances_, visibilityRanges_, zones_);
 
-    scheduler_.Register<cgs::game::ObjectUpdateSystem>(
-        transforms_, movements_);
+    scheduler_.Register<cgs::game::ObjectUpdateSystem>(transforms_, movements_);
 
     scheduler_.Register<cgs::game::CombatSystem>(
         spellCasts_, auraHolders_, damageEvents_, stats_, threatLists_);
@@ -66,11 +64,9 @@ bool MMORPGPlugin::OnInit() {
     scheduler_.Register<cgs::game::AISystem>(
         aiBrains_, transforms_, movements_, stats_, threatLists_);
 
-    scheduler_.Register<cgs::game::QuestSystem>(
-        questLogs_, questEvents_);
+    scheduler_.Register<cgs::game::QuestSystem>(questLogs_, questEvents_);
 
-    scheduler_.Register<cgs::game::InventorySystem>(
-        inventories_, equipment_, durabilityEvents_);
+    scheduler_.Register<cgs::game::InventorySystem>(inventories_, equipment_, durabilityEvents_);
 
     // Build the execution plan (topological sort per stage).
     if (!scheduler_.Build()) {
@@ -101,21 +97,17 @@ void MMORPGPlugin::OnUnload() {
 // Character Management
 // ============================================================================
 
-cgs::ecs::Entity MMORPGPlugin::CreateCharacter(
-    const std::string& name,
-    CharacterClass cls,
-    const cgs::game::Vector3& position,
-    cgs::ecs::Entity mapEntity) {
-
+cgs::ecs::Entity MMORPGPlugin::CreateCharacter(const std::string& name,
+                                               CharacterClass cls,
+                                               const cgs::game::Vector3& position,
+                                               cgs::ecs::Entity mapEntity) {
     auto entity = entityManager_.Create();
     const auto& tmpl = getClassTemplate(cls);
 
     // Identity
-    identities_.Add(entity, cgs::game::Identity{
-        cgs::game::GenerateGUID(),
-        name,
-        cgs::game::ObjectType::Player,
-        0});
+    identities_.Add(
+        entity,
+        cgs::game::Identity{cgs::game::GenerateGUID(), name, cgs::game::ObjectType::Player, 0});
 
     // Transform
     transforms_.Add(entity, cgs::game::Transform{position, {}, {}});
@@ -177,8 +169,7 @@ void MMORPGPlugin::RemoveCharacter(cgs::ecs::Entity entity) {
     entityManager_.Destroy(entity);
 }
 
-const CharacterData*
-MMORPGPlugin::GetCharacterData(cgs::ecs::Entity entity) const {
+const CharacterData* MMORPGPlugin::GetCharacterData(cgs::ecs::Entity entity) const {
     auto it = characters_.find(entity);
     if (it == characters_.end()) {
         return nullptr;
@@ -194,20 +185,16 @@ std::size_t MMORPGPlugin::PlayerCount() const noexcept {
 // NPC / Creature Spawning
 // ============================================================================
 
-cgs::ecs::Entity MMORPGPlugin::SpawnCreature(
-    uint32_t entry,
-    const std::string& name,
-    const cgs::game::Vector3& position,
-    cgs::ecs::Entity mapEntity) {
-
+cgs::ecs::Entity MMORPGPlugin::SpawnCreature(uint32_t entry,
+                                             const std::string& name,
+                                             const cgs::game::Vector3& position,
+                                             cgs::ecs::Entity mapEntity) {
     auto entity = entityManager_.Create();
 
     // Identity
-    identities_.Add(entity, cgs::game::Identity{
-        cgs::game::GenerateGUID(),
-        name,
-        cgs::game::ObjectType::Creature,
-        entry});
+    identities_.Add(entity,
+                    cgs::game::Identity{
+                        cgs::game::GenerateGUID(), name, cgs::game::ObjectType::Creature, entry});
 
     // Transform
     transforms_.Add(entity, cgs::game::Transform{position, {}, {}});
@@ -251,9 +238,7 @@ void MMORPGPlugin::RemoveCreature(cgs::ecs::Entity entity) {
 // Guild Management
 // ============================================================================
 
-uint32_t MMORPGPlugin::CreateGuild(
-    const std::string& name, cgs::ecs::Entity leader) {
-
+uint32_t MMORPGPlugin::CreateGuild(const std::string& name, cgs::ecs::Entity leader) {
     // Verify the leader is a known character.
     auto* charData = GetCharacterData(leader);
     if (charData == nullptr) {
@@ -271,8 +256,7 @@ uint32_t MMORPGPlugin::CreateGuild(
     guild.id = guildId;
     guild.name = name;
     guild.leader = leader;
-    guild.members.push_back(
-        GuildMember{leader, charData->name, GuildRank::Leader});
+    guild.members.push_back(GuildMember{leader, charData->name, GuildRank::Leader});
 
     guilds_.insert_or_assign(guildId, std::move(guild));
 
@@ -316,8 +300,7 @@ bool MMORPGPlugin::JoinGuild(cgs::ecs::Entity entity, uint32_t guildId) {
         return false;
     }
 
-    guild.members.push_back(
-        GuildMember{entity, charData->name, GuildRank::Member});
+    guild.members.push_back(GuildMember{entity, charData->name, GuildRank::Member});
     characters_[entity].guildId = guildId;
 
     return true;
@@ -333,9 +316,7 @@ bool MMORPGPlugin::LeaveGuild(cgs::ecs::Entity entity) {
     auto guildIt = guilds_.find(guildId);
     if (guildIt != guilds_.end()) {
         auto& members = guildIt->second.members;
-        std::erase_if(members, [entity](const GuildMember& m) {
-            return m.entity == entity;
-        });
+        std::erase_if(members, [entity](const GuildMember& m) { return m.entity == entity; });
 
         // If the guild is now empty, disband it.
         if (members.empty()) {
@@ -363,11 +344,9 @@ std::size_t MMORPGPlugin::GuildCount() const noexcept {
 // Chat System
 // ============================================================================
 
-void MMORPGPlugin::SendChat(
-    cgs::ecs::Entity sender,
-    ChatChannel channel,
-    const std::string& message) {
-
+void MMORPGPlugin::SendChat(cgs::ecs::Entity sender,
+                            ChatChannel channel,
+                            const std::string& message) {
     auto idx = static_cast<std::size_t>(channel);
     if (idx >= kChatChannelCount) {
         return;
@@ -381,24 +360,18 @@ void MMORPGPlugin::SendChat(
 
     auto& history = chatHistory_[idx];
     history.push_back(ChatMessage{
-        sender,
-        channel,
-        std::move(senderName),
-        message,
-        std::chrono::steady_clock::now()});
+        sender, channel, std::move(senderName), message, std::chrono::steady_clock::now()});
 
     // Trim to max history size.
     if (history.size() > kMaxChatHistoryPerChannel) {
-        history.erase(
-            history.begin(),
-            history.begin()
-                + static_cast<std::ptrdiff_t>(
-                    history.size() - kMaxChatHistoryPerChannel));
+        history.erase(history.begin(),
+                      history.begin() +
+                          static_cast<std::ptrdiff_t>(history.size() - kMaxChatHistoryPerChannel));
     }
 }
 
-std::vector<ChatMessage>
-MMORPGPlugin::GetChatHistory(ChatChannel channel, std::size_t count) const {
+std::vector<ChatMessage> MMORPGPlugin::GetChatHistory(ChatChannel channel,
+                                                      std::size_t count) const {
     auto idx = static_cast<std::size_t>(channel);
     if (idx >= kChatChannelCount) {
         return {};
@@ -409,17 +382,14 @@ MMORPGPlugin::GetChatHistory(ChatChannel channel, std::size_t count) const {
         return history;
     }
 
-    return {history.end() - static_cast<std::ptrdiff_t>(count),
-            history.end()};
+    return {history.end() - static_cast<std::ptrdiff_t>(count), history.end()};
 }
 
 // ============================================================================
 // Map Management
 // ============================================================================
 
-cgs::ecs::Entity MMORPGPlugin::CreateMapInstance(
-    uint32_t mapId, cgs::game::MapType type) {
-
+cgs::ecs::Entity MMORPGPlugin::CreateMapInstance(uint32_t mapId, cgs::game::MapType type) {
     auto entity = entityManager_.Create();
 
     cgs::game::MapInstance mapInst;
@@ -448,18 +418,18 @@ cgs::ecs::SystemScheduler& MMORPGPlugin::GetScheduler() noexcept {
 // ============================================================================
 
 void MMORPGPlugin::initializeClassTemplates() {
-    classTemplates_[static_cast<std::size_t>(CharacterClass::Warrior)] =
-        {CharacterClass::Warrior, 200, 50, 5.0f};
-    classTemplates_[static_cast<std::size_t>(CharacterClass::Mage)] =
-        {CharacterClass::Mage, 80, 250, 4.5f};
-    classTemplates_[static_cast<std::size_t>(CharacterClass::Priest)] =
-        {CharacterClass::Priest, 100, 200, 4.5f};
-    classTemplates_[static_cast<std::size_t>(CharacterClass::Rogue)] =
-        {CharacterClass::Rogue, 120, 80, 6.0f};
-    classTemplates_[static_cast<std::size_t>(CharacterClass::Ranger)] =
-        {CharacterClass::Ranger, 110, 100, 5.5f};
-    classTemplates_[static_cast<std::size_t>(CharacterClass::Warlock)] =
-        {CharacterClass::Warlock, 90, 220, 4.5f};
+    classTemplates_[static_cast<std::size_t>(CharacterClass::Warrior)] = {
+        CharacterClass::Warrior, 200, 50, 5.0f};
+    classTemplates_[static_cast<std::size_t>(CharacterClass::Mage)] = {
+        CharacterClass::Mage, 80, 250, 4.5f};
+    classTemplates_[static_cast<std::size_t>(CharacterClass::Priest)] = {
+        CharacterClass::Priest, 100, 200, 4.5f};
+    classTemplates_[static_cast<std::size_t>(CharacterClass::Rogue)] = {
+        CharacterClass::Rogue, 120, 80, 6.0f};
+    classTemplates_[static_cast<std::size_t>(CharacterClass::Ranger)] = {
+        CharacterClass::Ranger, 110, 100, 5.5f};
+    classTemplates_[static_cast<std::size_t>(CharacterClass::Warlock)] = {
+        CharacterClass::Warlock, 90, 220, 4.5f};
 }
 
 void MMORPGPlugin::registerComponentStorages() {
@@ -483,8 +453,7 @@ void MMORPGPlugin::registerComponentStorages() {
     entityManager_.RegisterStorage(&durabilityEvents_);
 }
 
-const ClassTemplate&
-MMORPGPlugin::getClassTemplate(CharacterClass cls) const {
+const ClassTemplate& MMORPGPlugin::getClassTemplate(CharacterClass cls) const {
     auto idx = static_cast<std::size_t>(cls);
     if (idx >= kCharacterClassCount) {
         // Fallback to Warrior.
@@ -493,4 +462,4 @@ MMORPGPlugin::getClassTemplate(CharacterClass cls) const {
     return classTemplates_[idx];
 }
 
-} // namespace cgs::plugin
+}  // namespace cgs::plugin

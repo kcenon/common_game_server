@@ -10,15 +10,15 @@
 /// @see SRS-SVC-005.3
 /// @see SDS-MOD-034
 
+#include "cgs/foundation/game_database.hpp"
+#include "cgs/service/dbproxy_types.hpp"
+
 #include <chrono>
 #include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
-
-#include "cgs/foundation/game_database.hpp"
-#include "cgs/service/dbproxy_types.hpp"
 
 namespace cgs::service {
 
@@ -50,12 +50,10 @@ public:
     /// Look up a cached query result.
     ///
     /// @return The cached result if found and not expired, nullopt otherwise.
-    [[nodiscard]] std::optional<cgs::foundation::QueryResult> get(
-        std::string_view sql);
+    [[nodiscard]] std::optional<cgs::foundation::QueryResult> get(std::string_view sql);
 
     /// Store a query result in the cache.
-    void put(std::string_view sql,
-             const cgs::foundation::QueryResult& result);
+    void put(std::string_view sql, const cgs::foundation::QueryResult& result);
 
     /// Store a query result with a custom TTL.
     void put(std::string_view sql,
@@ -99,4 +97,4 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-} // namespace cgs::service
+}  // namespace cgs::service

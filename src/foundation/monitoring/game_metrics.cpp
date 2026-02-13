@@ -38,8 +38,7 @@ struct HistogramData {
     double totalSum{0.0};
 
     explicit HistogramData(std::vector<double> bounds)
-        : boundaries(std::move(bounds))
-        , bucketCounts(boundaries.size() + 1, 0) {}
+        : boundaries(std::move(bounds)), bucketCounts(boundaries.size() + 1, 0) {}
 
     void record(double value) {
         for (std::size_t i = 0; i < boundaries.size(); ++i) {
@@ -59,9 +58,7 @@ struct HistogramData {
 void atomicAdd(std::atomic<double>& target, double delta) {
     double current = target.load(std::memory_order_relaxed);
     while (!target.compare_exchange_weak(
-        current, current + delta,
-        std::memory_order_release,
-        std::memory_order_relaxed)) {
+        current, current + delta, std::memory_order_release, std::memory_order_relaxed)) {
         // CAS failed, current now holds the latest value; retry
     }
 }
@@ -87,7 +84,7 @@ std::string formatDouble(double value) {
     return oss.str();
 }
 
-} // anonymous namespace
+}  // anonymous namespace
 
 // ── Impl ────────────────────────────────────────────────────────────────────
 
@@ -129,8 +126,7 @@ GameMetrics& GameMetrics::operator=(GameMetrics&&) noexcept = default;
 
 void GameMetrics::incrementCounter(std::string_view name, uint64_t value) {
     std::lock_guard lock(impl_->counterMutex);
-    impl_->counters[std::string(name)].fetch_add(
-        value, std::memory_order_relaxed);
+    impl_->counters[std::string(name)].fetch_add(value, std::memory_order_relaxed);
 }
 
 uint64_t GameMetrics::counterValue(std::string_view name) const {
@@ -170,13 +166,11 @@ double GameMetrics::gaugeValue(std::string_view name) const {
 
 // ── Histograms ──────────────────────────────────────────────────────────────
 
-void GameMetrics::registerHistogram(std::string_view name,
-                                    HistogramBuckets buckets) {
+void GameMetrics::registerHistogram(std::string_view name, HistogramBuckets buckets) {
     std::lock_guard lock(impl_->histogramMutex);
     auto key = std::string(name);
     if (impl_->histograms.find(key) == impl_->histograms.end()) {
-        impl_->histograms.emplace(
-            std::move(key), HistogramData(std::move(buckets.boundaries)));
+        impl_->histograms.emplace(std::move(key), HistogramData(std::move(buckets.boundaries)));
     }
 }
 
@@ -205,8 +199,7 @@ void GameMetrics::endSpan(TraceSpan& span) {
 
 // ── Health ───────────────────────────────────────────────────────────────────
 
-void GameMetrics::setComponentHealth(std::string_view component,
-                                     HealthStatus status) {
+void GameMetrics::setComponentHealth(std::string_view component, HealthStatus status) {
     std::lock_guard lock(impl_->healthMutex);
     impl_->componentHealth[std::string(component)] = status;
 }
@@ -243,8 +236,7 @@ std::string GameMetrics::scrape() const {
         std::lock_guard lock(impl_->counterMutex);
         for (const auto& [name, value] : impl_->counters) {
             out << "# TYPE " << name << " counter\n";
-            out << name << " "
-                << value.load(std::memory_order_relaxed) << "\n";
+            out << name << " " << value.load(std::memory_order_relaxed) << "\n";
         }
     }
 
@@ -253,8 +245,7 @@ std::string GameMetrics::scrape() const {
         std::lock_guard lock(impl_->gaugeMutex);
         for (const auto& [name, value] : impl_->gauges) {
             out << "# TYPE " << name << " gauge\n";
-            out << name << " "
-                << formatDouble(atomicLoad(value)) << "\n";
+            out << name << " " << formatDouble(atomicLoad(value)) << "\n";
         }
     }
 
@@ -266,12 +257,10 @@ std::string GameMetrics::scrape() const {
 
             // Cumulative bucket counts
             for (std::size_t i = 0; i < data.boundaries.size(); ++i) {
-                out << name << "_bucket{le=\""
-                    << formatDouble(data.boundaries[i]) << "\"} "
+                out << name << "_bucket{le=\"" << formatDouble(data.boundaries[i]) << "\"} "
                     << data.bucketCounts[i] << "\n";
             }
-            out << name << "_bucket{le=\"+Inf\"} "
-                << data.bucketCounts.back() << "\n";
+            out << name << "_bucket{le=\"+Inf\"} " << data.bucketCounts.back() << "\n";
 
             out << name << "_sum " << formatDouble(data.totalSum) << "\n";
             out << name << "_count " << data.totalCount << "\n";
@@ -309,4 +298,4 @@ GameMetrics& GameMetrics::instance() {
     return inst;
 }
 
-} // namespace cgs::foundation
+}  // namespace cgs::foundation

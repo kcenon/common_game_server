@@ -4,9 +4,6 @@
 /// Standalone executable for the lobby server.
 /// Manages matchmaking queues, party groups, and ELO rating.
 
-#include <cstdlib>
-#include <iostream>
-
 #include "cgs/foundation/config_manager.hpp"
 #include "cgs/foundation/game_metrics.hpp"
 #include "cgs/service/health_server.hpp"
@@ -14,20 +11,20 @@
 #include "cgs/service/lobby_types.hpp"
 #include "cgs/service/service_runner.hpp"
 
+#include <cstdlib>
+#include <iostream>
+
 namespace {
 
-cgs::service::LobbyConfig buildLobbyConfig(
-    const cgs::foundation::ConfigManager& config) {
+cgs::service::LobbyConfig buildLobbyConfig(const cgs::foundation::ConfigManager& config) {
     cgs::service::LobbyConfig cfg;
 
-    auto minPlayers =
-        config.get<unsigned int>("lobby.queue.min_players_per_match");
+    auto minPlayers = config.get<unsigned int>("lobby.queue.min_players_per_match");
     if (minPlayers) {
         cfg.queueConfig.minPlayersPerMatch = minPlayers.value();
     }
 
-    auto maxPlayers =
-        config.get<unsigned int>("lobby.queue.max_players_per_match");
+    auto maxPlayers = config.get<unsigned int>("lobby.queue.max_players_per_match");
     if (maxPlayers) {
         cfg.queueConfig.maxPlayersPerMatch = maxPlayers.value();
     }
@@ -49,8 +46,7 @@ cgs::service::LobbyConfig buildLobbyConfig(
 
     auto expInterval = config.get<int>("lobby.queue.expansion_interval_seconds");
     if (expInterval) {
-        cfg.queueConfig.expansionInterval =
-            std::chrono::seconds(expInterval.value());
+        cfg.queueConfig.expansionInterval = std::chrono::seconds(expInterval.value());
     }
 
     auto maxQueue = config.get<unsigned int>("lobby.queue.max_queue_size");
@@ -66,7 +62,7 @@ cgs::service::LobbyConfig buildLobbyConfig(
     return cfg;
 }
 
-} // namespace
+}  // namespace
 
 int main(int argc, char* argv[]) {
     cgs::service::SignalHandler signals;
@@ -79,20 +75,17 @@ int main(int argc, char* argv[]) {
     cgs::foundation::ConfigManager config;
     auto loadResult = cgs::service::loadConfig(config, configPath);
     if (!loadResult) {
-        std::cerr << "Failed to load config: "
-                  << loadResult.error().message() << "\n";
+        std::cerr << "Failed to load config: " << loadResult.error().message() << "\n";
         return EXIT_FAILURE;
     }
 
     // Health server + metrics.
     auto& metrics = cgs::foundation::GameMetrics::instance();
-    cgs::service::HealthServer health(
-        {.port = 9102, .serviceName = "lobby"}, metrics);
+    cgs::service::HealthServer health({.port = 9102, .serviceName = "lobby"}, metrics);
 
     auto healthResult = health.start();
     if (!healthResult) {
-        std::cerr << "Failed to start health server: "
-                  << healthResult.error().message() << "\n";
+        std::cerr << "Failed to start health server: " << healthResult.error().message() << "\n";
         return EXIT_FAILURE;
     }
 
@@ -101,16 +94,14 @@ int main(int argc, char* argv[]) {
 
     auto startResult = server.start();
     if (!startResult) {
-        std::cerr << "Failed to start lobby server: "
-                  << startResult.error().message() << "\n";
+        std::cerr << "Failed to start lobby server: " << startResult.error().message() << "\n";
         return EXIT_FAILURE;
     }
 
     health.setReady(true);
 
     std::cout << "Lobby server started (max_party: " << lobbyCfg.maxPartySize
-              << ", max_queue: " << lobbyCfg.queueConfig.maxQueueSize
-              << ", health_port: 9102)\n";
+              << ", max_queue: " << lobbyCfg.queueConfig.maxQueueSize << ", health_port: 9102)\n";
 
     signals.waitForShutdown();
 

@@ -8,6 +8,10 @@
 /// tracking, and opcode-based dispatch. Part of the Network System Adapter
 /// (SDS-MOD-004).
 
+#include "cgs/foundation/game_result.hpp"
+#include "cgs/foundation/signal.hpp"
+#include "cgs/foundation/types.hpp"
+
 #include <chrono>
 #include <cstdint>
 #include <functional>
@@ -16,25 +20,20 @@
 #include <string>
 #include <vector>
 
-#include "cgs/foundation/game_result.hpp"
-#include "cgs/foundation/signal.hpp"
-#include "cgs/foundation/types.hpp"
-
 namespace cgs::foundation {
 
 /// Supported network transport protocols.
-enum class Protocol : uint8_t {
-    TCP,
-    UDP,
-    WebSocket
-};
+enum class Protocol : uint8_t { TCP, UDP, WebSocket };
 
 /// Return the string name for a protocol.
 constexpr std::string_view protocolName(Protocol proto) {
     switch (proto) {
-        case Protocol::TCP:       return "TCP";
-        case Protocol::UDP:       return "UDP";
-        case Protocol::WebSocket: return "WebSocket";
+        case Protocol::TCP:
+            return "TCP";
+        case Protocol::UDP:
+            return "UDP";
+        case Protocol::WebSocket:
+            return "WebSocket";
     }
     return "Unknown";
 }
@@ -58,9 +57,7 @@ struct TlsConfig {
     bool verifyPeer = false;
 
     /// Validate that required fields are present.
-    [[nodiscard]] bool isValid() const {
-        return !certPath.empty() && !keyPath.empty();
-    }
+    [[nodiscard]] bool isValid() const { return !certPath.empty() && !keyPath.empty(); }
 };
 
 /// Application-level message with opcode and binary payload.
@@ -77,8 +74,8 @@ struct NetworkMessage {
     [[nodiscard]] std::vector<uint8_t> serialize() const;
 
     /// Deserialize from wire bytes. Returns nullopt on malformed input.
-    [[nodiscard]] static std::optional<NetworkMessage> deserialize(
-        const uint8_t* data, std::size_t size);
+    [[nodiscard]] static std::optional<NetworkMessage> deserialize(const uint8_t* data,
+                                                                   std::size_t size);
 
     /// Convenience overload.
     [[nodiscard]] static std::optional<NetworkMessage> deserialize(
@@ -141,8 +138,7 @@ public:
     /// Enforces TLS 1.3 minimum and disables insecure cipher suites.
     /// Currently supported for TCP only; other protocols return
     /// ErrorCode::TlsNotSupported.
-    [[nodiscard]] GameResult<void> listen(uint16_t port, Protocol protocol,
-                                          const TlsConfig& tls);
+    [[nodiscard]] GameResult<void> listen(uint16_t port, Protocol protocol, const TlsConfig& tls);
 
     /// Stop the server for a specific protocol.
     [[nodiscard]] GameResult<void> stop(Protocol protocol);
@@ -188,4 +184,4 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-} // namespace cgs::foundation
+}  // namespace cgs::foundation

@@ -6,10 +6,10 @@
 /// Produces ELK/Grafana Loki compatible JSON log lines with automatic
 /// correlation ID generation and propagation via thread-local storage.
 
+#include "cgs/foundation/game_logger.hpp"
+
 #include <string>
 #include <string_view>
-
-#include "cgs/foundation/game_logger.hpp"
 
 namespace cgs::foundation {
 
@@ -63,9 +63,10 @@ public:
     /// If the thread has a correlation ID set via CorrelationScope, it is
     /// automatically included.  Additional context fields from LogContext
     /// are appended as top-level JSON fields.
-    [[nodiscard]] static std::string format(
-        LogLevel level, LogCategory category,
-        std::string_view message, const LogContext& ctx = {});
+    [[nodiscard]] static std::string format(LogLevel level,
+                                            LogCategory category,
+                                            std::string_view message,
+                                            const LogContext& ctx = {});
 };
 
-} // namespace cgs::foundation
+}  // namespace cgs::foundation

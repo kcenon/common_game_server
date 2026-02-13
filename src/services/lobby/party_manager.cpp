@@ -3,11 +3,11 @@
 
 #include "cgs/service/party_manager.hpp"
 
-#include <algorithm>
-#include <numeric>
-
 #include "cgs/foundation/error_code.hpp"
 #include "cgs/foundation/game_error.hpp"
+
+#include <algorithm>
+#include <numeric>
 
 namespace cgs::service {
 
@@ -15,21 +15,18 @@ using cgs::foundation::ErrorCode;
 using cgs::foundation::GameError;
 using cgs::foundation::GameResult;
 
-PartyManager::PartyManager(uint32_t maxPartySize)
-    : maxPartySize_(maxPartySize) {}
+PartyManager::PartyManager(uint32_t maxPartySize) : maxPartySize_(maxPartySize) {}
 
 // -- Party lifecycle ----------------------------------------------------------
 
-GameResult<PartyId> PartyManager::createParty(
-    uint64_t leaderId,
-    const std::string& leaderName,
-    PlayerRating leaderRating) {
+GameResult<PartyId> PartyManager::createParty(uint64_t leaderId,
+                                              const std::string& leaderName,
+                                              PlayerRating leaderRating) {
     std::lock_guard lock(mutex_);
 
     if (playerParty_.contains(leaderId)) {
         return GameResult<PartyId>::err(
-            GameError(ErrorCode::PlayerAlreadyInParty,
-                      "player is already in a party"));
+            GameError(ErrorCode::PlayerAlreadyInParty, "player is already in a party"));
     }
 
     auto partyId = nextPartyId();
@@ -52,21 +49,17 @@ GameResult<PartyId> PartyManager::createParty(
     return GameResult<PartyId>::ok(partyId);
 }
 
-GameResult<void> PartyManager::disbandParty(
-    PartyId partyId, uint64_t requesterId) {
+GameResult<void> PartyManager::disbandParty(PartyId partyId, uint64_t requesterId) {
     std::lock_guard lock(mutex_);
 
     auto it = parties_.find(partyId);
     if (it == parties_.end()) {
-        return GameResult<void>::err(
-            GameError(ErrorCode::PartyNotFound,
-                      "party not found"));
+        return GameResult<void>::err(GameError(ErrorCode::PartyNotFound, "party not found"));
     }
 
     if (it->second.leaderId != requesterId) {
         return GameResult<void>::err(
-            GameError(ErrorCode::NotPartyLeader,
-                      "only the party leader can disband the party"));
+            GameError(ErrorCode::NotPartyLeader, "only the party leader can disband the party"));
     }
 
     removePartyInternal(partyId);
@@ -75,32 +68,26 @@ GameResult<void> PartyManager::disbandParty(
 
 // -- Member management --------------------------------------------------------
 
-GameResult<void> PartyManager::addMember(
-    PartyId partyId,
-    uint64_t playerId,
-    const std::string& name,
-    PlayerRating rating) {
+GameResult<void> PartyManager::addMember(PartyId partyId,
+                                         uint64_t playerId,
+                                         const std::string& name,
+                                         PlayerRating rating) {
     std::lock_guard lock(mutex_);
 
     if (playerParty_.contains(playerId)) {
         return GameResult<void>::err(
-            GameError(ErrorCode::PlayerAlreadyInParty,
-                      "player is already in a party"));
+            GameError(ErrorCode::PlayerAlreadyInParty, "player is already in a party"));
     }
 
     auto it = parties_.find(partyId);
     if (it == parties_.end()) {
-        return GameResult<void>::err(
-            GameError(ErrorCode::PartyNotFound,
-                      "party not found"));
+        return GameResult<void>::err(GameError(ErrorCode::PartyNotFound, "party not found"));
     }
 
     auto& party = it->second;
 
     if (party.members.size() >= static_cast<std::size_t>(party.maxSize)) {
-        return GameResult<void>::err(
-            GameError(ErrorCode::PartyFull,
-                      "party is full"));
+        return GameResult<void>::err(GameError(ErrorCode::PartyFull, "party is full"));
     }
 
     PartyMember member;
@@ -114,28 +101,25 @@ GameResult<void> PartyManager::addMember(
     return GameResult<void>::ok();
 }
 
-GameResult<void> PartyManager::removeMember(
-    PartyId partyId, uint64_t playerId) {
+GameResult<void> PartyManager::removeMember(PartyId partyId, uint64_t playerId) {
     std::lock_guard lock(mutex_);
 
     auto partyIt = parties_.find(partyId);
     if (partyIt == parties_.end()) {
-        return GameResult<void>::err(
-            GameError(ErrorCode::PartyNotFound,
-                      "party not found"));
+        return GameResult<void>::err(GameError(ErrorCode::PartyNotFound, "party not found"));
     }
 
     auto& party = partyIt->second;
 
     // Find the member.
-    auto memberIt = std::find_if(
-        party.members.begin(), party.members.end(),
-        [playerId](const PartyMember& m) { return m.playerId == playerId; });
+    auto memberIt =
+        std::find_if(party.members.begin(), party.members.end(), [playerId](const PartyMember& m) {
+            return m.playerId == playerId;
+        });
 
     if (memberIt == party.members.end()) {
         return GameResult<void>::err(
-            GameError(ErrorCode::PlayerNotInParty,
-                      "player is not in the party"));
+            GameError(ErrorCode::PlayerNotInParty, "player is not in the party"));
     }
 
     // If the leader leaves, disband the entire party.
@@ -151,36 +135,32 @@ GameResult<void> PartyManager::removeMember(
     return GameResult<void>::ok();
 }
 
-GameResult<void> PartyManager::promoteLeader(
-    PartyId partyId, uint64_t requesterId, uint64_t newLeaderId) {
+GameResult<void> PartyManager::promoteLeader(PartyId partyId,
+                                             uint64_t requesterId,
+                                             uint64_t newLeaderId) {
     std::lock_guard lock(mutex_);
 
     auto it = parties_.find(partyId);
     if (it == parties_.end()) {
-        return GameResult<void>::err(
-            GameError(ErrorCode::PartyNotFound,
-                      "party not found"));
+        return GameResult<void>::err(GameError(ErrorCode::PartyNotFound, "party not found"));
     }
 
     auto& party = it->second;
 
     if (party.leaderId != requesterId) {
         return GameResult<void>::err(
-            GameError(ErrorCode::NotPartyLeader,
-                      "only the party leader can promote"));
+            GameError(ErrorCode::NotPartyLeader, "only the party leader can promote"));
     }
 
     // Verify new leader is in the party.
     auto memberIt = std::find_if(
-        party.members.begin(), party.members.end(),
-        [newLeaderId](const PartyMember& m) {
+        party.members.begin(), party.members.end(), [newLeaderId](const PartyMember& m) {
             return m.playerId == newLeaderId;
         });
 
     if (memberIt == party.members.end()) {
         return GameResult<void>::err(
-            GameError(ErrorCode::PlayerNotInParty,
-                      "target player is not in the party"));
+            GameError(ErrorCode::PlayerNotInParty, "target player is not in the party"));
     }
 
     party.leaderId = newLeaderId;
@@ -195,9 +175,7 @@ GameResult<void> PartyManager::setInQueue(PartyId partyId, bool inQueue) {
 
     auto it = parties_.find(partyId);
     if (it == parties_.end()) {
-        return GameResult<void>::err(
-            GameError(ErrorCode::PartyNotFound,
-                      "party not found"));
+        return GameResult<void>::err(GameError(ErrorCode::PartyNotFound, "party not found"));
     }
 
     it->second.inQueue = inQueue;
@@ -216,8 +194,7 @@ std::optional<Party> PartyManager::getParty(PartyId partyId) const {
     return it->second;
 }
 
-std::optional<PartyId> PartyManager::getPlayerParty(
-    uint64_t playerId) const {
+std::optional<PartyId> PartyManager::getPlayerParty(uint64_t playerId) const {
     std::lock_guard lock(mutex_);
 
     auto it = playerParty_.find(playerId);
@@ -237,8 +214,7 @@ std::size_t PartyManager::partyCount() const {
     return parties_.size();
 }
 
-std::optional<int32_t> PartyManager::averagePartyRating(
-    PartyId partyId) const {
+std::optional<int32_t> PartyManager::averagePartyRating(PartyId partyId) const {
     std::lock_guard lock(mutex_);
 
     auto it = parties_.find(partyId);
@@ -279,4 +255,4 @@ void PartyManager::removePartyInternal(PartyId partyId) {
     parties_.erase(it);
 }
 
-} // namespace cgs::service
+}  // namespace cgs::service

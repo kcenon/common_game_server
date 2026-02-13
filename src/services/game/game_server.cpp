@@ -4,17 +4,13 @@
 
 #include "cgs/service/game_server.hpp"
 
-#include <atomic>
-#include <mutex>
-#include <unordered_map>
-
-#include "cgs/foundation/game_metrics.hpp"
 #include "cgs/ecs/component_storage.hpp"
 #include "cgs/ecs/entity.hpp"
 #include "cgs/ecs/entity_manager.hpp"
 #include "cgs/ecs/system_scheduler.hpp"
 #include "cgs/foundation/error_code.hpp"
 #include "cgs/foundation/game_error.hpp"
+#include "cgs/foundation/game_metrics.hpp"
 #include "cgs/game/ai_components.hpp"
 #include "cgs/game/ai_system.hpp"
 #include "cgs/game/combat_components.hpp"
@@ -29,6 +25,10 @@
 #include "cgs/game/world_system.hpp"
 #include "cgs/service/game_loop.hpp"
 #include "cgs/service/map_instance_manager.hpp"
+
+#include <atomic>
+#include <mutex>
+#include <unordered_map>
 
 namespace cgs::service {
 
@@ -92,9 +92,7 @@ struct GameServer::Impl {
     std::atomic<uint64_t> playersLeft{0};
 
     explicit Impl(GameServerConfig cfg)
-        : config(std::move(cfg))
-        , gameLoop(config.tickRate)
-        , instanceManager(config.maxInstances) {}
+        : config(std::move(cfg)), gameLoop(config.tickRate), instanceManager(config.maxInstances) {}
 
     /// Register all component storages with the EntityManager for
     /// automatic cleanup on entity destruction.
@@ -123,26 +121,21 @@ struct GameServer::Impl {
     [[nodiscard]] bool registerSystems() {
         // PreUpdate stage
         scheduler.Register<cgs::game::WorldSystem>(
-            transforms, memberships, mapInstances,
-            visibilityRanges, zones, config.spatialCellSize);
+            transforms, memberships, mapInstances, visibilityRanges, zones, config.spatialCellSize);
 
         // Update stage
-        scheduler.Register<cgs::game::ObjectUpdateSystem>(
-            transforms, movements);
+        scheduler.Register<cgs::game::ObjectUpdateSystem>(transforms, movements);
 
         scheduler.Register<cgs::game::CombatSystem>(
             spellCasts, auraHolders, damageEvents, stats, threatLists);
 
         scheduler.Register<cgs::game::AISystem>(
-            aiBrains, transforms, movements, stats, threatLists,
-            config.aiTickInterval);
+            aiBrains, transforms, movements, stats, threatLists, config.aiTickInterval);
 
         // PostUpdate stage
-        scheduler.Register<cgs::game::QuestSystem>(
-            questLogs, questEvents);
+        scheduler.Register<cgs::game::QuestSystem>(questLogs, questEvents);
 
-        scheduler.Register<cgs::game::InventorySystem>(
-            inventories, equipment, durabilityEvents);
+        scheduler.Register<cgs::game::InventorySystem>(inventories, equipment, durabilityEvents);
 
         return scheduler.Build();
     }
@@ -176,8 +169,7 @@ GameServer& GameServer::operator=(GameServer&&) noexcept = default;
 GameResult<void> GameServer::start() {
     if (impl_->gameLoop.isRunning()) {
         return GameResult<void>::err(
-            GameError(ErrorCode::GameLoopAlreadyRunning,
-                      "game server is already running"));
+            GameError(ErrorCode::GameLoopAlreadyRunning, "game server is already running"));
     }
 
     impl_->registerStorages();
@@ -185,8 +177,7 @@ GameResult<void> GameServer::start() {
     if (!impl_->registerSystems()) {
         return GameResult<void>::err(
             GameError(ErrorCode::SystemSchedulerBuildFailed,
-                      "failed to build system scheduler: "
-                      + impl_->scheduler.GetLastError()));
+                      "failed to build system scheduler: " + impl_->scheduler.GetLastError()));
     }
 
     impl_->gameLoop.setTickCallback([this](float dt) {
@@ -196,21 +187,17 @@ GameResult<void> GameServer::start() {
 
     // Register tick metrics with Prometheus-compatible histogram.
     auto& metrics = cgs::foundation::GameMetrics::instance();
-    metrics.registerHistogram("cgs_tick_ms",
-        cgs::foundation::HistogramBuckets::defaultLatency());
+    metrics.registerHistogram("cgs_tick_ms", cgs::foundation::HistogramBuckets::defaultLatency());
 
-    impl_->gameLoop.setMetricsCallback(
-        [&metrics](const cgs::service::TickMetrics& tm) {
-            auto ms = static_cast<double>(tm.updateTime.count()) / 1000.0;
-            metrics.recordHistogram("cgs_tick_ms", ms);
-            metrics.setGauge("cgs_tick_budget_utilization",
-                             static_cast<double>(tm.budgetUtilization));
-        });
+    impl_->gameLoop.setMetricsCallback([&metrics](const cgs::service::TickMetrics& tm) {
+        auto ms = static_cast<double>(tm.updateTime.count()) / 1000.0;
+        metrics.recordHistogram("cgs_tick_ms", ms);
+        metrics.setGauge("cgs_tick_budget_utilization", static_cast<double>(tm.budgetUtilization));
+    });
 
     if (!impl_->gameLoop.start()) {
         return GameResult<void>::err(
-            GameError(ErrorCode::GameLoopAlreadyRunning,
-                      "failed to start game loop"));
+            GameError(ErrorCode::GameLoopAlreadyRunning, "failed to start game loop"));
     }
 
     return GameResult<void>::ok();
@@ -228,9 +215,8 @@ bool GameServer::isRunning() const noexcept {
 
 GameResult<void> GameServer::tick() {
     if (impl_->gameLoop.isRunning()) {
-        return GameResult<void>::err(
-            GameError(ErrorCode::GameLoopAlreadyRunning,
-                      "cannot tick manually while game loop is running"));
+        return GameResult<void>::err(GameError(ErrorCode::GameLoopAlreadyRunning,
+                                               "cannot tick manually while game loop is running"));
     }
 
     // Ensure systems are wired on first manual tick.
@@ -239,8 +225,7 @@ GameResult<void> GameServer::tick() {
         if (!impl_->registerSystems()) {
             return GameResult<void>::err(
                 GameError(ErrorCode::SystemSchedulerBuildFailed,
-                          "failed to build system scheduler: "
-                          + impl_->scheduler.GetLastError()));
+                          "failed to build system scheduler: " + impl_->scheduler.GetLastError()));
         }
 
         impl_->gameLoop.setTickCallback([this](float dt) {
@@ -255,10 +240,9 @@ GameResult<void> GameServer::tick() {
 
 // -- Instance management ------------------------------------------------------
 
-GameResult<uint32_t> GameServer::createInstance(
-    uint32_t mapId, uint32_t maxPlayers) {
-    auto result = impl_->instanceManager.createInstance(
-        mapId, cgs::game::MapType::OpenWorld, maxPlayers);
+GameResult<uint32_t> GameServer::createInstance(uint32_t mapId, uint32_t maxPlayers) {
+    auto result =
+        impl_->instanceManager.createInstance(mapId, cgs::game::MapType::OpenWorld, maxPlayers);
 
     if (result.hasError()) {
         return result;
@@ -299,29 +283,25 @@ std::vector<uint32_t> GameServer::availableInstances(uint32_t mapId) const {
 
 // -- Player lifecycle ---------------------------------------------------------
 
-GameResult<cgs::ecs::Entity> GameServer::addPlayer(
-    PlayerId playerId, uint32_t instanceId) {
+GameResult<cgs::ecs::Entity> GameServer::addPlayer(PlayerId playerId, uint32_t instanceId) {
     std::lock_guard lock(impl_->playerMutex);
 
     // Check for duplicate player.
     if (impl_->playerSessions.contains(playerId)) {
         return GameResult<cgs::ecs::Entity>::err(
-            GameError(ErrorCode::PlayerAlreadyInWorld,
-                      "player is already in the world"));
+            GameError(ErrorCode::PlayerAlreadyInWorld, "player is already in the world"));
     }
 
     // Verify instance exists and can accept players.
     auto instanceInfo = impl_->instanceManager.getInstance(instanceId);
     if (!instanceInfo.has_value()) {
         return GameResult<cgs::ecs::Entity>::err(
-            GameError(ErrorCode::MapInstanceNotFound,
-                      "map instance not found"));
+            GameError(ErrorCode::MapInstanceNotFound, "map instance not found"));
     }
 
     if (!impl_->instanceManager.addPlayer(instanceId)) {
         return GameResult<cgs::ecs::Entity>::err(
-            GameError(ErrorCode::InstanceFull,
-                      "map instance is full or not active"));
+            GameError(ErrorCode::InstanceFull, "map instance is full or not active"));
     }
 
     // Find the map entity for this instance.
@@ -330,8 +310,7 @@ GameResult<cgs::ecs::Entity> GameServer::addPlayer(
         // Rollback the addPlayer counter.
         (void)impl_->instanceManager.removePlayer(instanceId);
         return GameResult<cgs::ecs::Entity>::err(
-            GameError(ErrorCode::MapInstanceNotFound,
-                      "map entity not found in ECS"));
+            GameError(ErrorCode::MapInstanceNotFound, "map entity not found in ECS"));
     }
 
     // Create the player entity with default components.
@@ -392,8 +371,7 @@ GameResult<void> GameServer::removePlayer(PlayerId playerId) {
     auto it = impl_->playerSessions.find(playerId);
     if (it == impl_->playerSessions.end()) {
         return GameResult<void>::err(
-            GameError(ErrorCode::PlayerNotInWorld,
-                      "player is not in the world"));
+            GameError(ErrorCode::PlayerNotInWorld, "player is not in the world"));
     }
 
     auto session = it->second;
@@ -413,8 +391,7 @@ GameResult<void> GameServer::removePlayer(PlayerId playerId) {
     return GameResult<void>::ok();
 }
 
-std::optional<PlayerSession> GameServer::getPlayerSession(
-    PlayerId playerId) const {
+std::optional<PlayerSession> GameServer::getPlayerSession(PlayerId playerId) const {
     std::lock_guard lock(impl_->playerMutex);
 
     auto it = impl_->playerSessions.find(playerId);
@@ -424,15 +401,13 @@ std::optional<PlayerSession> GameServer::getPlayerSession(
     return it->second;
 }
 
-GameResult<void> GameServer::transferPlayer(
-    PlayerId playerId, uint32_t targetInstanceId) {
+GameResult<void> GameServer::transferPlayer(PlayerId playerId, uint32_t targetInstanceId) {
     std::lock_guard lock(impl_->playerMutex);
 
     auto it = impl_->playerSessions.find(playerId);
     if (it == impl_->playerSessions.end()) {
         return GameResult<void>::err(
-            GameError(ErrorCode::PlayerNotInWorld,
-                      "player is not in the world"));
+            GameError(ErrorCode::PlayerNotInWorld, "player is not in the world"));
     }
 
     auto& session = it->second;
@@ -444,16 +419,14 @@ GameResult<void> GameServer::transferPlayer(
     // Verify the target instance exists and can accept players.
     if (!impl_->instanceManager.addPlayer(targetInstanceId)) {
         return GameResult<void>::err(
-            GameError(ErrorCode::InstanceFull,
-                      "target instance is full or not active"));
+            GameError(ErrorCode::InstanceFull, "target instance is full or not active"));
     }
 
     auto targetMapEntity = impl_->findMapEntity(targetInstanceId);
     if (!targetMapEntity.has_value()) {
         (void)impl_->instanceManager.removePlayer(targetInstanceId);
         return GameResult<void>::err(
-            GameError(ErrorCode::MapInstanceNotFound,
-                      "target map entity not found in ECS"));
+            GameError(ErrorCode::MapInstanceNotFound, "target map entity not found in ECS"));
     }
 
     // Release the old instance slot.
@@ -478,9 +451,10 @@ GameServerStats GameServer::stats() const {
 
     auto loopMetrics = impl_->gameLoop.lastMetrics();
     s.totalTicks = loopMetrics.tickNumber;
-    s.lastUpdateTimeMs = static_cast<float>(
-        std::chrono::duration_cast<std::chrono::microseconds>(
-            loopMetrics.updateTime).count()) / 1000.0f;
+    s.lastUpdateTimeMs =
+        static_cast<float>(
+            std::chrono::duration_cast<std::chrono::microseconds>(loopMetrics.updateTime).count()) /
+        1000.0f;
     s.lastBudgetUtilization = loopMetrics.budgetUtilization;
 
     s.entityCount = impl_->entities.Count();
@@ -490,10 +464,8 @@ GameServerStats GameServer::stats() const {
         s.playerCount = impl_->playerSessions.size();
     }
 
-    s.activeInstances = impl_->instanceManager.instanceCount(
-        InstanceState::Active);
-    s.drainingInstances = impl_->instanceManager.instanceCount(
-        InstanceState::Draining);
+    s.activeInstances = impl_->instanceManager.instanceCount(InstanceState::Active);
+    s.drainingInstances = impl_->instanceManager.instanceCount(InstanceState::Draining);
 
     s.playersJoined = impl_->playersJoined.load(std::memory_order_relaxed);
     s.playersLeft = impl_->playersLeft.load(std::memory_order_relaxed);
@@ -505,4 +477,4 @@ const GameServerConfig& GameServer::config() const noexcept {
     return impl_->config;
 }
 
-} // namespace cgs::service
+}  // namespace cgs::service

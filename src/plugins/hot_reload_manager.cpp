@@ -17,8 +17,7 @@ namespace cgs::plugin {
 
 // ── Construction / destruction ──────────────────────────────────────────
 
-HotReloadManager::HotReloadManager(PluginManager& pluginManager)
-    : pluginManager_(pluginManager) {
+HotReloadManager::HotReloadManager(PluginManager& pluginManager) : pluginManager_(pluginManager) {
 #ifdef CGS_HOT_RELOAD
     fileWatcher_.SetCallback([this](const std::filesystem::path& path) {
         // Find which plugin corresponds to this file.
@@ -36,20 +35,17 @@ HotReloadManager::~HotReloadManager() = default;
 
 // ── Public API ──────────────────────────────────────────────────────────
 
-GameResult<void> HotReloadManager::WatchPlugin(
-    const std::string& pluginName,
-    const std::filesystem::path& libraryPath) {
+GameResult<void> HotReloadManager::WatchPlugin(const std::string& pluginName,
+                                               const std::filesystem::path& libraryPath) {
 #ifdef CGS_HOT_RELOAD
     if (!std::filesystem::exists(libraryPath)) {
-        return GameResult<void>::err(
-            GameError(ErrorCode::PluginLoadFailed,
-                      "Library file not found: " + libraryPath.string()));
+        return GameResult<void>::err(GameError(ErrorCode::PluginLoadFailed,
+                                               "Library file not found: " + libraryPath.string()));
     }
 
     if (!fileWatcher_.Watch(libraryPath)) {
         return GameResult<void>::err(
-            GameError(ErrorCode::HotReloadFailed,
-                      "Failed to watch: " + libraryPath.string()));
+            GameError(ErrorCode::HotReloadFailed, "Failed to watch: " + libraryPath.string()));
     }
 
     watchedPlugins_[pluginName] = libraryPath;
@@ -58,8 +54,7 @@ GameResult<void> HotReloadManager::WatchPlugin(
     (void)pluginName;
     (void)libraryPath;
     return GameResult<void>::err(
-        GameError(ErrorCode::HotReloadDisabled,
-                  "Hot reload is not available in this build"));
+        GameError(ErrorCode::HotReloadDisabled, "Hot reload is not available in this build"));
 #endif
 }
 
@@ -81,21 +76,18 @@ void HotReloadManager::Poll() {
 #endif
 }
 
-GameResult<void> HotReloadManager::ReloadPlugin(
-    const std::string& pluginName) {
+GameResult<void> HotReloadManager::ReloadPlugin(const std::string& pluginName) {
 #ifdef CGS_HOT_RELOAD
     auto it = watchedPlugins_.find(pluginName);
     if (it == watchedPlugins_.end()) {
         return GameResult<void>::err(
-            GameError(ErrorCode::PluginNotFound,
-                      "Plugin not watched: " + pluginName));
+            GameError(ErrorCode::PluginNotFound, "Plugin not watched: " + pluginName));
     }
     return doReload(pluginName, it->second);
 #else
     (void)pluginName;
     return GameResult<void>::err(
-        GameError(ErrorCode::HotReloadDisabled,
-                  "Hot reload is not available in this build"));
+        GameError(ErrorCode::HotReloadDisabled, "Hot reload is not available in this build"));
 #endif
 }
 
@@ -123,8 +115,7 @@ uint64_t HotReloadManager::ReloadCount() const noexcept {
 #endif
 }
 
-const PluginStateSnapshot* HotReloadManager::GetSnapshot(
-    const std::string& pluginName) const {
+const PluginStateSnapshot* HotReloadManager::GetSnapshot(const std::string& pluginName) const {
 #ifdef CGS_HOT_RELOAD
     auto it = snapshots_.find(pluginName);
     if (it == snapshots_.end()) {
@@ -141,10 +132,8 @@ const PluginStateSnapshot* HotReloadManager::GetSnapshot(
 
 #ifdef CGS_HOT_RELOAD
 
-GameResult<void> HotReloadManager::doReload(
-    const std::string& pluginName,
-    const std::filesystem::path& libraryPath) {
-
+GameResult<void> HotReloadManager::doReload(const std::string& pluginName,
+                                            const std::filesystem::path& libraryPath) {
     // 1. Capture state (if the plugin supports IHotReloadable).
     auto stateResult = captureState(pluginName);
     bool hasState = stateResult.hasValue();
@@ -156,8 +145,7 @@ GameResult<void> HotReloadManager::doReload(
     auto stateCheck = pluginManager_.GetPluginState(pluginName);
     if (stateCheck.hasValue()) {
         auto state = stateCheck.value();
-        if (state == PluginState::Active ||
-            state == PluginState::Initialized) {
+        if (state == PluginState::Active || state == PluginState::Initialized) {
             auto shutResult = pluginManager_.ShutdownPlugin(pluginName);
             if (shutResult.hasError()) {
                 return shutResult;
@@ -174,10 +162,9 @@ GameResult<void> HotReloadManager::doReload(
     // 4. Load the new binary.
     auto loadResult = pluginManager_.LoadPlugin(libraryPath);
     if (loadResult.hasError()) {
-        return GameResult<void>::err(
-            GameError(ErrorCode::HotReloadFailed,
-                      "Failed to reload plugin '" + pluginName +
-                          "': " + loadResult.error().message()));
+        return GameResult<void>::err(GameError(
+            ErrorCode::HotReloadFailed,
+            "Failed to reload plugin '" + pluginName + "': " + loadResult.error().message()));
     }
 
     // 5. Initialize the reloaded plugin.
@@ -194,8 +181,7 @@ GameResult<void> HotReloadManager::doReload(
 
     // 7. Restore state (if captured and version matches).
     if (hasState) {
-        auto restoreResult = restoreState(
-            pluginName, snapshots_.at(pluginName));
+        auto restoreResult = restoreState(pluginName, snapshots_.at(pluginName));
         // State restoration failure is non-fatal; the plugin runs fresh.
         (void)restoreResult;
     }
@@ -204,13 +190,11 @@ GameResult<void> HotReloadManager::doReload(
     return GameResult<void>::ok();
 }
 
-GameResult<PluginStateSnapshot> HotReloadManager::captureState(
-    const std::string& pluginName) {
+GameResult<PluginStateSnapshot> HotReloadManager::captureState(const std::string& pluginName) {
     auto* plugin = pluginManager_.GetPlugin(pluginName);
     if (plugin == nullptr) {
         return GameResult<PluginStateSnapshot>::err(
-            GameError(ErrorCode::PluginNotFound,
-                      "Plugin not found: " + pluginName));
+            GameError(ErrorCode::PluginNotFound, "Plugin not found: " + pluginName));
     }
 
     auto* reloadable = dynamic_cast<IHotReloadable*>(plugin);
@@ -235,14 +219,12 @@ GameResult<PluginStateSnapshot> HotReloadManager::captureState(
     return GameResult<PluginStateSnapshot>::ok(std::move(snapshot));
 }
 
-GameResult<void> HotReloadManager::restoreState(
-    const std::string& pluginName,
-    const PluginStateSnapshot& snapshot) {
+GameResult<void> HotReloadManager::restoreState(const std::string& pluginName,
+                                                const PluginStateSnapshot& snapshot) {
     auto* plugin = pluginManager_.GetPlugin(pluginName);
     if (plugin == nullptr) {
         return GameResult<void>::err(
-            GameError(ErrorCode::PluginNotFound,
-                      "Plugin not found after reload: " + pluginName));
+            GameError(ErrorCode::PluginNotFound, "Plugin not found after reload: " + pluginName));
     }
 
     auto* reloadable = dynamic_cast<IHotReloadable*>(plugin);
@@ -257,10 +239,9 @@ GameResult<void> HotReloadManager::restoreState(
         return GameResult<void>::ok();
     }
 
-    return reloadable->DeserializeState(
-        snapshot.data.data(), snapshot.data.size());
+    return reloadable->DeserializeState(snapshot.data.data(), snapshot.data.size());
 }
 
-#endif // CGS_HOT_RELOAD
+#endif  // CGS_HOT_RELOAD
 
-} // namespace cgs::plugin
+}  // namespace cgs::plugin

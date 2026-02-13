@@ -19,11 +19,7 @@ namespace cgs::service {
 // -- User model ---------------------------------------------------------------
 
 /// Account status for a registered user.
-enum class UserStatus : uint8_t {
-    Active,
-    Suspended,
-    Deleted
-};
+enum class UserStatus : uint8_t { Active, Suspended, Deleted };
 
 /// Stored user record containing hashed credentials.
 ///
@@ -45,12 +41,12 @@ struct UserRecord {
 
 /// Decoded JWT claims payload.
 struct TokenClaims {
-    std::string subject;                              ///< User ID ("sub").
-    std::string username;                             ///< Username.
-    std::vector<std::string> roles;                   ///< Granted roles.
-    std::string jti;                                  ///< JWT ID for blacklisting.
-    std::chrono::system_clock::time_point issuedAt{}; ///< Issued-at ("iat").
-    std::chrono::system_clock::time_point expiresAt{};///< Expiry ("exp").
+    std::string subject;                                ///< User ID ("sub").
+    std::string username;                               ///< Username.
+    std::vector<std::string> roles;                     ///< Granted roles.
+    std::string jti;                                    ///< JWT ID for blacklisting.
+    std::chrono::system_clock::time_point issuedAt{};   ///< Issued-at ("iat").
+    std::chrono::system_clock::time_point expiresAt{};  ///< Expiry ("exp").
 };
 
 /// Access + refresh token pair returned on successful authentication.
@@ -73,8 +69,8 @@ struct RefreshTokenRecord {
 
 /// JWT signing algorithm selection.
 enum class JwtAlgorithm : uint8_t {
-    HS256, ///< HMAC-SHA256 (symmetric, default for backward compatibility).
-    RS256  ///< RSA-SHA256 (asymmetric, recommended for production).
+    HS256,  ///< HMAC-SHA256 (symmetric, default for backward compatibility).
+    RS256   ///< RSA-SHA256 (asymmetric, recommended for production).
 };
 
 /// Configuration for the authentication service.
@@ -92,13 +88,13 @@ struct AuthConfig {
     JwtAlgorithm jwtAlgorithm = JwtAlgorithm::HS256;
 
     /// Access token lifetime.
-    std::chrono::seconds accessTokenExpiry{900}; // 15 minutes
+    std::chrono::seconds accessTokenExpiry{900};  // 15 minutes
 
     /// Refresh token lifetime.
-    std::chrono::seconds refreshTokenExpiry{604800}; // 7 days
+    std::chrono::seconds refreshTokenExpiry{604800};  // 7 days
 
     /// Interval between blacklist cleanup passes.
-    std::chrono::seconds blacklistCleanupInterval{300}; // 5 minutes
+    std::chrono::seconds blacklistCleanupInterval{300};  // 5 minutes
 
     /// Minimum password length.
     uint32_t minPasswordLength = 8;
@@ -107,7 +103,7 @@ struct AuthConfig {
     uint32_t rateLimitMaxAttempts = 5;
 
     /// Sliding window duration for rate limiting.
-    std::chrono::seconds rateLimitWindow{60}; // 1 minute
+    std::chrono::seconds rateLimitWindow{60};  // 1 minute
 };
 
 // -- Credential input ---------------------------------------------------------
@@ -119,4 +115,4 @@ struct UserCredentials {
     std::string password;
 };
 
-} // namespace cgs::service
+}  // namespace cgs::service

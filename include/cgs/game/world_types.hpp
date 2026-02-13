@@ -36,26 +36,24 @@ enum class ZoneType : uint8_t {
 
 /// Bitfield flags for zone properties.
 enum class ZoneFlags : uint32_t {
-    None         = 0,
-    NoCombat     = 1u << 0,  ///< Combat is disabled.
-    NoMount      = 1u << 1,  ///< Mounts are not allowed.
-    NoFly        = 1u << 2,  ///< Flying is not allowed.
-    Sanctuary    = 1u << 3,  ///< Full protection zone.
-    Resting      = 1u << 4,  ///< Grants rested XP bonus.
-    FreeForAll   = 1u << 5,  ///< PvP with no faction rules.
-    Indoor       = 1u << 6   ///< Interior area (no weather/sky).
+    None = 0,
+    NoCombat = 1u << 0,    ///< Combat is disabled.
+    NoMount = 1u << 1,     ///< Mounts are not allowed.
+    NoFly = 1u << 2,       ///< Flying is not allowed.
+    Sanctuary = 1u << 3,   ///< Full protection zone.
+    Resting = 1u << 4,     ///< Grants rested XP bonus.
+    FreeForAll = 1u << 5,  ///< PvP with no faction rules.
+    Indoor = 1u << 6       ///< Interior area (no weather/sky).
 };
 
 /// Bitwise OR for ZoneFlags.
 constexpr ZoneFlags operator|(ZoneFlags lhs, ZoneFlags rhs) noexcept {
-    return static_cast<ZoneFlags>(
-        static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs));
+    return static_cast<ZoneFlags>(static_cast<uint32_t>(lhs) | static_cast<uint32_t>(rhs));
 }
 
 /// Bitwise AND for ZoneFlags.
 constexpr ZoneFlags operator&(ZoneFlags lhs, ZoneFlags rhs) noexcept {
-    return static_cast<ZoneFlags>(
-        static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs));
+    return static_cast<ZoneFlags>(static_cast<uint32_t>(lhs) & static_cast<uint32_t>(rhs));
 }
 
 /// Check whether a specific flag is set.
@@ -65,10 +63,10 @@ constexpr bool HasFlag(ZoneFlags flags, ZoneFlags flag) noexcept {
 
 /// Result of a map transition request.
 enum class TransitionResult : uint8_t {
-    Success,       ///< Transition completed successfully.
-    InvalidMap,    ///< Target map does not exist.
-    InvalidZone,   ///< Target zone does not exist on the map.
-    EntityNotFound ///< Source entity not found in spatial index.
+    Success,        ///< Transition completed successfully.
+    InvalidMap,     ///< Target map does not exist.
+    InvalidZone,    ///< Target zone does not exist on the map.
+    EntityNotFound  ///< Source entity not found in spatial index.
 };
 
-} // namespace cgs::game
+}  // namespace cgs::game

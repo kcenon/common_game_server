@@ -20,8 +20,7 @@ bool TokenBucket::consume(const std::string& key, uint32_t tokens) {
     auto it = buckets_.find(key);
     if (it == buckets_.end()) {
         auto cap = static_cast<double>(capacity_);
-        auto [inserted, _] = buckets_.emplace(
-            key, Bucket{cap, std::chrono::steady_clock::now()});
+        auto [inserted, _] = buckets_.emplace(key, Bucket{cap, std::chrono::steady_clock::now()});
         it = inserted;
     }
 
@@ -55,19 +54,16 @@ void TokenBucket::remove(const std::string& key) {
 
 void TokenBucket::reset(const std::string& key) {
     std::lock_guard<std::mutex> lock(mutex_);
-    buckets_[key] = Bucket{static_cast<double>(capacity_),
-                           std::chrono::steady_clock::now()};
+    buckets_[key] = Bucket{static_cast<double>(capacity_), std::chrono::steady_clock::now()};
 }
 
 void TokenBucket::refill(Bucket& bucket) const {
     auto now = std::chrono::steady_clock::now();
-    auto elapsed =
-        std::chrono::duration<double>(now - bucket.lastRefill).count();
+    auto elapsed = std::chrono::duration<double>(now - bucket.lastRefill).count();
 
     auto added = elapsed * static_cast<double>(refillRate_);
-    bucket.tokens = std::min(bucket.tokens + added,
-                             static_cast<double>(capacity_));
+    bucket.tokens = std::min(bucket.tokens + added, static_cast<double>(capacity_));
     bucket.lastRefill = now;
 }
 
-} // namespace cgs::service
+}  // namespace cgs::service

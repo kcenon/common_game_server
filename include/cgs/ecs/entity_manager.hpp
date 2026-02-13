@@ -11,13 +11,13 @@
 /// @see docs/reference/ECS_DESIGN.md  Section 2.1
 /// @see SDS-MOD-010
 
+#include "cgs/ecs/component_storage.hpp"
+#include "cgs/ecs/entity.hpp"
+
 #include <cassert>
 #include <cstdint>
 #include <memory>
 #include <vector>
-
-#include "cgs/ecs/component_storage.hpp"
-#include "cgs/ecs/entity.hpp"
 
 namespace cgs::ecs {
 
@@ -130,4 +130,4 @@ private:
     std::size_t count_ = 0;
 };
 
-} // namespace cgs::ecs
+}  // namespace cgs::ecs

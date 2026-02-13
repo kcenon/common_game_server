@@ -9,6 +9,9 @@
 ///
 /// Part of SRS-NFR-013 (zero data loss on crash).
 
+#include "cgs/foundation/game_result.hpp"
+#include "cgs/foundation/types.hpp"
+
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
@@ -17,22 +20,19 @@
 #include <string>
 #include <vector>
 
-#include "cgs/foundation/game_result.hpp"
-#include "cgs/foundation/types.hpp"
-
 namespace cgs::service {
 
 /// Serialized state for one player.
 struct PlayerSnapshot {
     cgs::foundation::PlayerId playerId;
     uint32_t instanceId = 0;
-    std::vector<uint8_t> data;     ///< Opaque serialized player state.
+    std::vector<uint8_t> data;  ///< Opaque serialized player state.
 };
 
 /// Complete snapshot of all player states at a point in time.
 struct Snapshot {
-    uint64_t walSequence = 0;       ///< WAL sequence at snapshot time.
-    uint64_t timestampUs = 0;       ///< Microseconds since epoch.
+    uint64_t walSequence = 0;  ///< WAL sequence at snapshot time.
+    uint64_t timestampUs = 0;  ///< Microseconds since epoch.
     std::vector<PlayerSnapshot> players;
 };
 
@@ -106,4 +106,4 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-} // namespace cgs::service
+}  // namespace cgs::service

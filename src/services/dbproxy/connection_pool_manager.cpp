@@ -3,13 +3,13 @@
 
 #include "cgs/service/connection_pool_manager.hpp"
 
-#include <atomic>
-#include <mutex>
-#include <vector>
-
 #include "cgs/foundation/error_code.hpp"
 #include "cgs/foundation/game_database.hpp"
 #include "cgs/foundation/game_error.hpp"
+
+#include <atomic>
+#include <mutex>
+#include <vector>
 
 namespace cgs::service {
 
@@ -36,7 +36,7 @@ DatabaseConfig toFoundationConfig(const DBEndpointConfig& ep) {
     return cfg;
 }
 
-} // anonymous namespace
+}  // anonymous namespace
 
 // ── Impl ────────────────────────────────────────────────────────────────────
 
@@ -104,10 +104,9 @@ GameResult<void> ConnectionPoolManager::start() {
     auto primaryCfg = toFoundationConfig(impl_->config.primary);
     auto primaryResult = impl_->primaryDb.connect(primaryCfg);
     if (primaryResult.hasError()) {
-        return GameResult<void>::err(
-            GameError(ErrorCode::PrimaryUnavailable,
-                      std::string("failed to connect primary: ") +
-                          std::string(primaryResult.error().message())));
+        return GameResult<void>::err(GameError(ErrorCode::PrimaryUnavailable,
+                                               std::string("failed to connect primary: ") +
+                                                   std::string(primaryResult.error().message())));
     }
 
     // Connect replicas (failures are non-fatal).
@@ -147,8 +146,7 @@ bool ConnectionPoolManager::isConnected() const noexcept {
 GameResult<QueryResult> ConnectionPoolManager::query(std::string_view sql) {
     if (!impl_->started) {
         return GameResult<QueryResult>::err(
-            GameError(ErrorCode::DBProxyNotStarted,
-                      "connection pool manager not started"));
+            GameError(ErrorCode::DBProxyNotStarted, "connection pool manager not started"));
     }
 
     // Try a replica first.
@@ -170,8 +168,7 @@ GameResult<QueryResult> ConnectionPoolManager::query(std::string_view sql) {
 GameResult<uint64_t> ConnectionPoolManager::execute(std::string_view sql) {
     if (!impl_->started) {
         return GameResult<uint64_t>::err(
-            GameError(ErrorCode::DBProxyNotStarted,
-                      "connection pool manager not started"));
+            GameError(ErrorCode::DBProxyNotStarted, "connection pool manager not started"));
     }
 
     return impl_->primaryDb.execute(sql);
@@ -179,8 +176,7 @@ GameResult<uint64_t> ConnectionPoolManager::execute(std::string_view sql) {
 
 // ── query(PreparedStatement) ────────────────────────────────────────────────
 
-GameResult<QueryResult> ConnectionPoolManager::query(
-    const PreparedStatement& stmt) {
+GameResult<QueryResult> ConnectionPoolManager::query(const PreparedStatement& stmt) {
     // Resolve to safe SQL with escaped parameters.
     auto resolved = stmt.resolve();
     return query(resolved);
@@ -188,8 +184,7 @@ GameResult<QueryResult> ConnectionPoolManager::query(
 
 // ── execute(PreparedStatement) ──────────────────────────────────────────────
 
-GameResult<uint64_t> ConnectionPoolManager::execute(
-    const PreparedStatement& stmt) {
+GameResult<uint64_t> ConnectionPoolManager::execute(const PreparedStatement& stmt) {
     auto resolved = stmt.resolve();
     return execute(resolved);
 }
@@ -222,4 +217,4 @@ const DBProxyConfig& ConnectionPoolManager::config() const noexcept {
     return impl_->config;
 }
 
-} // namespace cgs::service
+}  // namespace cgs::service

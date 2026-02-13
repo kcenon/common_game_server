@@ -3,14 +3,14 @@
 
 #include "cgs/service/persistence_manager.hpp"
 
+#include "cgs/foundation/error_code.hpp"
+#include "cgs/foundation/game_error.hpp"
+#include "cgs/foundation/game_metrics.hpp"
+
 #include <atomic>
 #include <chrono>
 #include <mutex>
 #include <thread>
-
-#include "cgs/foundation/error_code.hpp"
-#include "cgs/foundation/game_error.hpp"
-#include "cgs/foundation/game_metrics.hpp"
 
 namespace cgs::service {
 
@@ -35,13 +35,10 @@ struct PersistenceManager::Impl {
     std::mutex snapshotMutex;  // Protects snapshot operations.
 
     explicit Impl(PersistenceConfig cfg)
-        : config(std::move(cfg))
-        , wal(config.wal)
-        , snapshots(config.snapshot) {}
+        : config(std::move(cfg)), wal(config.wal), snapshots(config.snapshot) {}
 
     /// Perform recovery: load latest snapshot, replay WAL entries after it.
-    GameResult<void> recover(const StateRestorer& restorer,
-                             const WalApplier& applier) {
+    GameResult<void> recover(const StateRestorer& restorer, const WalApplier& applier) {
         // Try to load the latest snapshot.
         auto snapResult = snapshots.loadLatest();
         if (snapResult.hasValue()) {
@@ -56,8 +53,7 @@ struct PersistenceManager::Impl {
         if (replayResult.hasError()) {
             return GameResult<void>::err(
                 GameError(ErrorCode::RecoveryFailed,
-                          "WAL replay failed: " +
-                          std::string(replayResult.error().message())));
+                          "WAL replay failed: " + std::string(replayResult.error().message())));
         }
 
         return GameResult<void>::ok();
@@ -69,16 +65,14 @@ struct PersistenceManager::Impl {
 
         if (!collector) {
             return GameResult<void>::err(
-                GameError(ErrorCode::PersistenceError,
-                          "no state collector registered"));
+                GameError(ErrorCode::PersistenceError, "no state collector registered"));
         }
 
         auto players = collector();
 
         auto now = std::chrono::system_clock::now();
         auto timestampUs = static_cast<uint64_t>(
-            std::chrono::duration_cast<std::chrono::microseconds>(
-                now.time_since_epoch()).count());
+            std::chrono::duration_cast<std::chrono::microseconds>(now.time_since_epoch()).count());
 
         Snapshot snap;
         snap.walSequence = wal.currentSequence();
@@ -101,10 +95,8 @@ struct PersistenceManager::Impl {
 
         // Update Prometheus gauges.
         auto& m = cgs::foundation::GameMetrics::instance();
-        m.setGauge("cgs_last_snapshot_timestamp",
-                    static_cast<double>(snap.timestampUs) / 1e6);
-        m.setGauge("cgs_wal_pending_entries",
-                    static_cast<double>(wal.entryCount()));
+        m.setGauge("cgs_last_snapshot_timestamp", static_cast<double>(snap.timestampUs) / 1e6);
+        m.setGauge("cgs_wal_pending_entries", static_cast<double>(wal.entryCount()));
 
         return GameResult<void>::ok();
     }
@@ -140,15 +132,12 @@ PersistenceManager::~PersistenceManager() {
 
 // -- Lifecycle ---------------------------------------------------------------
 
-GameResult<void> PersistenceManager::start(
-    StateCollector collector,
-    StateRestorer restorer,
-    WalApplier applier) {
-
+GameResult<void> PersistenceManager::start(StateCollector collector,
+                                           StateRestorer restorer,
+                                           WalApplier applier) {
     if (impl_->running.load(std::memory_order_relaxed)) {
-        return GameResult<void>::err(
-            GameError(ErrorCode::PersistenceAlreadyStarted,
-                      "persistence manager is already running"));
+        return GameResult<void>::err(GameError(ErrorCode::PersistenceAlreadyStarted,
+                                               "persistence manager is already running"));
     }
 
     // Open WAL and snapshot stores.
@@ -208,8 +197,7 @@ GameResult<uint64_t> PersistenceManager::recordChange(WalEntry entry) {
     auto result = impl_->wal.append(std::move(entry));
     if (result.hasValue()) {
         cgs::foundation::GameMetrics::instance().setGauge(
-            "cgs_wal_pending_entries",
-            static_cast<double>(impl_->wal.entryCount()));
+            "cgs_wal_pending_entries", static_cast<double>(impl_->wal.entryCount()));
     }
     return result;
 }
@@ -217,8 +205,7 @@ GameResult<uint64_t> PersistenceManager::recordChange(WalEntry entry) {
 GameResult<void> PersistenceManager::takeSnapshot() {
     if (!impl_->running.load(std::memory_order_relaxed)) {
         return GameResult<void>::err(
-            GameError(ErrorCode::PersistenceNotStarted,
-                      "persistence manager is not running"));
+            GameError(ErrorCode::PersistenceNotStarted, "persistence manager is not running"));
     }
 
     return impl_->doSnapshot();
@@ -238,4 +225,4 @@ uint64_t PersistenceManager::currentWalSequence() const {
     return impl_->wal.currentSequence();
 }
 
-} // namespace cgs::service
+}  // namespace cgs::service

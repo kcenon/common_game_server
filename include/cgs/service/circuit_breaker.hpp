@@ -112,11 +112,14 @@ private:
 /// Convert circuit breaker state to string.
 [[nodiscard]] constexpr std::string_view toString(ServiceCircuitBreaker::State s) {
     switch (s) {
-        case ServiceCircuitBreaker::State::Closed:   return "closed";
-        case ServiceCircuitBreaker::State::Open:     return "open";
-        case ServiceCircuitBreaker::State::HalfOpen: return "half_open";
+        case ServiceCircuitBreaker::State::Closed:
+            return "closed";
+        case ServiceCircuitBreaker::State::Open:
+            return "open";
+        case ServiceCircuitBreaker::State::HalfOpen:
+            return "half_open";
     }
     return "unknown";
 }
 
-} // namespace cgs::service
+}  // namespace cgs::service

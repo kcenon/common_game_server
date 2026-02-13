@@ -22,12 +22,6 @@
 /// @see SDS-MOD-023
 /// @see Issue #29
 
-#include <array>
-#include <cstdint>
-#include <string>
-#include <unordered_map>
-#include <vector>
-
 #include "cgs/ecs/component_storage.hpp"
 #include "cgs/ecs/entity_manager.hpp"
 #include "cgs/ecs/system_scheduler.hpp"
@@ -40,6 +34,12 @@
 #include "cgs/game/world_components.hpp"
 #include "cgs/plugin/iplugin.hpp"
 #include "cgs/plugin/mmorpg_types.hpp"
+
+#include <array>
+#include <cstdint>
+#include <string>
+#include <unordered_map>
+#include <vector>
 
 namespace cgs::plugin {
 
@@ -76,18 +76,16 @@ public:
     /// @param position  Spawn position in world space.
     /// @param mapEntity Map instance to place the character in.
     /// @return The created entity handle.
-    [[nodiscard]] cgs::ecs::Entity CreateCharacter(
-        const std::string& name,
-        CharacterClass cls,
-        const cgs::game::Vector3& position,
-        cgs::ecs::Entity mapEntity);
+    [[nodiscard]] cgs::ecs::Entity CreateCharacter(const std::string& name,
+                                                   CharacterClass cls,
+                                                   const cgs::game::Vector3& position,
+                                                   cgs::ecs::Entity mapEntity);
 
     /// Remove a player character and clean up all components.
     void RemoveCharacter(cgs::ecs::Entity entity);
 
     /// Get character metadata for an entity (nullptr if not a character).
-    [[nodiscard]] const CharacterData*
-    GetCharacterData(cgs::ecs::Entity entity) const;
+    [[nodiscard]] const CharacterData* GetCharacterData(cgs::ecs::Entity entity) const;
 
     /// Number of active player characters.
     [[nodiscard]] std::size_t PlayerCount() const noexcept;
@@ -104,11 +102,10 @@ public:
     /// @param position  Spawn position.
     /// @param mapEntity Map instance to place the creature in.
     /// @return The created entity handle.
-    [[nodiscard]] cgs::ecs::Entity SpawnCreature(
-        uint32_t entry,
-        const std::string& name,
-        const cgs::game::Vector3& position,
-        cgs::ecs::Entity mapEntity);
+    [[nodiscard]] cgs::ecs::Entity SpawnCreature(uint32_t entry,
+                                                 const std::string& name,
+                                                 const cgs::game::Vector3& position,
+                                                 cgs::ecs::Entity mapEntity);
 
     /// Remove a creature entity.
     void RemoveCreature(cgs::ecs::Entity entity);
@@ -118,8 +115,7 @@ public:
     /// Create a new guild with the specified leader.
     ///
     /// @return Guild ID (0 on failure).
-    [[nodiscard]] uint32_t CreateGuild(
-        const std::string& name, cgs::ecs::Entity leader);
+    [[nodiscard]] uint32_t CreateGuild(const std::string& name, cgs::ecs::Entity leader);
 
     /// Disband a guild and clear all member associations.
     bool DisbandGuild(uint32_t guildId);
@@ -139,18 +135,16 @@ public:
     // ── Chat system ────────────────────────────────────────────────────
 
     /// Send a chat message to the specified channel.
-    void SendChat(cgs::ecs::Entity sender, ChatChannel channel,
-                  const std::string& message);
+    void SendChat(cgs::ecs::Entity sender, ChatChannel channel, const std::string& message);
 
     /// Retrieve the most recent messages from a channel.
-    [[nodiscard]] std::vector<ChatMessage>
-    GetChatHistory(ChatChannel channel, std::size_t count) const;
+    [[nodiscard]] std::vector<ChatMessage> GetChatHistory(ChatChannel channel,
+                                                          std::size_t count) const;
 
     // ── Map management ─────────────────────────────────────────────────
 
     /// Create a new map instance entity.
-    [[nodiscard]] cgs::ecs::Entity CreateMapInstance(
-        uint32_t mapId, cgs::game::MapType type);
+    [[nodiscard]] cgs::ecs::Entity CreateMapInstance(uint32_t mapId, cgs::game::MapType type);
 
     // ── ECS access (for testing and advanced usage) ────────────────────
 
@@ -165,8 +159,7 @@ private:
     void registerComponentStorages();
 
     /// Get class template for the given character class.
-    [[nodiscard]] const ClassTemplate&
-    getClassTemplate(CharacterClass cls) const;
+    [[nodiscard]] const ClassTemplate& getClassTemplate(CharacterClass cls) const;
 
     PluginInfo info_;
     PluginContext* ctx_ = nullptr;
@@ -218,4 +211,4 @@ private:
     uint32_t nextInstanceId_ = 1;
 };
 
-} // namespace cgs::plugin
+}  // namespace cgs::plugin

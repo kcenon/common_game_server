@@ -8,12 +8,12 @@
 /// @see SRS-GML-006.4
 /// @see SDS-MOD-035
 
-#include <string_view>
-#include <vector>
-
 #include "cgs/ecs/component_storage.hpp"
 #include "cgs/ecs/system_scheduler.hpp"
 #include "cgs/game/inventory_components.hpp"
+
+#include <string_view>
+#include <vector>
 
 namespace cgs::game {
 
@@ -27,10 +27,9 @@ namespace cgs::game {
 /// Update stage are available as DurabilityEvents.
 class InventorySystem final : public cgs::ecs::ISystem {
 public:
-    InventorySystem(
-        cgs::ecs::ComponentStorage<Inventory>& inventories,
-        cgs::ecs::ComponentStorage<Equipment>& equipment,
-        cgs::ecs::ComponentStorage<DurabilityEvent>& durabilityEvents);
+    InventorySystem(cgs::ecs::ComponentStorage<Inventory>& inventories,
+                    cgs::ecs::ComponentStorage<Equipment>& equipment,
+                    cgs::ecs::ComponentStorage<DurabilityEvent>& durabilityEvents);
 
     void Execute(float deltaTime) override;
 
@@ -38,9 +37,7 @@ public:
         return cgs::ecs::SystemStage::PostUpdate;
     }
 
-    [[nodiscard]] std::string_view GetName() const override {
-        return "InventorySystem";
-    }
+    [[nodiscard]] std::string_view GetName() const override { return "InventorySystem"; }
 
     [[nodiscard]] cgs::ecs::SystemAccessInfo GetAccessInfo() const override;
 
@@ -51,9 +48,7 @@ public:
     [[nodiscard]] const ItemTemplate* GetTemplate(uint32_t templateId) const;
 
     /// Get all registered templates (for stat bonus calculation).
-    [[nodiscard]] const std::vector<ItemTemplate>& GetTemplates() const {
-        return templates_;
-    }
+    [[nodiscard]] const std::vector<ItemTemplate>& GetTemplates() const { return templates_; }
 
 private:
     /// Process pending durability events.
@@ -68,4 +63,4 @@ private:
     std::vector<ItemTemplate> templates_;
 };
 
-} // namespace cgs::game
+}  // namespace cgs::game

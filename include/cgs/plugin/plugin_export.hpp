@@ -12,11 +12,11 @@
 ///
 /// @see SDS-MOD-020
 
+#include "cgs/plugin/iplugin.hpp"
+
 #include <functional>
 #include <string>
 #include <vector>
-
-#include "cgs/plugin/iplugin.hpp"
 
 // ── Dynamic plugin export ────────────────────────────────────────────────
 
@@ -30,14 +30,14 @@
 ///
 /// The PluginManager loads the shared library and calls `CgsCreatePlugin()`
 /// to obtain the IPlugin instance.
-#define CGS_PLUGIN_EXPORT(PluginClass)                       \
-    extern "C" {                                             \
-    cgs::plugin::IPlugin* CgsCreatePlugin() {                \
-        return new PluginClass();                            \
-    }                                                        \
-    void CgsDestroyPlugin(cgs::plugin::IPlugin* plugin) {    \
-        delete plugin;                                       \
-    }                                                        \
+#define CGS_PLUGIN_EXPORT(PluginClass)                    \
+    extern "C" {                                          \
+    cgs::plugin::IPlugin* CgsCreatePlugin() {             \
+        return new PluginClass();                         \
+    }                                                     \
+    void CgsDestroyPlugin(cgs::plugin::IPlugin* plugin) { \
+        delete plugin;                                    \
+    }                                                     \
     }
 
 // ── Static plugin registration ──────────────────────────────────────────
@@ -71,8 +71,8 @@ struct StaticPluginRegistrar {
     }
 };
 
-} // namespace detail
-} // namespace cgs::plugin
+}  // namespace detail
+}  // namespace cgs::plugin
 
 /// Register a plugin for static (compile-time) linking.
 ///
@@ -81,10 +81,9 @@ struct StaticPluginRegistrar {
 ///   class MyPlugin : public cgs::plugin::IPlugin { ... };
 ///   CGS_PLUGIN_REGISTER(MyPlugin, "MyPlugin")
 /// @endcode
-#define CGS_PLUGIN_REGISTER(PluginClass, PluginName)                            \
-    static ::cgs::plugin::detail::StaticPluginRegistrar                         \
-        cgs_static_plugin_##PluginClass##_registrar(                            \
-            PluginName,                                                         \
-            []() -> std::unique_ptr<::cgs::plugin::IPlugin> {                   \
-                return std::make_unique<PluginClass>();                          \
-            })
+#define CGS_PLUGIN_REGISTER(PluginClass, PluginName)                                              \
+    static ::cgs::plugin::detail::StaticPluginRegistrar                                           \
+    cgs_static_plugin_##PluginClass##_registrar(PluginName,                                       \
+                                                []() -> std::unique_ptr<::cgs::plugin::IPlugin> { \
+                                                    return std::make_unique<PluginClass>();       \
+                                                })

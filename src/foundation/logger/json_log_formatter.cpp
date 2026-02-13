@@ -19,18 +19,34 @@ static void appendJsonString(std::string& out, std::string_view value) {
     out += '"';
     for (char c : value) {
         switch (c) {
-            case '"':  out += "\\\""; break;
-            case '\\': out += "\\\\"; break;
-            case '\b': out += "\\b";  break;
-            case '\f': out += "\\f";  break;
-            case '\n': out += "\\n";  break;
-            case '\r': out += "\\r";  break;
-            case '\t': out += "\\t";  break;
+            case '"':
+                out += "\\\"";
+                break;
+            case '\\':
+                out += "\\\\";
+                break;
+            case '\b':
+                out += "\\b";
+                break;
+            case '\f':
+                out += "\\f";
+                break;
+            case '\n':
+                out += "\\n";
+                break;
+            case '\r':
+                out += "\\r";
+                break;
+            case '\t':
+                out += "\\t";
+                break;
             default:
                 if (static_cast<unsigned char>(c) < 0x20) {
                     // Control characters: \u00XX
                     char buf[8];
-                    std::snprintf(buf, sizeof(buf), "\\u%04x",
+                    std::snprintf(buf,
+                                  sizeof(buf),
+                                  "\\u%04x",
                                   static_cast<unsigned>(static_cast<unsigned char>(c)));
                     out += buf;
                 } else {
@@ -61,10 +77,16 @@ static std::string formatTimestamp() {
     gmtime_r(&tt, &utc);
 #endif
 
-    char buf[96]; // Oversized to satisfy GCC -Wformat-truncation (int range analysis)
-    std::snprintf(buf, sizeof(buf), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ",
-                  utc.tm_year + 1900, utc.tm_mon + 1, utc.tm_mday,
-                  utc.tm_hour, utc.tm_min, utc.tm_sec,
+    char buf[96];  // Oversized to satisfy GCC -Wformat-truncation (int range analysis)
+    std::snprintf(buf,
+                  sizeof(buf),
+                  "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ",
+                  utc.tm_year + 1900,
+                  utc.tm_mon + 1,
+                  utc.tm_mday,
+                  utc.tm_hour,
+                  utc.tm_min,
+                  utc.tm_sec,
                   static_cast<int>(millis.count()));
     return buf;
 }
@@ -85,7 +107,8 @@ std::string generateCorrelationId() {
     lo = (lo & 0x3FFFFFFFFFFFFFFFULL) | 0x8000000000000000ULL;
 
     char buf[37];
-    std::snprintf(buf, sizeof(buf),
+    std::snprintf(buf,
+                  sizeof(buf),
                   "%08x-%04x-%04x-%04x-%012llx",
                   static_cast<uint32_t>(hi >> 32),
                   static_cast<uint16_t>((hi >> 16) & 0xFFFF),
@@ -116,10 +139,10 @@ const std::string& CorrelationScope::current() {
 // ---------------------------------------------------------------------------
 // JsonLogFormatter::format()
 // ---------------------------------------------------------------------------
-std::string JsonLogFormatter::format(
-    LogLevel level, LogCategory category,
-    std::string_view message, const LogContext& ctx) {
-
+std::string JsonLogFormatter::format(LogLevel level,
+                                     LogCategory category,
+                                     std::string_view message,
+                                     const LogContext& ctx) {
     std::string out;
     out.reserve(256);
 
@@ -138,9 +161,7 @@ std::string JsonLogFormatter::format(
     appendJsonString(out, logCategoryName(category));
 
     // correlation_id: prefer LogContext.traceId, fall back to thread-local
-    const auto& corrId = (ctx.traceId && !ctx.traceId->empty())
-        ? *ctx.traceId
-        : tl_correlationId;
+    const auto& corrId = (ctx.traceId && !ctx.traceId->empty()) ? *ctx.traceId : tl_correlationId;
     if (!corrId.empty()) {
         out += ",\"correlation_id\":";
         appendJsonString(out, corrId);
@@ -169,7 +190,8 @@ std::string JsonLogFormatter::format(
         out += ",\"extra\":{";
         bool first = true;
         for (const auto& [key, val] : ctx.extra) {
-            if (!first) out += ',';
+            if (!first)
+                out += ',';
             appendJsonString(out, key);
             out += ':';
             appendJsonString(out, val);
@@ -182,4 +204,4 @@ std::string JsonLogFormatter::format(
     return out;
 }
 
-} // namespace cgs::foundation
+}  // namespace cgs::foundation

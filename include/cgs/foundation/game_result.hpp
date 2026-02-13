@@ -26,4 +26,4 @@ namespace cgs::foundation {
 template <typename T>
 using GameResult = cgs::Result<T, GameError>;
 
-} // namespace cgs::foundation
+}  // namespace cgs::foundation

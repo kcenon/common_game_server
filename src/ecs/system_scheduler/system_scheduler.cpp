@@ -27,8 +27,7 @@ const std::vector<SystemScheduler::ParallelBatch> SystemScheduler::kEmptyBatches
 
 bool SystemAccessInfo::ConflictsWith(const SystemAccessInfo& other) const {
     // Undeclared access (empty reads AND writes) conflicts with everything.
-    if ((reads.empty() && writes.empty()) ||
-        (other.reads.empty() && other.writes.empty())) {
+    if ((reads.empty() && writes.empty()) || (other.reads.empty() && other.writes.empty())) {
         return true;
     }
 
@@ -127,10 +126,8 @@ bool SystemScheduler::Build() {
     return true;
 }
 
-bool SystemScheduler::topologicalSort(
-    const std::vector<SystemTypeId>& ids,
-    std::vector<SystemTypeId>& sorted) {
-
+bool SystemScheduler::topologicalSort(const std::vector<SystemTypeId>& ids,
+                                      std::vector<SystemTypeId>& sorted) {
     // Build a local set of IDs for this stage (for fast lookup).
     std::unordered_set<SystemTypeId> stageSet(ids.begin(), ids.end());
 
@@ -205,10 +202,8 @@ bool SystemScheduler::topologicalSort(
 
 // ── Parallel batch computation ──────────────────────────────────────────
 
-void SystemScheduler::computeParallelBatches(
-    SystemStage stage,
-    const std::vector<SystemTypeId>& order) {
-
+void SystemScheduler::computeParallelBatches(SystemStage stage,
+                                             const std::vector<SystemTypeId>& order) {
     auto& batches = parallelBatches_[stage];
     batches.clear();
 
@@ -238,8 +233,7 @@ void SystemScheduler::computeParallelBatches(
         std::size_t minBatch = minimumBatch;
         if (auto it = reverseDeps_.find(sysId); it != reverseDeps_.end()) {
             for (auto pred : it->second) {
-                if (auto bit = systemBatch.find(pred);
-                    bit != systemBatch.end()) {
+                if (auto bit = systemBatch.find(pred); bit != systemBatch.end()) {
                     minBatch = std::max(minBatch, bit->second + 1);
                 }
             }
@@ -353,9 +347,7 @@ void SystemScheduler::executeStage(SystemStage stage, float deltaTime) {
     }
 }
 
-void SystemScheduler::executeBatch(
-    const ParallelBatch& batch, float deltaTime) {
-
+void SystemScheduler::executeBatch(const ParallelBatch& batch, float deltaTime) {
     // Collect enabled systems.
     std::vector<std::function<void()>> tasks;
     tasks.reserve(batch.systems.size());
@@ -364,9 +356,7 @@ void SystemScheduler::executeBatch(
         auto& entry = systems_.at(sysId);
         if (entry.enabled) {
             ISystem* sys = entry.instance.get();
-            tasks.emplace_back([sys, deltaTime] {
-                sys->Execute(deltaTime);
-            });
+            tasks.emplace_back([sys, deltaTime] { sys->Execute(deltaTime); });
         }
     }
 
@@ -402,8 +392,7 @@ float SystemScheduler::GetFixedTimeStep() const noexcept {
 
 // ── Queries ─────────────────────────────────────────────────────────────
 
-const std::vector<SystemTypeId>&
-SystemScheduler::GetExecutionOrder(SystemStage stage) const {
+const std::vector<SystemTypeId>& SystemScheduler::GetExecutionOrder(SystemStage stage) const {
     auto it = executionOrder_.find(stage);
     if (it != executionOrder_.end()) {
         return it->second;
@@ -411,8 +400,8 @@ SystemScheduler::GetExecutionOrder(SystemStage stage) const {
     return kEmptyOrder_;
 }
 
-const std::vector<SystemScheduler::ParallelBatch>&
-SystemScheduler::GetParallelBatches(SystemStage stage) const {
+const std::vector<SystemScheduler::ParallelBatch>& SystemScheduler::GetParallelBatches(
+    SystemStage stage) const {
     auto it = parallelBatches_.find(stage);
     if (it != parallelBatches_.end()) {
         return it->second;
@@ -420,4 +409,4 @@ SystemScheduler::GetParallelBatches(SystemStage stage) const {
     return kEmptyBatches_;
 }
 
-} // namespace cgs::ecs
+}  // namespace cgs::ecs

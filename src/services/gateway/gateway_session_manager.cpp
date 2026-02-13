@@ -7,11 +7,10 @@
 
 namespace cgs::service {
 
-GatewaySessionManager::GatewaySessionManager(uint32_t maxSessions)
-    : maxSessions_(maxSessions) {}
+GatewaySessionManager::GatewaySessionManager(uint32_t maxSessions) : maxSessions_(maxSessions) {}
 
-bool GatewaySessionManager::createSession(
-    cgs::foundation::SessionId sessionId, std::string remoteAddress) {
+bool GatewaySessionManager::createSession(cgs::foundation::SessionId sessionId,
+                                          std::string remoteAddress) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     if (sessions_.size() >= static_cast<std::size_t>(maxSessions_)) {
@@ -33,9 +32,9 @@ bool GatewaySessionManager::createSession(
     return true;
 }
 
-bool GatewaySessionManager::authenticateSession(
-    cgs::foundation::SessionId sessionId, TokenClaims claims,
-    uint64_t userId) {
+bool GatewaySessionManager::authenticateSession(cgs::foundation::SessionId sessionId,
+                                                TokenClaims claims,
+                                                uint64_t userId) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     auto it = sessions_.find(sessionId);
@@ -54,8 +53,8 @@ bool GatewaySessionManager::authenticateSession(
     return true;
 }
 
-bool GatewaySessionManager::beginMigration(
-    cgs::foundation::SessionId sessionId, std::string targetService) {
+bool GatewaySessionManager::beginMigration(cgs::foundation::SessionId sessionId,
+                                           std::string targetService) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     auto it = sessions_.find(sessionId);
@@ -73,8 +72,7 @@ bool GatewaySessionManager::beginMigration(
     return true;
 }
 
-bool GatewaySessionManager::completeMigration(
-    cgs::foundation::SessionId sessionId) {
+bool GatewaySessionManager::completeMigration(cgs::foundation::SessionId sessionId) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     auto it = sessions_.find(sessionId);
@@ -91,8 +89,7 @@ bool GatewaySessionManager::completeMigration(
     return true;
 }
 
-void GatewaySessionManager::removeSession(
-    cgs::foundation::SessionId sessionId) {
+void GatewaySessionManager::removeSession(cgs::foundation::SessionId sessionId) {
     std::lock_guard<std::mutex> lock(mutex_);
     sessions_.erase(sessionId);
 }
@@ -108,8 +105,7 @@ std::optional<ClientSession> GatewaySessionManager::getSession(
     return it->second;
 }
 
-void GatewaySessionManager::touchSession(
-    cgs::foundation::SessionId sessionId) {
+void GatewaySessionManager::touchSession(cgs::foundation::SessionId sessionId) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     auto it = sessions_.find(sessionId);
@@ -118,8 +114,8 @@ void GatewaySessionManager::touchSession(
     }
 }
 
-bool GatewaySessionManager::setCurrentService(
-    cgs::foundation::SessionId sessionId, std::string service) {
+bool GatewaySessionManager::setCurrentService(cgs::foundation::SessionId sessionId,
+                                              std::string service) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     auto it = sessions_.find(sessionId);
@@ -131,8 +127,7 @@ bool GatewaySessionManager::setCurrentService(
     return true;
 }
 
-std::vector<ClientSession> GatewaySessionManager::getSessionsByState(
-    ClientState state) const {
+std::vector<ClientSession> GatewaySessionManager::getSessionsByState(ClientState state) const {
     std::lock_guard<std::mutex> lock(mutex_);
 
     std::vector<ClientSession> result;
@@ -161,36 +156,32 @@ std::size_t GatewaySessionManager::sessionCount(ClientState state) const {
     return count;
 }
 
-std::vector<cgs::foundation::SessionId>
-GatewaySessionManager::findIdleSessions(
+std::vector<cgs::foundation::SessionId> GatewaySessionManager::findIdleSessions(
     std::chrono::seconds idleTimeout) const {
     std::lock_guard<std::mutex> lock(mutex_);
 
     auto cutoff = std::chrono::steady_clock::now() - idleTimeout;
     std::vector<cgs::foundation::SessionId> result;
     for (const auto& [id, session] : sessions_) {
-        if (session.state == ClientState::Authenticated &&
-            session.lastActivity < cutoff) {
+        if (session.state == ClientState::Authenticated && session.lastActivity < cutoff) {
             result.push_back(id);
         }
     }
     return result;
 }
 
-std::vector<cgs::foundation::SessionId>
-GatewaySessionManager::findExpiredAuthSessions(
+std::vector<cgs::foundation::SessionId> GatewaySessionManager::findExpiredAuthSessions(
     std::chrono::seconds authTimeout) const {
     std::lock_guard<std::mutex> lock(mutex_);
 
     auto cutoff = std::chrono::steady_clock::now() - authTimeout;
     std::vector<cgs::foundation::SessionId> result;
     for (const auto& [id, session] : sessions_) {
-        if (session.state == ClientState::Unauthenticated &&
-            session.connectedAt < cutoff) {
+        if (session.state == ClientState::Unauthenticated && session.connectedAt < cutoff) {
             result.push_back(id);
         }
     }
     return result;
 }
 
-} // namespace cgs::service
+}  // namespace cgs::service

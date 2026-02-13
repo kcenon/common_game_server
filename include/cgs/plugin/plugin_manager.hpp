@@ -6,6 +6,12 @@
 ///
 /// @see SDS-MOD-021 (Plugin Manager Design)
 
+#include "cgs/foundation/game_result.hpp"
+#include "cgs/plugin/event_bus.hpp"
+#include "cgs/plugin/iplugin.hpp"
+#include "cgs/plugin/plugin_types.hpp"
+#include "cgs/plugin/version_constraint.hpp"
+
 #include <chrono>
 #include <filesystem>
 #include <memory>
@@ -13,12 +19,6 @@
 #include <string_view>
 #include <unordered_map>
 #include <vector>
-
-#include "cgs/foundation/game_result.hpp"
-#include "cgs/plugin/event_bus.hpp"
-#include "cgs/plugin/iplugin.hpp"
-#include "cgs/plugin/plugin_types.hpp"
-#include "cgs/plugin/version_constraint.hpp"
 
 namespace cgs::plugin {
 
@@ -61,8 +61,7 @@ public:
     /// @param path  Path to the shared library (.so, .dll, .dylib).
     /// @return GameResult<void> — error on file-not-found, symbol lookup
     ///         failure, API version mismatch, or duplicate load.
-    [[nodiscard]] cgs::foundation::GameResult<void>
-    LoadPlugin(const std::filesystem::path& path);
+    [[nodiscard]] cgs::foundation::GameResult<void> LoadPlugin(const std::filesystem::path& path);
 
     // ── Static loading ─────────────────────────────────────────────────
 
@@ -77,8 +76,7 @@ public:
     /// Initialize a single plugin by name.
     ///
     /// Transitions from Loaded → Initialized.
-    [[nodiscard]] cgs::foundation::GameResult<void>
-    InitPlugin(std::string_view name);
+    [[nodiscard]] cgs::foundation::GameResult<void> InitPlugin(std::string_view name);
 
     /// Initialize all loaded plugins in dependency order.
     ///
@@ -88,8 +86,7 @@ public:
     [[nodiscard]] cgs::foundation::GameResult<void> InitializeAll();
 
     /// Activate a single initialized plugin (Initialized → Active).
-    [[nodiscard]] cgs::foundation::GameResult<void>
-    ActivatePlugin(std::string_view name);
+    [[nodiscard]] cgs::foundation::GameResult<void> ActivatePlugin(std::string_view name);
 
     /// Activate all initialized plugins.
     [[nodiscard]] cgs::foundation::GameResult<void> ActivateAll();
@@ -100,15 +97,13 @@ public:
     void UpdateAll(float deltaTime);
 
     /// Shut down a single plugin (Active/Initialized → Loaded).
-    [[nodiscard]] cgs::foundation::GameResult<void>
-    ShutdownPlugin(std::string_view name);
+    [[nodiscard]] cgs::foundation::GameResult<void> ShutdownPlugin(std::string_view name);
 
     /// Shut down all active/initialized plugins in reverse dependency order.
     void ShutdownAll();
 
     /// Unload a single plugin (Loaded → Unloaded, removed from manager).
-    [[nodiscard]] cgs::foundation::GameResult<void>
-    UnloadPlugin(std::string_view name);
+    [[nodiscard]] cgs::foundation::GameResult<void> UnloadPlugin(std::string_view name);
 
     /// Unload all plugins.
     void UnloadAll();
@@ -119,8 +114,8 @@ public:
     [[nodiscard]] IPlugin* GetPlugin(std::string_view name) const;
 
     /// Return the state of a loaded plugin.
-    [[nodiscard]] cgs::foundation::GameResult<PluginState>
-    GetPluginState(std::string_view name) const;
+    [[nodiscard]] cgs::foundation::GameResult<PluginState> GetPluginState(
+        std::string_view name) const;
 
     /// Return the names of all loaded plugins.
     [[nodiscard]] std::vector<std::string> GetAllPluginNames() const;
@@ -165,18 +160,17 @@ private:
     /// Internal bookkeeping for a loaded plugin.
     struct PluginEntry {
         std::unique_ptr<IPlugin> plugin;
-        void* libraryHandle = nullptr;   ///< dlopen handle (nullptr for static).
+        void* libraryHandle = nullptr;  ///< dlopen handle (nullptr for static).
         PluginState state = PluginState::Unloaded;
         std::chrono::steady_clock::time_point loadedAt;
     };
 
     /// Load a pre-created plugin instance into the manager.
-    [[nodiscard]] cgs::foundation::GameResult<void>
-    loadPluginInstance(std::unique_ptr<IPlugin> plugin, void* libraryHandle);
+    [[nodiscard]] cgs::foundation::GameResult<void> loadPluginInstance(
+        std::unique_ptr<IPlugin> plugin, void* libraryHandle);
 
     /// Resolve dependency ordering via topological sort.
-    [[nodiscard]] cgs::foundation::GameResult<std::vector<std::string>>
-    resolveDependencies() const;
+    [[nodiscard]] cgs::foundation::GameResult<std::vector<std::string>> resolveDependencies() const;
 
     /// Validate version constraints for all loaded plugins.
     void validateVersionConstraints(DependencyReport& report) const;
@@ -201,4 +195,4 @@ private:
     EventBus eventBus_;
 };
 
-} // namespace cgs::plugin
+}  // namespace cgs::plugin

@@ -8,15 +8,15 @@
 /// @see SRS-PLG-005
 /// @see SDS-MOD-023
 
+#include "cgs/foundation/game_result.hpp"
+#include "cgs/plugin/file_watcher.hpp"
+#include "cgs/plugin/hot_reloadable.hpp"
+
 #include <chrono>
 #include <filesystem>
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-#include "cgs/foundation/game_result.hpp"
-#include "cgs/plugin/file_watcher.hpp"
-#include "cgs/plugin/hot_reloadable.hpp"
 
 namespace cgs::plugin {
 
@@ -60,9 +60,8 @@ public:
     /// @param pluginName  The registered plugin name.
     /// @param libraryPath Path to the .so/.dll/.dylib file.
     /// @return Error if hot reload is disabled or file not found.
-    [[nodiscard]] cgs::foundation::GameResult<void>
-    WatchPlugin(const std::string& pluginName,
-                const std::filesystem::path& libraryPath);
+    [[nodiscard]] cgs::foundation::GameResult<void> WatchPlugin(
+        const std::string& pluginName, const std::filesystem::path& libraryPath);
 
     /// Stop monitoring a plugin.
     void UnwatchPlugin(const std::string& pluginName);
@@ -76,8 +75,7 @@ public:
     ///
     /// @param pluginName The plugin to reload.
     /// @return Error if the plugin is not found, not dynamic, or reload fails.
-    [[nodiscard]] cgs::foundation::GameResult<void>
-    ReloadPlugin(const std::string& pluginName);
+    [[nodiscard]] cgs::foundation::GameResult<void> ReloadPlugin(const std::string& pluginName);
 
     /// Set debounce duration for file change detection.
     void SetDebounceMs(uint32_t ms);
@@ -89,24 +87,21 @@ public:
     [[nodiscard]] uint64_t ReloadCount() const noexcept;
 
     /// Retrieve the most recent state snapshot for a plugin (if any).
-    [[nodiscard]] const PluginStateSnapshot*
-    GetSnapshot(const std::string& pluginName) const;
+    [[nodiscard]] const PluginStateSnapshot* GetSnapshot(const std::string& pluginName) const;
 
 private:
 #ifdef CGS_HOT_RELOAD
     /// Perform the full reload cycle for a single plugin.
-    [[nodiscard]] cgs::foundation::GameResult<void>
-    doReload(const std::string& pluginName,
-             const std::filesystem::path& libraryPath);
+    [[nodiscard]] cgs::foundation::GameResult<void> doReload(
+        const std::string& pluginName, const std::filesystem::path& libraryPath);
 
     /// Capture state from an IHotReloadable plugin.
-    [[nodiscard]] cgs::foundation::GameResult<PluginStateSnapshot>
-    captureState(const std::string& pluginName);
+    [[nodiscard]] cgs::foundation::GameResult<PluginStateSnapshot> captureState(
+        const std::string& pluginName);
 
     /// Restore state to an IHotReloadable plugin.
-    [[nodiscard]] cgs::foundation::GameResult<void>
-    restoreState(const std::string& pluginName,
-                 const PluginStateSnapshot& snapshot);
+    [[nodiscard]] cgs::foundation::GameResult<void> restoreState(
+        const std::string& pluginName, const PluginStateSnapshot& snapshot);
 
     PluginManager& pluginManager_;
     FileWatcher fileWatcher_;
@@ -124,4 +119,4 @@ private:
 #endif
 };
 
-} // namespace cgs::plugin
+}  // namespace cgs::plugin

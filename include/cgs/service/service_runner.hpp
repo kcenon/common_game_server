@@ -112,7 +112,7 @@ private:
 loadConfig(cgs::foundation::ConfigManager& config,
            const std::filesystem::path& defaultPath);
 
-/// Parse --config <path> from command-line arguments.
+/// Parse `--config <path>` from command-line arguments.
 ///
 /// @return Config file path, or empty path if not specified.
 [[nodiscard]] std::filesystem::path

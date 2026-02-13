@@ -119,6 +119,7 @@ coverage/
 
 # Documentation build
 docs/_build/
+docs/api/
 doxygen/
 html/
 latex/

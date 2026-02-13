@@ -327,12 +327,83 @@ TEST_F(NetworkIntegrationTest, WebSocketLoopback) {
 }
 
 // ===========================================================================
+// UDP Session Tracking (sessionInfo, onConnected, onDisconnected)
+// ===========================================================================
+
+TEST_F(NetworkIntegrationTest, UDPSessionTracking) {
+    constexpr uint16_t kUDPTrackPort = 19008;
+
+    std::atomic<int> connectCount{0};
+    SessionId trackedSid;
+    std::mutex connMutex;
+    std::condition_variable connCV;
+
+    mgr_->onConnected.connect([&](SessionId sid) {
+        {
+            std::lock_guard<std::mutex> lock(connMutex);
+            trackedSid = sid;
+        }
+        connectCount.fetch_add(1);
+        connCV.notify_all();
+    });
+
+    registerEchoHandler(kEchoOpcode);
+
+    auto listenResult = mgr_->listen(kUDPTrackPort, Protocol::UDP);
+    ASSERT_TRUE(listenResult.hasValue())
+        << "Failed to listen on UDP port " << kUDPTrackPort;
+
+    std::this_thread::sleep_for(kStartupDelay);
+
+    TestClient client;
+    ASSERT_TRUE(client.connectUDP(kUDPTrackPort)) << "Client failed to connect via UDP";
+
+    // UDP is connectionless — the server-side session is created when the
+    // first datagram arrives.  Send a message to trigger session creation.
+    auto sent = makeMessage(kEchoOpcode, "UDP tracking");
+    ASSERT_TRUE(client.sendMessage(sent));
+
+    // Wait for server-side onConnected (fired on first datagram)
+    {
+        std::unique_lock lock(connMutex);
+        ASSERT_TRUE(connCV.wait_for(lock, kConnectTimeout,
+            [&] { return connectCount.load() >= 1; }))
+            << "UDP onConnected signal not received";
+    }
+    EXPECT_EQ(connectCount.load(), 1);
+    EXPECT_EQ(mgr_->sessionCount(), 1u);
+
+    // Verify sessionInfo returns valid data for UDP session
+    auto info = mgr_->sessionInfo(trackedSid);
+    ASSERT_TRUE(info.has_value()) << "Session info missing for UDP session";
+    EXPECT_EQ(info->protocol, Protocol::UDP);
+
+    // Verify echo response arrived (session is valid and bidirectional)
+    auto received = client.waitForMessage();
+    ASSERT_TRUE(received.has_value()) << "No echo response received";
+    EXPECT_EQ(received->opcode, kEchoOpcode);
+    EXPECT_EQ(received->payload, sent.payload);
+
+    // Send a second message to verify ongoing session re-use (same session ID)
+    auto sent2 = makeMessage(kEchoOpcode, "UDP tracking 2");
+    ASSERT_TRUE(client.sendMessage(sent2));
+
+    auto received2 = client.waitForMessage();
+    ASSERT_TRUE(received2.has_value()) << "No second echo response received";
+    EXPECT_EQ(received2->payload, sent2.payload);
+
+    // Session count should still be 1 (same client, same session)
+    EXPECT_EQ(connectCount.load(), 1);
+    EXPECT_EQ(mgr_->sessionCount(), 1u);
+}
+
+// ===========================================================================
 // TCP Multi-Session Broadcast
 // ===========================================================================
 
 TEST_F(NetworkIntegrationTest, TCPMultiSession) {
     constexpr uint16_t kBroadcastPort = 19004;
-    constexpr int kClientCount = 4;
+    constexpr int kClientCount = 12;
 
     // Track connected sessions
     std::atomic<int> connectedCount{0};

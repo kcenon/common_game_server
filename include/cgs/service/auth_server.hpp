@@ -88,6 +88,7 @@ public:
 
 private:
     [[nodiscard]] bool isValidEmail(std::string_view email) const;
+    [[nodiscard]] bool isValidUsername(std::string_view username) const;
     [[nodiscard]] bool isStrongPassword(std::string_view password) const;
 
     AuthConfig config_;

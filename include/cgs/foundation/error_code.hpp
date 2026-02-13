@@ -70,6 +70,7 @@ enum class ErrorCode : uint32_t {
     TokenRevoked = 0x0508,
     InvalidCredentials = 0x0509,
     RefreshTokenExpired = 0x050A,
+    InvalidUsername = 0x050B,
 
     // Config (0x0600 - 0x06FF)
     ConfigLoadFailed = 0x0600,

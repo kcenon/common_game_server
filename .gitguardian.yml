@@ -1,0 +1,16 @@
+version: 2
+
+secret:
+  # Exclude test files from secret scanning.
+  # Test files contain intentional dummy signing keys and generated RSA keypairs
+  # that are NOT real secrets.
+  ignored_paths:
+    - "tests/**"
+    - "**/test/**"
+    - "**/*_test.cpp"
+    - "**/*_test.hpp"
+
+  # Ignore known false positives: test passwords and the RSA test key that was
+  # previously embedded in auth_crypto_test.cpp (removed in commit 0b54e6a).
+  ignored_detectors:
+    - "Generic Password"

@@ -72,7 +72,7 @@ jobs:
           lcov --capture \
             --directory build/ \
             --output-file build/coverage.info \
-            --ignore-errors mismatch
+            --ignore-errors mismatch,gcov,negative
 
           # Remove external/test/benchmark code from coverage
           lcov --remove build/coverage.info \
@@ -82,7 +82,7 @@ jobs:
             '*/benchmarks/*' \
             '*/test/*' \
             --output-file build/coverage-filtered.info \
-            --ignore-errors unused
+            --ignore-errors unused,negative
 
       - name: Generate coverage report
         run: |

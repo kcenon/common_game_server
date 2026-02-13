@@ -61,7 +61,7 @@ static std::string formatTimestamp() {
     gmtime_r(&tt, &utc);
 #endif
 
-    char buf[32];
+    char buf[96]; // Oversized to satisfy GCC -Wformat-truncation (int range analysis)
     std::snprintf(buf, sizeof(buf), "%04d-%02d-%02dT%02d:%02d:%02d.%03dZ",
                   utc.tm_year + 1900, utc.tm_mon + 1, utc.tm_mday,
                   utc.tm_hour, utc.tm_min, utc.tm_sec,

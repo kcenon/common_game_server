@@ -36,8 +36,7 @@ public:
     [[nodiscard]] HashedPassword hash(std::string_view password) const;
 
     /// Hash a plaintext password with the given salt (for verification).
-    [[nodiscard]] std::string hashWithSalt(std::string_view password,
-                                           std::string_view salt) const;
+    [[nodiscard]] std::string hashWithSalt(std::string_view password, std::string_view salt) const;
 
     /// Verify a plaintext password against a stored hash and salt.
     [[nodiscard]] bool verify(std::string_view password,
@@ -48,4 +47,4 @@ public:
     [[nodiscard]] static std::string generateSalt();
 };
 
-} // namespace cgs::service
+}  // namespace cgs::service

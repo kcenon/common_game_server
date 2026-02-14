@@ -8,13 +8,13 @@
 /// Designed for K8s httpGet probes and Prometheus scraping.
 /// Part of SRS-NFR-011 (99.9% uptime monitoring).
 
+#include "cgs/foundation/game_result.hpp"
+
 #include <atomic>
 #include <chrono>
 #include <cstdint>
 #include <memory>
 #include <string>
-
-#include "cgs/foundation/game_result.hpp"
 
 namespace cgs::foundation {
 class GameMetrics;
@@ -50,8 +50,7 @@ struct HealthServerConfig {
 /// Thread-safe: runs an internal background thread for accepting connections.
 class HealthServer {
 public:
-    explicit HealthServer(HealthServerConfig config,
-                          cgs::foundation::GameMetrics& metrics);
+    explicit HealthServer(HealthServerConfig config, cgs::foundation::GameMetrics& metrics);
     ~HealthServer();
 
     HealthServer(const HealthServer&) = delete;
@@ -77,4 +76,4 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-} // namespace cgs::service
+}  // namespace cgs::service

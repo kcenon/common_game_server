@@ -6,15 +6,15 @@
 /// @see SDS-MOD-020 (Plugin Interface Design)
 /// @see SDS-MOD-021 (Plugin Manager Design)
 
+#include "cgs/foundation/service_locator.hpp"
+
 #include <cstdint>
 #include <string>
 #include <vector>
 
-#include "cgs/foundation/service_locator.hpp"
-
 namespace cgs::plugin {
 class EventBus;
-} // namespace cgs::plugin
+}  // namespace cgs::plugin
 
 namespace cgs::plugin {
 
@@ -72,4 +72,4 @@ enum class PluginState : uint8_t {
     Error          ///< An error occurred during a lifecycle transition.
 };
 
-} // namespace cgs::plugin
+}  // namespace cgs::plugin

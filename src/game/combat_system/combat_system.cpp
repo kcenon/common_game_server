@@ -16,12 +16,11 @@
 
 namespace cgs::game {
 
-CombatSystem::CombatSystem(
-    cgs::ecs::ComponentStorage<SpellCast>& spellCasts,
-    cgs::ecs::ComponentStorage<AuraHolder>& auraHolders,
-    cgs::ecs::ComponentStorage<DamageEvent>& damageEvents,
-    cgs::ecs::ComponentStorage<Stats>& stats,
-    cgs::ecs::ComponentStorage<ThreatList>& threatLists)
+CombatSystem::CombatSystem(cgs::ecs::ComponentStorage<SpellCast>& spellCasts,
+                           cgs::ecs::ComponentStorage<AuraHolder>& auraHolders,
+                           cgs::ecs::ComponentStorage<DamageEvent>& damageEvents,
+                           cgs::ecs::ComponentStorage<Stats>& stats,
+                           cgs::ecs::ComponentStorage<ThreatList>& threatLists)
     : spellCasts_(spellCasts),
       auraHolders_(auraHolders),
       damageEvents_(damageEvents),
@@ -42,12 +41,10 @@ cgs::ecs::SystemAccessInfo CombatSystem::GetAccessInfo() const {
 
 // ── Static damage calculation ───────────────────────────────────────────
 
-int32_t CombatSystem::CalculateDamage(
-    int32_t baseDamage,
-    DamageType type,
-    bool isCritical,
-    const DamageCalcParams& params) {
-
+int32_t CombatSystem::CalculateDamage(int32_t baseDamage,
+                                      DamageType type,
+                                      bool isCritical,
+                                      const DamageCalcParams& params) {
     if (baseDamage <= 0) {
         return 0;
     }
@@ -90,8 +87,7 @@ void CombatSystem::updateSpellCasts(float deltaTime) {
         cgs::ecs::Entity entity(entityId, 0);
         auto& cast = spellCasts_.Get(entity);
 
-        if (cast.state == CastState::Casting
-            || cast.state == CastState::Channeling) {
+        if (cast.state == CastState::Casting || cast.state == CastState::Channeling) {
             cast.remainingTime -= deltaTime;
             if (cast.remainingTime <= 0.0f) {
                 cast.remainingTime = 0.0f;
@@ -157,8 +153,7 @@ void CombatSystem::processDamageEvents() {
         }
 
         // Calculate final damage.
-        event.finalDamage = CalculateDamage(
-            event.baseDamage, event.type, event.isCritical, params);
+        event.finalDamage = CalculateDamage(event.baseDamage, event.type, event.isCritical, params);
 
         // Apply damage to victim's health.
         if (stats_.Has(event.victim)) {
@@ -169,12 +164,11 @@ void CombatSystem::processDamageEvents() {
         // Add threat to victim's threat list.
         if (threatLists_.Has(event.victim)) {
             auto& threats = threatLists_.Get(event.victim);
-            threats.AddThreat(event.attacker,
-                              static_cast<float>(event.finalDamage));
+            threats.AddThreat(event.attacker, static_cast<float>(event.finalDamage));
         }
 
         event.isProcessed = true;
     }
 }
 
-} // namespace cgs::game
+}  // namespace cgs::game

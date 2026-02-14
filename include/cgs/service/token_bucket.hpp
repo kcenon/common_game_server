@@ -64,4 +64,4 @@ private:
     mutable std::unordered_map<std::string, Bucket> buckets_;
 };
 
-} // namespace cgs::service
+}  // namespace cgs::service

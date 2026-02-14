@@ -117,4 +117,4 @@ void EntityManager::destroyInternal(Entity entity) {
     --count_;
 }
 
-} // namespace cgs::ecs
+}  // namespace cgs::ecs

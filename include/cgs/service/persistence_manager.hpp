@@ -9,15 +9,15 @@
 ///
 /// Part of SRS-NFR-013 (zero data loss on crash).
 
+#include "cgs/foundation/game_result.hpp"
+#include "cgs/service/snapshot_manager.hpp"
+#include "cgs/service/write_ahead_log.hpp"
+
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
 #include <functional>
 #include <memory>
-
-#include "cgs/foundation/game_result.hpp"
-#include "cgs/service/snapshot_manager.hpp"
-#include "cgs/service/write_ahead_log.hpp"
 
 namespace cgs::service {
 
@@ -85,10 +85,9 @@ public:
     /// @param collector Called to gather player states for snapshots.
     /// @param restorer Called to restore world state from a snapshot.
     /// @param applier Called to replay individual WAL entries after snapshot.
-    [[nodiscard]] cgs::foundation::GameResult<void> start(
-        StateCollector collector,
-        StateRestorer restorer,
-        WalApplier applier);
+    [[nodiscard]] cgs::foundation::GameResult<void> start(StateCollector collector,
+                                                          StateRestorer restorer,
+                                                          WalApplier applier);
 
     /// Stop the persistence subsystem.
     ///
@@ -96,8 +95,7 @@ public:
     void stop();
 
     /// Record a player state change in the WAL.
-    [[nodiscard]] cgs::foundation::GameResult<uint64_t> recordChange(
-        WalEntry entry);
+    [[nodiscard]] cgs::foundation::GameResult<uint64_t> recordChange(WalEntry entry);
 
     /// Trigger an immediate snapshot (outside the periodic schedule).
     [[nodiscard]] cgs::foundation::GameResult<void> takeSnapshot();
@@ -116,4 +114,4 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-} // namespace cgs::service
+}  // namespace cgs::service

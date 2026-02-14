@@ -48,8 +48,7 @@ public:
     Signal(Signal&& other) noexcept {
         std::unique_lock lock(other.mutex_);
         slots_ = std::move(other.slots_);
-        nextId_.store(other.nextId_.load(std::memory_order_relaxed),
-                      std::memory_order_relaxed);
+        nextId_.store(other.nextId_.load(std::memory_order_relaxed), std::memory_order_relaxed);
     }
 
     Signal& operator=(Signal&& other) noexcept {
@@ -60,8 +59,7 @@ public:
             std::unique_lock lock1(first->mutex_);
             std::unique_lock lock2(second->mutex_);
             slots_ = std::move(other.slots_);
-            nextId_.store(other.nextId_.load(std::memory_order_relaxed),
-                          std::memory_order_relaxed);
+            nextId_.store(other.nextId_.load(std::memory_order_relaxed), std::memory_order_relaxed);
         }
         return *this;
     }
@@ -113,4 +111,4 @@ private:
     mutable std::shared_mutex mutex_;
 };
 
-} // namespace cgs::foundation
+}  // namespace cgs::foundation

@@ -127,4 +127,4 @@ void ServiceCircuitBreaker::transitionTo(State newState) {
     }
 }
 
-} // namespace cgs::service
+}  // namespace cgs::service

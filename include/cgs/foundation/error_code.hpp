@@ -170,24 +170,41 @@ constexpr std::string_view errorSubsystem(ErrorCode code) {
     auto value = static_cast<uint32_t>(code);
     auto category = value & 0xFF00;
     switch (category) {
-        case 0x0000: return "General";
-        case 0x0100: return "Network";
-        case 0x0200: return "Database";
-        case 0x0300: return "ECS";
-        case 0x0400: return "Plugin";
-        case 0x0500: return "Auth";
-        case 0x0600: return "Config";
-        case 0x0700: return "Thread";
-        case 0x0800: return "Logger";
-        case 0x0900: return "Monitoring";
-        case 0x0A00: return "Serialization";
-        case 0x0B00: return "GameServer";
-        case 0x0C00: return "Lobby";
-        case 0x0D00: return "DBProxy";
-        case 0x0E00: return "Gateway";
-        case 0x0F00: return "Persistence";
-        default: return "Unknown";
+        case 0x0000:
+            return "General";
+        case 0x0100:
+            return "Network";
+        case 0x0200:
+            return "Database";
+        case 0x0300:
+            return "ECS";
+        case 0x0400:
+            return "Plugin";
+        case 0x0500:
+            return "Auth";
+        case 0x0600:
+            return "Config";
+        case 0x0700:
+            return "Thread";
+        case 0x0800:
+            return "Logger";
+        case 0x0900:
+            return "Monitoring";
+        case 0x0A00:
+            return "Serialization";
+        case 0x0B00:
+            return "GameServer";
+        case 0x0C00:
+            return "Lobby";
+        case 0x0D00:
+            return "DBProxy";
+        case 0x0E00:
+            return "Gateway";
+        case 0x0F00:
+            return "Persistence";
+        default:
+            return "Unknown";
     }
 }
 
-} // namespace cgs::foundation
+}  // namespace cgs::foundation

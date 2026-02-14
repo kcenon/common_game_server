@@ -48,7 +48,7 @@ using SessionId = StrongId<SessionIdTag>;
 template <typename Tag, typename T>
 constexpr StrongId<Tag, T> NULL_ID{};
 
-} // namespace cgs::foundation
+}  // namespace cgs::foundation
 
 // Hash support for use in unordered containers.
 template <typename Tag, typename T>

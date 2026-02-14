@@ -11,14 +11,14 @@
 /// @see SRS-SVC-004
 /// @see SDS-MOD-033
 
+#include "cgs/foundation/game_result.hpp"
+#include "cgs/service/lobby_types.hpp"
+
 #include <cstdint>
 #include <memory>
 #include <optional>
 #include <string>
 #include <vector>
-
-#include "cgs/foundation/game_result.hpp"
-#include "cgs/service/lobby_types.hpp"
 
 namespace cgs::service {
 
@@ -67,11 +67,10 @@ public:
     // -- Solo matchmaking -----------------------------------------------------
 
     /// Enqueue a single player for matchmaking.
-    [[nodiscard]] cgs::foundation::GameResult<void> enqueuePlayer(
-        uint64_t playerId,
-        PlayerRating rating,
-        GameMode mode = GameMode::Duel,
-        Region region = Region::Any);
+    [[nodiscard]] cgs::foundation::GameResult<void> enqueuePlayer(uint64_t playerId,
+                                                                  PlayerRating rating,
+                                                                  GameMode mode = GameMode::Duel,
+                                                                  Region region = Region::Any);
 
     /// Remove a player from the matchmaking queue.
     [[nodiscard]] bool dequeuePlayer(uint64_t playerId);
@@ -82,36 +81,34 @@ public:
     // -- Party management -----------------------------------------------------
 
     /// Create a new party with the given player as leader.
-    [[nodiscard]] cgs::foundation::GameResult<PartyId> createParty(
-        uint64_t leaderId,
-        const std::string& leaderName,
-        PlayerRating leaderRating);
+    [[nodiscard]] cgs::foundation::GameResult<PartyId> createParty(uint64_t leaderId,
+                                                                   const std::string& leaderName,
+                                                                   PlayerRating leaderRating);
 
     /// Disband a party (leader only).
-    [[nodiscard]] cgs::foundation::GameResult<void> disbandParty(
-        PartyId partyId, uint64_t requesterId);
+    [[nodiscard]] cgs::foundation::GameResult<void> disbandParty(PartyId partyId,
+                                                                 uint64_t requesterId);
 
     /// Add a member to a party.
-    [[nodiscard]] cgs::foundation::GameResult<void> addPartyMember(
-        PartyId partyId,
-        uint64_t playerId,
-        const std::string& name,
-        PlayerRating rating);
+    [[nodiscard]] cgs::foundation::GameResult<void> addPartyMember(PartyId partyId,
+                                                                   uint64_t playerId,
+                                                                   const std::string& name,
+                                                                   PlayerRating rating);
 
     /// Remove a member from a party (leave or kick).
-    [[nodiscard]] cgs::foundation::GameResult<void> removePartyMember(
-        PartyId partyId, uint64_t playerId);
+    [[nodiscard]] cgs::foundation::GameResult<void> removePartyMember(PartyId partyId,
+                                                                      uint64_t playerId);
 
     /// Promote a member to party leader.
-    [[nodiscard]] cgs::foundation::GameResult<void> promotePartyLeader(
-        PartyId partyId, uint64_t requesterId, uint64_t newLeaderId);
+    [[nodiscard]] cgs::foundation::GameResult<void> promotePartyLeader(PartyId partyId,
+                                                                       uint64_t requesterId,
+                                                                       uint64_t newLeaderId);
 
     /// Get party info.
     [[nodiscard]] std::optional<Party> getParty(PartyId partyId) const;
 
     /// Get the party a player belongs to.
-    [[nodiscard]] std::optional<PartyId> getPlayerParty(
-        uint64_t playerId) const;
+    [[nodiscard]] std::optional<PartyId> getPlayerParty(uint64_t playerId) const;
 
     // -- Party matchmaking ----------------------------------------------------
 
@@ -119,12 +116,10 @@ public:
     ///
     /// All party members are enqueued using the party's average rating.
     /// The party is marked as in-queue.
-    [[nodiscard]] cgs::foundation::GameResult<void> enqueueParty(
-        PartyId partyId);
+    [[nodiscard]] cgs::foundation::GameResult<void> enqueueParty(PartyId partyId);
 
     /// Remove a party from the matchmaking queue.
-    [[nodiscard]] cgs::foundation::GameResult<void> dequeueParty(
-        PartyId partyId);
+    [[nodiscard]] cgs::foundation::GameResult<void> dequeueParty(PartyId partyId);
 
     // -- Match processing -----------------------------------------------------
 
@@ -140,9 +135,7 @@ public:
     ///
     /// @param winnerRating  The winner's current rating (modified in-place).
     /// @param loserRating   The loser's current rating (modified in-place).
-    static void updateRatings(
-        PlayerRating& winnerRating,
-        PlayerRating& loserRating);
+    static void updateRatings(PlayerRating& winnerRating, PlayerRating& loserRating);
 
     // -- Statistics -----------------------------------------------------------
 
@@ -157,4 +150,4 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-} // namespace cgs::service
+}  // namespace cgs::service

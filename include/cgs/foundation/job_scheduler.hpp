@@ -3,13 +3,13 @@
 /// @file job_scheduler.hpp
 /// @brief GameJobScheduler wrapping kcenon thread_system for game-specific job scheduling.
 
+#include "cgs/foundation/game_result.hpp"
+
 #include <chrono>
 #include <cstdint>
 #include <functional>
 #include <memory>
 #include <thread>
-
-#include "cgs/foundation/game_result.hpp"
 
 namespace cgs::foundation {
 
@@ -37,8 +37,7 @@ public:
     using JobFunc = std::function<void()>;
 
     /// Construct a scheduler backed by a thread pool with @p numThreads workers.
-    explicit GameJobScheduler(
-        std::size_t numThreads = std::thread::hardware_concurrency());
+    explicit GameJobScheduler(std::size_t numThreads = std::thread::hardware_concurrency());
 
     ~GameJobScheduler();
 
@@ -50,8 +49,7 @@ public:
 
     /// Schedule a job with the given priority.
     /// @return The assigned JobId on success, or a GameError on failure.
-    GameResult<JobId> schedule(JobFunc job,
-                               JobPriority priority = JobPriority::Normal);
+    GameResult<JobId> schedule(JobFunc job, JobPriority priority = JobPriority::Normal);
 
     /// Schedule a job to execute after the given dependency completes.
     /// @return The assigned JobId, or JobNotFound if the dependency is unknown.
@@ -60,8 +58,7 @@ public:
     /// Register a recurring tick job that fires every @p interval.
     /// The job is dispatched into the thread pool each time it fires.
     /// @return The assigned JobId for the tick entry.
-    GameResult<JobId> scheduleTick(std::chrono::milliseconds interval,
-                                    JobFunc job);
+    GameResult<JobId> scheduleTick(std::chrono::milliseconds interval, JobFunc job);
 
     /// Advance tick timers by @p deltaTime and dispatch due tick jobs.
     /// Call this once per game-loop iteration from the main thread.
@@ -80,4 +77,4 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-} // namespace cgs::foundation
+}  // namespace cgs::foundation

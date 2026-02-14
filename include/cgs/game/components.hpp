@@ -10,14 +10,14 @@
 /// @see SRS-GML-001.1 .. SRS-GML-001.4
 /// @see SDS-MOD-020
 
+#include "cgs/game/math_types.hpp"
+#include "cgs/game/object_types.hpp"
+
 #include <algorithm>
 #include <array>
 #include <atomic>
 #include <cstdint>
 #include <string>
-
-#include "cgs/game/math_types.hpp"
-#include "cgs/game/object_types.hpp"
 
 namespace cgs::game {
 
@@ -92,12 +92,10 @@ struct Movement {
     MovementState state = MovementState::Idle;
 
     /// Apply a multiplicative modifier to base speed.
-    void ApplySpeedModifier(float modifier) noexcept {
-        speed = baseSpeed * modifier;
-    }
+    void ApplySpeedModifier(float modifier) noexcept { speed = baseSpeed * modifier; }
 
     /// Reset effective speed to base speed.
     void ResetSpeed() noexcept { speed = baseSpeed; }
 };
 
-} // namespace cgs::game
+}  // namespace cgs::game

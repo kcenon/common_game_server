@@ -54,4 +54,4 @@ public:
     virtual void OnUnload() = 0;
 };
 
-} // namespace cgs::plugin
+}  // namespace cgs::plugin

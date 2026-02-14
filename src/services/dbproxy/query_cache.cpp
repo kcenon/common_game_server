@@ -38,9 +38,7 @@ struct QueryCache::Impl {
     std::atomic<uint64_t> misses{0};
 
     // Move an entry to the front of the LRU list.
-    void touch(std::list<CacheEntry>::iterator it) {
-        lruList.splice(lruList.begin(), lruList, it);
-    }
+    void touch(std::list<CacheEntry>::iterator it) { lruList.splice(lruList.begin(), lruList, it); }
 
     // Evict the least recently used entry.
     void evictLru() {
@@ -75,8 +73,7 @@ struct QueryCache::Impl {
 
 // ── Construction / destruction / move ───────────────────────────────────────
 
-QueryCache::QueryCache(CacheConfig config)
-    : impl_(std::make_unique<Impl>()) {
+QueryCache::QueryCache(CacheConfig config) : impl_(std::make_unique<Impl>()) {
     impl_->config = std::move(config);
 }
 
@@ -87,8 +84,7 @@ QueryCache& QueryCache::operator=(QueryCache&&) noexcept = default;
 
 // ── get() ───────────────────────────────────────────────────────────────────
 
-std::optional<cgs::foundation::QueryResult> QueryCache::get(
-    std::string_view sql) {
+std::optional<cgs::foundation::QueryResult> QueryCache::get(std::string_view sql) {
     std::lock_guard lock(impl_->mutex);
 
     auto it = impl_->index.find(std::string(sql));
@@ -115,8 +111,7 @@ std::optional<cgs::foundation::QueryResult> QueryCache::get(
 
 // ── put() ───────────────────────────────────────────────────────────────────
 
-void QueryCache::put(std::string_view sql,
-                     const cgs::foundation::QueryResult& result) {
+void QueryCache::put(std::string_view sql, const cgs::foundation::QueryResult& result) {
     put(sql, result, impl_->config.defaultTtl);
 }
 
@@ -185,10 +180,13 @@ std::size_t QueryCache::invalidateByTable(std::string_view tableName) {
         // Simple case-insensitive search.
         auto sqlLower = sql;
         auto tableLower = std::string(tableName);
-        std::transform(sqlLower.begin(), sqlLower.end(), sqlLower.begin(),
-                       [](unsigned char c) { return std::tolower(c); });
-        std::transform(tableLower.begin(), tableLower.end(), tableLower.begin(),
-                       [](unsigned char c) { return std::tolower(c); });
+        std::transform(sqlLower.begin(), sqlLower.end(), sqlLower.begin(), [](unsigned char c) {
+            return std::tolower(c);
+        });
+        std::transform(
+            tableLower.begin(), tableLower.end(), tableLower.begin(), [](unsigned char c) {
+                return std::tolower(c);
+            });
 
         if (sqlLower.find(tableLower) != std::string::npos) {
             found = true;
@@ -243,4 +241,4 @@ const CacheConfig& QueryCache::config() const noexcept {
     return impl_->config;
 }
 
-} // namespace cgs::service
+}  // namespace cgs::service

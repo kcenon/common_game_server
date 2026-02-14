@@ -10,12 +10,12 @@
 /// @see SRS-GML-005.4
 /// @see SDS-MOD-034
 
-#include <string_view>
-#include <vector>
-
 #include "cgs/ecs/component_storage.hpp"
 #include "cgs/ecs/system_scheduler.hpp"
 #include "cgs/game/quest_components.hpp"
+
+#include <string_view>
+#include <vector>
 
 namespace cgs::game {
 
@@ -39,9 +39,7 @@ public:
         return cgs::ecs::SystemStage::PostUpdate;
     }
 
-    [[nodiscard]] std::string_view GetName() const override {
-        return "QuestSystem";
-    }
+    [[nodiscard]] std::string_view GetName() const override { return "QuestSystem"; }
 
     [[nodiscard]] cgs::ecs::SystemAccessInfo GetAccessInfo() const override;
 
@@ -63,4 +61,4 @@ private:
     std::vector<QuestTemplate> templates_;
 };
 
-} // namespace cgs::game
+}  // namespace cgs::game

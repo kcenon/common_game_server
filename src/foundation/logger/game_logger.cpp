@@ -2,14 +2,14 @@
 /// @brief GameLogger implementation wrapping kcenon logger_system.
 
 #include "cgs/foundation/game_logger.hpp"
+
 #include "cgs/foundation/json_log_formatter.hpp"
 
 // kcenon logger headers (hidden behind PIMPL)
-#include <kcenon/common/interfaces/global_logger_registry.h>
-#include <kcenon/common/interfaces/logger_interface.h>
-
 #include <array>
 #include <atomic>
+#include <kcenon/common/interfaces/global_logger_registry.h>
+#include <kcenon/common/interfaces/logger_interface.h>
 #include <mutex>
 #include <sstream>
 #include <string>
@@ -21,13 +21,20 @@ namespace cgs::foundation {
 // ---------------------------------------------------------------------------
 static kcenon::common::interfaces::log_level mapLevel(LogLevel level) {
     switch (level) {
-        case LogLevel::Trace:    return kcenon::common::interfaces::log_level::trace;
-        case LogLevel::Debug:    return kcenon::common::interfaces::log_level::debug;
-        case LogLevel::Info:     return kcenon::common::interfaces::log_level::info;
-        case LogLevel::Warning:  return kcenon::common::interfaces::log_level::warning;
-        case LogLevel::Error:    return kcenon::common::interfaces::log_level::error;
-        case LogLevel::Critical: return kcenon::common::interfaces::log_level::critical;
-        case LogLevel::Off:      return kcenon::common::interfaces::log_level::off;
+        case LogLevel::Trace:
+            return kcenon::common::interfaces::log_level::trace;
+        case LogLevel::Debug:
+            return kcenon::common::interfaces::log_level::debug;
+        case LogLevel::Info:
+            return kcenon::common::interfaces::log_level::info;
+        case LogLevel::Warning:
+            return kcenon::common::interfaces::log_level::warning;
+        case LogLevel::Error:
+            return kcenon::common::interfaces::log_level::error;
+        case LogLevel::Critical:
+            return kcenon::common::interfaces::log_level::critical;
+        case LogLevel::Off:
+            return kcenon::common::interfaces::log_level::off;
     }
     return kcenon::common::interfaces::log_level::info;
 }
@@ -95,15 +102,13 @@ struct GameLogger::Impl {
 
     Impl() {
         for (std::size_t i = 0; i < kLogCategoryCount; ++i) {
-            categoryLevels[i].store(kDefaultCategoryLevels[i],
-                                    std::memory_order_relaxed);
-            loggerNames[i] = std::string("cgs.") +
-                std::string(logCategoryName(static_cast<LogCategory>(i)));
+            categoryLevels[i].store(kDefaultCategoryLevels[i], std::memory_order_relaxed);
+            loggerNames[i] =
+                std::string("cgs.") + std::string(logCategoryName(static_cast<LogCategory>(i)));
         }
     }
 
-    std::shared_ptr<kcenon::common::interfaces::ILogger> getLogger(
-        LogCategory cat) const {
+    std::shared_ptr<kcenon::common::interfaces::ILogger> getLogger(LogCategory cat) const {
         auto idx = static_cast<std::size_t>(cat);
         if (idx >= kLogCategoryCount) {
             return kcenon::common::interfaces::GlobalLoggerRegistry::null_logger();
@@ -114,8 +119,8 @@ struct GameLogger::Impl {
         // If we get a NullLogger and there's a default logger, use the default
         if (!logger->is_enabled(kcenon::common::interfaces::log_level::off)) {
             auto defaultLogger = registry.get_default_logger();
-            if (defaultLogger->is_enabled(kcenon::common::interfaces::log_level::off)
-                || defaultLogger != kcenon::common::interfaces::GlobalLoggerRegistry::null_logger()) {
+            if (defaultLogger->is_enabled(kcenon::common::interfaces::log_level::off) ||
+                defaultLogger != kcenon::common::interfaces::GlobalLoggerRegistry::null_logger()) {
                 return defaultLogger;
             }
         }
@@ -163,8 +168,10 @@ void GameLogger::log(LogLevel level, LogCategory cat, std::string_view msg) {
 // ---------------------------------------------------------------------------
 // logWithContext()
 // ---------------------------------------------------------------------------
-void GameLogger::logWithContext(LogLevel level, LogCategory cat,
-                                std::string_view msg, const LogContext& ctx) {
+void GameLogger::logWithContext(LogLevel level,
+                                LogCategory cat,
+                                std::string_view msg,
+                                const LogContext& ctx) {
     if (!isEnabled(level, cat)) {
         return;
     }
@@ -255,4 +262,4 @@ GameLogger& GameLogger::instance() {
     return inst;
 }
 
-} // namespace cgs::foundation
+}  // namespace cgs::foundation

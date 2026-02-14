@@ -10,14 +10,14 @@
 /// @see SRS-SVC-004.3
 /// @see SDS-MOD-033
 
+#include "cgs/foundation/game_result.hpp"
+#include "cgs/service/lobby_types.hpp"
+
 #include <cstdint>
 #include <mutex>
 #include <optional>
 #include <unordered_map>
 #include <vector>
-
-#include "cgs/foundation/game_result.hpp"
-#include "cgs/service/lobby_types.hpp"
 
 namespace cgs::service {
 
@@ -38,41 +38,39 @@ public:
     // -- Party lifecycle ------------------------------------------------------
 
     /// Create a new party with the given player as leader.
-    [[nodiscard]] cgs::foundation::GameResult<PartyId> createParty(
-        uint64_t leaderId,
-        const std::string& leaderName,
-        PlayerRating leaderRating);
+    [[nodiscard]] cgs::foundation::GameResult<PartyId> createParty(uint64_t leaderId,
+                                                                   const std::string& leaderName,
+                                                                   PlayerRating leaderRating);
 
     /// Disband a party. Only the leader can do this.
-    [[nodiscard]] cgs::foundation::GameResult<void> disbandParty(
-        PartyId partyId, uint64_t requesterId);
+    [[nodiscard]] cgs::foundation::GameResult<void> disbandParty(PartyId partyId,
+                                                                 uint64_t requesterId);
 
     // -- Member management ----------------------------------------------------
 
     /// Add a member to a party.
-    [[nodiscard]] cgs::foundation::GameResult<void> addMember(
-        PartyId partyId,
-        uint64_t playerId,
-        const std::string& name,
-        PlayerRating rating);
+    [[nodiscard]] cgs::foundation::GameResult<void> addMember(PartyId partyId,
+                                                              uint64_t playerId,
+                                                              const std::string& name,
+                                                              PlayerRating rating);
 
     /// Remove a member from a party (leave or kick).
     ///
     /// If the leader leaves, the party is automatically disbanded.
     /// If a non-leader member is removed by the leader (kick), it succeeds.
     /// If a member removes themselves (leave), it always succeeds.
-    [[nodiscard]] cgs::foundation::GameResult<void> removeMember(
-        PartyId partyId, uint64_t playerId);
+    [[nodiscard]] cgs::foundation::GameResult<void> removeMember(PartyId partyId,
+                                                                 uint64_t playerId);
 
     /// Promote a member to party leader.
-    [[nodiscard]] cgs::foundation::GameResult<void> promoteLeader(
-        PartyId partyId, uint64_t requesterId, uint64_t newLeaderId);
+    [[nodiscard]] cgs::foundation::GameResult<void> promoteLeader(PartyId partyId,
+                                                                  uint64_t requesterId,
+                                                                  uint64_t newLeaderId);
 
     // -- Queue integration ----------------------------------------------------
 
     /// Mark a party as in-queue.
-    [[nodiscard]] cgs::foundation::GameResult<void> setInQueue(
-        PartyId partyId, bool inQueue);
+    [[nodiscard]] cgs::foundation::GameResult<void> setInQueue(PartyId partyId, bool inQueue);
 
     // -- Queries --------------------------------------------------------------
 
@@ -80,8 +78,7 @@ public:
     [[nodiscard]] std::optional<Party> getParty(PartyId partyId) const;
 
     /// Get the party a player belongs to.
-    [[nodiscard]] std::optional<PartyId> getPlayerParty(
-        uint64_t playerId) const;
+    [[nodiscard]] std::optional<PartyId> getPlayerParty(uint64_t playerId) const;
 
     /// Check if a player is in any party.
     [[nodiscard]] bool isInParty(uint64_t playerId) const;
@@ -90,8 +87,7 @@ public:
     [[nodiscard]] std::size_t partyCount() const;
 
     /// Calculate the average MMR across all party members.
-    [[nodiscard]] std::optional<int32_t> averagePartyRating(
-        PartyId partyId) const;
+    [[nodiscard]] std::optional<int32_t> averagePartyRating(PartyId partyId) const;
 
 private:
     /// Generate a unique party ID.
@@ -107,4 +103,4 @@ private:
     mutable std::mutex mutex_;
 };
 
-} // namespace cgs::service
+}  // namespace cgs::service

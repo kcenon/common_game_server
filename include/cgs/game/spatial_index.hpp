@@ -10,15 +10,15 @@
 /// @see SRS-GML-003.3
 /// @see SDS-MOD-022
 
+#include "cgs/ecs/entity.hpp"
+#include "cgs/game/math_types.hpp"
+#include "cgs/game/world_types.hpp"
+
 #include <cmath>
 #include <cstdint>
 #include <unordered_map>
 #include <utility>
 #include <vector>
-
-#include "cgs/ecs/entity.hpp"
-#include "cgs/game/math_types.hpp"
-#include "cgs/game/world_types.hpp"
 
 namespace cgs::game {
 
@@ -30,7 +30,7 @@ struct CellCoord {
     constexpr auto operator<=>(const CellCoord&) const = default;
 };
 
-} // namespace cgs::game
+}  // namespace cgs::game
 
 /// Hash support for CellCoord.
 template <>
@@ -85,16 +85,14 @@ public:
     ///
     /// Uses the grid to limit the search to cells that overlap the
     /// query circle, then applies exact distance filtering.
-    [[nodiscard]] std::vector<cgs::ecs::Entity>
-    QueryRadius(const Vector3& center, float radius) const;
+    [[nodiscard]] std::vector<cgs::ecs::Entity> QueryRadius(const Vector3& center,
+                                                            float radius) const;
 
     /// Return all entities in the cell that contains world position @p pos.
-    [[nodiscard]] std::vector<cgs::ecs::Entity>
-    QueryPosition(const Vector3& pos) const;
+    [[nodiscard]] std::vector<cgs::ecs::Entity> QueryPosition(const Vector3& pos) const;
 
     /// Return all entities in the cell at grid coordinate (x, y).
-    [[nodiscard]] std::vector<cgs::ecs::Entity>
-    QueryCell(int32_t x, int32_t y) const;
+    [[nodiscard]] std::vector<cgs::ecs::Entity> QueryCell(int32_t x, int32_t y) const;
 
     // -- Accessors ------------------------------------------------------
 
@@ -109,10 +107,8 @@ public:
 
     /// Get the cell coordinate for a world position.
     [[nodiscard]] CellCoord WorldToCell(const Vector3& pos) const noexcept {
-        return {
-            static_cast<int32_t>(std::floor(pos.x / cellSize_)),
-            static_cast<int32_t>(std::floor(pos.z / cellSize_))
-        };
+        return {static_cast<int32_t>(std::floor(pos.x / cellSize_)),
+                static_cast<int32_t>(std::floor(pos.z / cellSize_))};
     }
 
 private:
@@ -131,4 +127,4 @@ private:
     std::unordered_map<cgs::ecs::Entity, CellCoord> entityCells_;
 };
 
-} // namespace cgs::game
+}  // namespace cgs::game

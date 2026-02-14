@@ -10,13 +10,13 @@
 /// @see SDS-MOD-023
 /// @see Issue #29
 
+#include "cgs/ecs/entity.hpp"
+
 #include <array>
 #include <chrono>
 #include <cstdint>
 #include <string>
 #include <vector>
-
-#include "cgs/ecs/entity.hpp"
 
 namespace cgs::plugin {
 
@@ -25,19 +25,10 @@ namespace cgs::plugin {
 // ============================================================================
 
 /// Playable character class archetypes.
-enum class CharacterClass : uint8_t {
-    Warrior,
-    Mage,
-    Priest,
-    Rogue,
-    Ranger,
-    Warlock,
-    COUNT
-};
+enum class CharacterClass : uint8_t { Warrior, Mage, Priest, Rogue, Ranger, Warlock, COUNT };
 
 /// Number of character classes (excluding COUNT sentinel).
-constexpr std::size_t kCharacterClassCount =
-    static_cast<std::size_t>(CharacterClass::COUNT);
+constexpr std::size_t kCharacterClassCount = static_cast<std::size_t>(CharacterClass::COUNT);
 
 /// Base stats template for a character class.
 ///
@@ -67,11 +58,7 @@ struct CharacterData {
 // ============================================================================
 
 /// Guild member rank hierarchy.
-enum class GuildRank : uint8_t {
-    Leader,
-    Officer,
-    Member
-};
+enum class GuildRank : uint8_t { Leader, Officer, Member };
 
 /// A single member entry within a guild.
 struct GuildMember {
@@ -97,19 +84,10 @@ struct GuildData {
 // ============================================================================
 
 /// Chat channel classification.
-enum class ChatChannel : uint8_t {
-    System,
-    Global,
-    Party,
-    Guild,
-    Whisper,
-    Trade,
-    COUNT
-};
+enum class ChatChannel : uint8_t { System, Global, Party, Guild, Whisper, Trade, COUNT };
 
 /// Number of chat channels (excluding COUNT sentinel).
-constexpr std::size_t kChatChannelCount =
-    static_cast<std::size_t>(ChatChannel::COUNT);
+constexpr std::size_t kChatChannelCount = static_cast<std::size_t>(ChatChannel::COUNT);
 
 /// Maximum number of messages retained per channel.
 constexpr std::size_t kMaxChatHistoryPerChannel = 100;
@@ -123,4 +101,4 @@ struct ChatMessage {
     std::chrono::steady_clock::time_point timestamp;
 };
 
-} // namespace cgs::plugin
+}  // namespace cgs::plugin

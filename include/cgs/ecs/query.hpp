@@ -10,6 +10,10 @@
 /// @see SDS-MOD-013
 /// @see docs/reference/ECS_DESIGN.md  Section 2.5
 
+#include "cgs/ecs/component_storage.hpp"
+#include "cgs/ecs/component_type_id.hpp"
+#include "cgs/ecs/entity.hpp"
+
 #include <cassert>
 #include <cstdint>
 #include <limits>
@@ -17,10 +21,6 @@
 #include <unordered_map>
 #include <utility>
 #include <vector>
-
-#include "cgs/ecs/component_storage.hpp"
-#include "cgs/ecs/component_type_id.hpp"
-#include "cgs/ecs/entity.hpp"
 
 namespace cgs::ecs {
 
@@ -53,16 +53,14 @@ namespace cgs::ecs {
 /// @endcode
 template <typename... Includes>
 class Query {
-    static_assert(sizeof...(Includes) > 0,
-                  "Query must have at least one component type");
+    static_assert(sizeof...(Includes) > 0, "Query must have at least one component type");
 
 public:
     using iterator = typename std::vector<Entity>::iterator;
     using const_iterator = typename std::vector<Entity>::const_iterator;
 
     /// Construct a query from the storages for each included component type.
-    explicit Query(ComponentStorage<Includes>&... storages)
-        : storages_{&storages...} {}
+    explicit Query(ComponentStorage<Includes>&... storages) : storages_{&storages...} {}
 
     // Non-copyable, movable.
     Query(const Query&) = delete;
@@ -152,8 +150,7 @@ public:
         if (it == optionals_.end()) {
             return nullptr;
         }
-        const auto* storage =
-            static_cast<const ComponentStorage<T>*>(it->second);
+        const auto* storage = static_cast<const ComponentStorage<T>*>(it->second);
         if (!storage->Has(entity)) {
             return nullptr;
         }
@@ -188,9 +185,7 @@ private:
     /// and are excluded from the fingerprint.
     [[nodiscard]] uint64_t computeVersionFingerprint() const noexcept {
         uint64_t fp = 0;
-        std::apply(
-            [&](auto*... ptrs) { ((fp += ptrs->GlobalVersion()), ...); },
-            storages_);
+        std::apply([&](auto*... ptrs) { ((fp += ptrs->GlobalVersion()), ...); }, storages_);
         for (const auto* ex : excludes_) {
             fp += ex->Version();
         }
@@ -241,7 +236,7 @@ private:
                             return;
                         }
                         if (p == smallest) {
-                            return; // Already known to be present.
+                            return;  // Already known to be present.
                         }
                         if (!p->Has(entity)) {
                             matchesAll = false;
@@ -293,4 +288,4 @@ private:
     mutable bool cacheValid_ = false;
 };
 
-} // namespace cgs::ecs
+}  // namespace cgs::ecs

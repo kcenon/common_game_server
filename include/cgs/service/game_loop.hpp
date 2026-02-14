@@ -126,4 +126,4 @@ private:
     mutable std::mutex callbackMutex_;
 };
 
-} // namespace cgs::service
+}  // namespace cgs::service

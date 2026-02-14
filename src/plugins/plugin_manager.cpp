@@ -6,15 +6,15 @@
 
 #include "cgs/plugin/plugin_manager.hpp"
 
-#include <algorithm>
-#include <queue>
-#include <stack>
-#include <unordered_set>
-
 #include "cgs/foundation/error_code.hpp"
 #include "cgs/plugin/plugin_events.hpp"
 #include "cgs/plugin/plugin_export.hpp"
 #include "cgs/plugin/version_constraint.hpp"
+
+#include <algorithm>
+#include <queue>
+#include <stack>
+#include <unordered_set>
 
 // Platform-specific dynamic library loading.
 #if defined(_WIN32)
@@ -79,8 +79,7 @@ PluginContext& PluginManager::GetContext() noexcept {
 GameResult<void> PluginManager::LoadPlugin(const std::filesystem::path& path) {
     if (!std::filesystem::exists(path)) {
         return GameResult<void>::err(
-            GameError(ErrorCode::PluginLoadFailed,
-                      "Plugin file not found: " + path.string()));
+            GameError(ErrorCode::PluginLoadFailed, "Plugin file not found: " + path.string()));
     }
 
     // Open the shared library.
@@ -96,8 +95,7 @@ GameResult<void> PluginManager::LoadPlugin(const std::filesystem::path& path) {
 #else
         auto errorMsg = std::string(dlerror());
 #endif
-        return GameResult<void>::err(
-            GameError(ErrorCode::PluginLoadFailed, std::move(errorMsg)));
+        return GameResult<void>::err(GameError(ErrorCode::PluginLoadFailed, std::move(errorMsg)));
     }
 
     // Look up the factory function.
@@ -120,9 +118,8 @@ GameResult<void> PluginManager::LoadPlugin(const std::filesystem::path& path) {
     std::unique_ptr<IPlugin> plugin(createFn());
     if (!plugin) {
         closeLibrary(handle);
-        return GameResult<void>::err(
-            GameError(ErrorCode::PluginLoadFailed,
-                      "CgsCreatePlugin returned null for: " + path.string()));
+        return GameResult<void>::err(GameError(
+            ErrorCode::PluginLoadFailed, "CgsCreatePlugin returned null for: " + path.string()));
     }
 
     return loadPluginInstance(std::move(plugin), handle);
@@ -134,9 +131,8 @@ GameResult<void> PluginManager::RegisterStaticPlugins() {
     for (const auto& entry : StaticPluginRegistry()) {
         auto plugin = entry.factory();
         if (!plugin) {
-            return GameResult<void>::err(
-                GameError(ErrorCode::PluginLoadFailed,
-                          "Static plugin factory returned null: " + entry.name));
+            return GameResult<void>::err(GameError(
+                ErrorCode::PluginLoadFailed, "Static plugin factory returned null: " + entry.name));
         }
         auto result = loadPluginInstance(std::move(plugin), nullptr);
         if (result.hasError()) {
@@ -152,26 +148,22 @@ GameResult<void> PluginManager::InitPlugin(std::string_view name) {
     auto it = plugins_.find(std::string(name));
     if (it == plugins_.end()) {
         return GameResult<void>::err(
-            GameError(ErrorCode::PluginNotFound,
-                      "Plugin not found: " + std::string(name)));
+            GameError(ErrorCode::PluginNotFound, "Plugin not found: " + std::string(name)));
     }
 
     auto& entry = it->second;
     if (entry.state != PluginState::Loaded) {
         return GameResult<void>::err(
             GameError(ErrorCode::PluginInvalidState,
-                      "Plugin '" + std::string(name) +
-                          "' is not in Loaded state (current: " +
+                      "Plugin '" + std::string(name) + "' is not in Loaded state (current: " +
                           std::to_string(static_cast<int>(entry.state)) + ")"));
     }
 
     if (!entry.plugin->OnInit()) {
         entry.state = PluginState::Error;
-        eventBus_.Publish(PluginErrorEvent{
-            std::string(name), "OnInit() failed"});
-        return GameResult<void>::err(
-            GameError(ErrorCode::PluginInitFailed,
-                      "OnInit() failed for plugin: " + std::string(name)));
+        eventBus_.Publish(PluginErrorEvent{std::string(name), "OnInit() failed"});
+        return GameResult<void>::err(GameError(ErrorCode::PluginInitFailed,
+                                               "OnInit() failed for plugin: " + std::string(name)));
     }
 
     entry.state = PluginState::Initialized;
@@ -207,16 +199,14 @@ GameResult<void> PluginManager::ActivatePlugin(std::string_view name) {
     auto it = plugins_.find(std::string(name));
     if (it == plugins_.end()) {
         return GameResult<void>::err(
-            GameError(ErrorCode::PluginNotFound,
-                      "Plugin not found: " + std::string(name)));
+            GameError(ErrorCode::PluginNotFound, "Plugin not found: " + std::string(name)));
     }
 
     auto& entry = it->second;
     if (entry.state != PluginState::Initialized) {
         return GameResult<void>::err(
             GameError(ErrorCode::PluginInvalidState,
-                      "Plugin '" + std::string(name) +
-                          "' is not in Initialized state"));
+                      "Plugin '" + std::string(name) + "' is not in Initialized state"));
     }
 
     entry.state = PluginState::Active;
@@ -225,9 +215,7 @@ GameResult<void> PluginManager::ActivatePlugin(std::string_view name) {
 }
 
 GameResult<void> PluginManager::ActivateAll() {
-    const auto& order = loadOrder_.empty()
-                            ? GetAllPluginNames()
-                            : loadOrder_;
+    const auto& order = loadOrder_.empty() ? GetAllPluginNames() : loadOrder_;
 
     for (const auto& name : order) {
         auto it = plugins_.find(name);
@@ -245,9 +233,7 @@ GameResult<void> PluginManager::ActivateAll() {
 // ── Lifecycle: Update ───────────────────────────────────────────────────
 
 void PluginManager::UpdateAll(float deltaTime) {
-    const auto& order = loadOrder_.empty()
-                            ? GetAllPluginNames()
-                            : loadOrder_;
+    const auto& order = loadOrder_.empty() ? GetAllPluginNames() : loadOrder_;
 
     for (const auto& name : order) {
         auto it = plugins_.find(name);
@@ -263,17 +249,14 @@ GameResult<void> PluginManager::ShutdownPlugin(std::string_view name) {
     auto it = plugins_.find(std::string(name));
     if (it == plugins_.end()) {
         return GameResult<void>::err(
-            GameError(ErrorCode::PluginNotFound,
-                      "Plugin not found: " + std::string(name)));
+            GameError(ErrorCode::PluginNotFound, "Plugin not found: " + std::string(name)));
     }
 
     auto& entry = it->second;
-    if (entry.state != PluginState::Active &&
-        entry.state != PluginState::Initialized) {
+    if (entry.state != PluginState::Active && entry.state != PluginState::Initialized) {
         return GameResult<void>::err(
             GameError(ErrorCode::PluginInvalidState,
-                      "Plugin '" + std::string(name) +
-                          "' is not in Active or Initialized state"));
+                      "Plugin '" + std::string(name) + "' is not in Active or Initialized state"));
     }
 
     eventBus_.Publish(PluginShutdownEvent{std::string(name)});
@@ -285,16 +268,13 @@ GameResult<void> PluginManager::ShutdownPlugin(std::string_view name) {
 
 void PluginManager::ShutdownAll() {
     // Shutdown in reverse dependency order.
-    auto order = loadOrder_.empty()
-                     ? GetAllPluginNames()
-                     : loadOrder_;
+    auto order = loadOrder_.empty() ? GetAllPluginNames() : loadOrder_;
     std::reverse(order.begin(), order.end());
 
     for (const auto& name : order) {
         auto it = plugins_.find(name);
-        if (it != plugins_.end() &&
-            (it->second.state == PluginState::Active ||
-             it->second.state == PluginState::Initialized)) {
+        if (it != plugins_.end() && (it->second.state == PluginState::Active ||
+                                     it->second.state == PluginState::Initialized)) {
             eventBus_.Publish(PluginShutdownEvent{name});
             it->second.state = PluginState::ShuttingDown;
             it->second.plugin->OnShutdown();
@@ -309,18 +289,15 @@ GameResult<void> PluginManager::UnloadPlugin(std::string_view name) {
     auto it = plugins_.find(std::string(name));
     if (it == plugins_.end()) {
         return GameResult<void>::err(
-            GameError(ErrorCode::PluginNotFound,
-                      "Plugin not found: " + std::string(name)));
+            GameError(ErrorCode::PluginNotFound, "Plugin not found: " + std::string(name)));
     }
 
     auto& entry = it->second;
-    if (entry.state != PluginState::Loaded &&
-        entry.state != PluginState::Unloaded &&
+    if (entry.state != PluginState::Loaded && entry.state != PluginState::Unloaded &&
         entry.state != PluginState::Error) {
         return GameResult<void>::err(
             GameError(ErrorCode::PluginInvalidState,
-                      "Plugin '" + std::string(name) +
-                          "' must be shut down before unloading"));
+                      "Plugin '" + std::string(name) + "' must be shut down before unloading"));
     }
 
     entry.plugin->OnUnload();
@@ -344,9 +321,7 @@ GameResult<void> PluginManager::UnloadPlugin(std::string_view name) {
 
 void PluginManager::UnloadAll() {
     // Unload in reverse dependency order.
-    auto order = loadOrder_.empty()
-                     ? GetAllPluginNames()
-                     : loadOrder_;
+    auto order = loadOrder_.empty() ? GetAllPluginNames() : loadOrder_;
     std::reverse(order.begin(), order.end());
 
     for (const auto& name : order) {
@@ -378,8 +353,7 @@ GameResult<PluginState> PluginManager::GetPluginState(std::string_view name) con
     auto it = plugins_.find(std::string(name));
     if (it == plugins_.end()) {
         return GameResult<PluginState>::err(
-            GameError(ErrorCode::PluginNotFound,
-                      "Plugin not found: " + std::string(name)));
+            GameError(ErrorCode::PluginNotFound, "Plugin not found: " + std::string(name)));
     }
     return GameResult<PluginState>::ok(it->second.state);
 }
@@ -403,8 +377,8 @@ EventBus& PluginManager::GetEventBus() noexcept {
 
 // ── Private helpers ─────────────────────────────────────────────────────
 
-GameResult<void> PluginManager::loadPluginInstance(
-    std::unique_ptr<IPlugin> plugin, void* libraryHandle) {
+GameResult<void> PluginManager::loadPluginInstance(std::unique_ptr<IPlugin> plugin,
+                                                   void* libraryHandle) {
     const auto& info = plugin->GetInfo();
 
     // Check for duplicate.
@@ -413,8 +387,7 @@ GameResult<void> PluginManager::loadPluginInstance(
             closeLibrary(libraryHandle);
         }
         return GameResult<void>::err(
-            GameError(ErrorCode::PluginAlreadyLoaded,
-                      "Plugin already loaded: " + info.name));
+            GameError(ErrorCode::PluginAlreadyLoaded, "Plugin already loaded: " + info.name));
     }
 
     // Verify API version compatibility (major must match).
@@ -422,11 +395,10 @@ GameResult<void> PluginManager::loadPluginInstance(
         if (libraryHandle != nullptr) {
             closeLibrary(libraryHandle);
         }
-        return GameResult<void>::err(
-            GameError(ErrorCode::PluginVersionMismatch,
-                      "API version mismatch for '" + info.name +
-                          "': expected " + std::to_string(kPluginApiVersion) +
-                          ", got " + std::to_string(info.apiVersion)));
+        return GameResult<void>::err(GameError(
+            ErrorCode::PluginVersionMismatch,
+            "API version mismatch for '" + info.name + "': expected " +
+                std::to_string(kPluginApiVersion) + ", got " + std::to_string(info.apiVersion)));
     }
 
     // Call OnLoad.
@@ -435,8 +407,7 @@ GameResult<void> PluginManager::loadPluginInstance(
             closeLibrary(libraryHandle);
         }
         return GameResult<void>::err(
-            GameError(ErrorCode::PluginLoadFailed,
-                      "OnLoad() failed for plugin: " + info.name));
+            GameError(ErrorCode::PluginLoadFailed, "OnLoad() failed for plugin: " + info.name));
     }
 
     PluginEntry entry;
@@ -593,9 +564,8 @@ void PluginManager::validateVersionConstraints(DependencyReport& report) const {
                 issue.kind = DependencyIssue::Kind::Missing;
                 issue.plugin = name;
                 issue.dependency = spec.name;
-                issue.detail = "Plugin '" + name + "' requires '" + spec.name +
-                               "' (" + spec.ConstraintsToString() +
-                               ") but it is not loaded";
+                issue.detail = "Plugin '" + name + "' requires '" + spec.name + "' (" +
+                               spec.ConstraintsToString() + ") but it is not loaded";
                 report.issues.push_back(std::move(issue));
                 continue;
             }
@@ -609,12 +579,11 @@ void PluginManager::validateVersionConstraints(DependencyReport& report) const {
                     issue.kind = DependencyIssue::Kind::VersionMismatch;
                     issue.plugin = name;
                     issue.dependency = spec.name;
-                    issue.detail =
-                        "Plugin '" + name + "' requires '" + spec.name + "' " +
-                        spec.ConstraintsToString() + " but loaded version is " +
-                        std::to_string(depVersion.major) + "." +
-                        std::to_string(depVersion.minor) + "." +
-                        std::to_string(depVersion.patch);
+                    issue.detail = "Plugin '" + name + "' requires '" + spec.name + "' " +
+                                   spec.ConstraintsToString() + " but loaded version is " +
+                                   std::to_string(depVersion.major) + "." +
+                                   std::to_string(depVersion.minor) + "." +
+                                   std::to_string(depVersion.patch);
                     report.issues.push_back(std::move(issue));
                 }
             }
@@ -638,8 +607,7 @@ std::vector<std::string> PluginManager::detectCycle(
     std::string cycleEnd;
     bool found = false;
 
-    std::function<bool(const std::string&)> dfs =
-        [&](const std::string& node) -> bool {
+    std::function<bool(const std::string&)> dfs = [&](const std::string& node) -> bool {
         color[node] = Color::Gray;
 
         if (graph.count(node) > 0) {
@@ -707,4 +675,4 @@ void PluginManager::closeLibrary(void* handle) {
 #endif
 }
 
-} // namespace cgs::plugin
+}  // namespace cgs::plugin

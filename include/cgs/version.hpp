@@ -18,4 +18,4 @@ struct Version {
     static constexpr const char* string = CGS_VERSION_STRING;
 };
 
-} // namespace cgs
+}  // namespace cgs

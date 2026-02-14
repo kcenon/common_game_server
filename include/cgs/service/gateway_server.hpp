@@ -11,15 +11,15 @@
 /// @see SRS-SVC-002
 /// @see SDS-MOD-041
 
+#include "cgs/foundation/game_result.hpp"
+#include "cgs/foundation/types.hpp"
+#include "cgs/service/gateway_types.hpp"
+
 #include <cstdint>
 #include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include "cgs/foundation/game_result.hpp"
-#include "cgs/foundation/types.hpp"
-#include "cgs/service/gateway_types.hpp"
 
 namespace cgs::service {
 
@@ -94,8 +94,7 @@ struct GatewayStats {
 /// @endcode
 class GatewayServer {
 public:
-    GatewayServer(GatewayConfig config,
-                  std::shared_ptr<AuthServer> authServer);
+    GatewayServer(GatewayConfig config, std::shared_ptr<AuthServer> authServer);
 
     ~GatewayServer();
 
@@ -118,31 +117,29 @@ public:
     // -- Route configuration --------------------------------------------------
 
     /// Register an opcode range to route to a downstream service.
-    void addRoute(uint16_t opcodeMin, uint16_t opcodeMax,
-                  std::string service, bool requiresAuth = true);
+    void addRoute(uint16_t opcodeMin,
+                  uint16_t opcodeMax,
+                  std::string service,
+                  bool requiresAuth = true);
 
     // -- Connection handling --------------------------------------------------
 
     /// Handle a new client connection.
     [[nodiscard]] cgs::foundation::GameResult<void> handleConnect(
-        cgs::foundation::SessionId sessionId,
-        std::string remoteAddress);
+        cgs::foundation::SessionId sessionId, std::string remoteAddress);
 
     /// Handle a client disconnection.
     void handleDisconnect(cgs::foundation::SessionId sessionId);
 
     /// Process an incoming message and return the routing decision.
     [[nodiscard]] cgs::foundation::GameResult<GatewayAction> handleMessage(
-        cgs::foundation::SessionId sessionId,
-        uint16_t opcode,
-        std::vector<uint8_t> payload);
+        cgs::foundation::SessionId sessionId, uint16_t opcode, std::vector<uint8_t> payload);
 
     // -- Migration ------------------------------------------------------------
 
     /// Initiate a server transfer for an authenticated client.
     [[nodiscard]] cgs::foundation::GameResult<void> initiateServerTransfer(
-        cgs::foundation::SessionId sessionId,
-        std::string targetService);
+        cgs::foundation::SessionId sessionId, std::string targetService);
 
     // -- Maintenance ----------------------------------------------------------
 
@@ -167,4 +164,4 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-} // namespace cgs::service
+}  // namespace cgs::service

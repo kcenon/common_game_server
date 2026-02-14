@@ -35,8 +35,7 @@ void SpatialIndex::Insert(cgs::ecs::Entity entity, const Vector3& position) {
     entityCells_[entity] = cell;
 }
 
-void SpatialIndex::Update(cgs::ecs::Entity entity,
-                          const Vector3& newPosition) {
+void SpatialIndex::Update(cgs::ecs::Entity entity, const Vector3& newPosition) {
     auto it = entityCells_.find(entity);
     if (it == entityCells_.end()) {
         Insert(entity, newPosition);
@@ -67,8 +66,7 @@ void SpatialIndex::Clear() {
     entityCells_.clear();
 }
 
-std::vector<cgs::ecs::Entity>
-SpatialIndex::QueryRadius(const Vector3& center, float radius) const {
+std::vector<cgs::ecs::Entity> SpatialIndex::QueryRadius(const Vector3& center, float radius) const {
     std::vector<cgs::ecs::Entity> result;
 
     if (radius <= 0.0f) {
@@ -107,14 +105,12 @@ SpatialIndex::QueryRadius(const Vector3& center, float radius) const {
     return result;
 }
 
-std::vector<cgs::ecs::Entity>
-SpatialIndex::QueryPosition(const Vector3& pos) const {
+std::vector<cgs::ecs::Entity> SpatialIndex::QueryPosition(const Vector3& pos) const {
     auto cell = WorldToCell(pos);
     return QueryCell(cell.x, cell.y);
 }
 
-std::vector<cgs::ecs::Entity>
-SpatialIndex::QueryCell(int32_t x, int32_t y) const {
+std::vector<cgs::ecs::Entity> SpatialIndex::QueryCell(int32_t x, int32_t y) const {
     auto it = cells_.find(CellCoord{x, y});
     if (it == cells_.end()) {
         return {};
@@ -146,13 +142,12 @@ void SpatialIndex::addToCell(cgs::ecs::Entity entity, CellCoord cell) {
 // WorldSystem implementation
 // ═══════════════════════════════════════════════════════════════════════════
 
-WorldSystem::WorldSystem(
-    cgs::ecs::ComponentStorage<Transform>& transforms,
-    cgs::ecs::ComponentStorage<MapMembership>& memberships,
-    cgs::ecs::ComponentStorage<MapInstance>& mapInstances,
-    cgs::ecs::ComponentStorage<VisibilityRange>& visibilityRanges,
-    cgs::ecs::ComponentStorage<Zone>& zones,
-    float cellSize)
+WorldSystem::WorldSystem(cgs::ecs::ComponentStorage<Transform>& transforms,
+                         cgs::ecs::ComponentStorage<MapMembership>& memberships,
+                         cgs::ecs::ComponentStorage<MapInstance>& mapInstances,
+                         cgs::ecs::ComponentStorage<VisibilityRange>& visibilityRanges,
+                         cgs::ecs::ComponentStorage<Zone>& zones,
+                         float cellSize)
     : transforms_(transforms),
       memberships_(memberships),
       mapInstances_(mapInstances),
@@ -183,8 +178,7 @@ void WorldSystem::synchronizePositions() {
         const auto& transform = transforms_.Get(entity);
 
         // Ensure a spatial index exists for this map.
-        auto& index = spatialIndices_.try_emplace(
-            membership.mapEntity, cellSize_).first->second;
+        auto& index = spatialIndices_.try_emplace(membership.mapEntity, cellSize_).first->second;
 
         // Insert or update the entity position.
         index.Update(entity, transform.position);
@@ -194,8 +188,7 @@ void WorldSystem::synchronizePositions() {
     // (via TransferEntity) or destroyed by the EntityManager.
 }
 
-std::vector<cgs::ecs::Entity>
-WorldSystem::GetVisibleEntities(cgs::ecs::Entity viewer) const {
+std::vector<cgs::ecs::Entity> WorldSystem::GetVisibleEntities(cgs::ecs::Entity viewer) const {
     if (!memberships_.Has(viewer) || !transforms_.Has(viewer)) {
         return {};
     }
@@ -211,10 +204,9 @@ WorldSystem::GetVisibleEntities(cgs::ecs::Entity viewer) const {
     return QueryRadius(membership.mapEntity, transform.position, range);
 }
 
-std::vector<cgs::ecs::Entity>
-WorldSystem::QueryRadius(cgs::ecs::Entity mapEntity,
-                         const Vector3& center,
-                         float radius) const {
+std::vector<cgs::ecs::Entity> WorldSystem::QueryRadius(cgs::ecs::Entity mapEntity,
+                                                       const Vector3& center,
+                                                       float radius) const {
     auto it = spatialIndices_.find(mapEntity);
     if (it == spatialIndices_.end()) {
         return {};
@@ -244,11 +236,9 @@ WorldSystem::QueryRadius(cgs::ecs::Entity mapEntity,
     return result;
 }
 
-TransitionResult WorldSystem::TransferEntity(
-    cgs::ecs::Entity entity,
-    cgs::ecs::Entity targetMapEntity,
-    const Vector3& destination) {
-
+TransitionResult WorldSystem::TransferEntity(cgs::ecs::Entity entity,
+                                             cgs::ecs::Entity targetMapEntity,
+                                             const Vector3& destination) {
     // Validate target map exists.
     if (!mapInstances_.Has(targetMapEntity)) {
         return TransitionResult::InvalidMap;
@@ -274,8 +264,7 @@ TransitionResult WorldSystem::TransferEntity(
     membership.zoneId = 0;  // Reset zone; will be updated by zone logic.
 
     // Insert into new map's spatial index.
-    auto& newIndex = spatialIndices_.try_emplace(
-        targetMapEntity, cellSize_).first->second;
+    auto& newIndex = spatialIndices_.try_emplace(targetMapEntity, cellSize_).first->second;
     newIndex.Insert(entity, destination);
 
     return TransitionResult::Success;
@@ -295,8 +284,7 @@ ZoneFlags WorldSystem::GetEntityZoneFlags(cgs::ecs::Entity entity) const {
         cgs::ecs::Entity zoneEntity(zoneEntityId, 0);
         const auto& zone = zones_.Get(zoneEntity);
 
-        if (zone.zoneId == targetZoneId
-            && zone.mapEntity == membership.mapEntity) {
+        if (zone.zoneId == targetZoneId && zone.mapEntity == membership.mapEntity) {
             return zone.flags;
         }
     }
@@ -304,8 +292,7 @@ ZoneFlags WorldSystem::GetEntityZoneFlags(cgs::ecs::Entity entity) const {
     return ZoneFlags::None;
 }
 
-const SpatialIndex*
-WorldSystem::GetSpatialIndex(cgs::ecs::Entity mapEntity) const {
+const SpatialIndex* WorldSystem::GetSpatialIndex(cgs::ecs::Entity mapEntity) const {
     auto it = spatialIndices_.find(mapEntity);
     if (it == spatialIndices_.end()) {
         return nullptr;
@@ -313,4 +300,4 @@ WorldSystem::GetSpatialIndex(cgs::ecs::Entity mapEntity) const {
     return &it->second;
 }
 
-} // namespace cgs::game
+}  // namespace cgs::game

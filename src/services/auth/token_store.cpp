@@ -13,8 +13,7 @@ void InMemoryTokenStore::store(RefreshTokenRecord record) {
     tokens_.emplace(std::move(key), std::move(record));
 }
 
-std::optional<RefreshTokenRecord> InMemoryTokenStore::find(
-    std::string_view token) const {
+std::optional<RefreshTokenRecord> InMemoryTokenStore::find(std::string_view token) const {
     std::lock_guard<std::mutex> lock(mutex_);
     auto it = tokens_.find(std::string(token));
     if (it == tokens_.end()) {
@@ -54,4 +53,4 @@ void InMemoryTokenStore::removeExpired() {
     }
 }
 
-} // namespace cgs::service
+}  // namespace cgs::service

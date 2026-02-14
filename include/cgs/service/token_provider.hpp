@@ -11,11 +11,11 @@
 /// @see SRS-SVC-001.4
 /// @see SRS-NFR-014
 
-#include <string>
-#include <string_view>
-
 #include "cgs/foundation/game_result.hpp"
 #include "cgs/service/auth_types.hpp"
+
+#include <string>
+#include <string_view>
 
 namespace cgs::service {
 
@@ -50,9 +50,8 @@ public:
     /// Generate a signed JWT access token from the given claims.
     ///
     /// Includes a unique `jti` (JWT ID) claim for blacklist referencing.
-    [[nodiscard]] std::string generateAccessToken(
-        const TokenClaims& claims,
-        std::chrono::seconds expiry) const;
+    [[nodiscard]] std::string generateAccessToken(const TokenClaims& claims,
+                                                  std::chrono::seconds expiry) const;
 
     /// Validate and decode a JWT access token.
     ///
@@ -78,4 +77,4 @@ private:
     TokenBlacklist* blacklist_ = nullptr;
 };
 
-} // namespace cgs::service
+}  // namespace cgs::service

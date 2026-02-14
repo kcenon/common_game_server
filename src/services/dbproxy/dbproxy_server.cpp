@@ -3,17 +3,17 @@
 
 #include "cgs/service/dbproxy_server.hpp"
 
+#include "cgs/foundation/error_code.hpp"
+#include "cgs/foundation/game_error.hpp"
+#include "cgs/service/connection_pool_manager.hpp"
+#include "cgs/service/query_cache.hpp"
+
 #include <algorithm>
 #include <atomic>
 #include <cctype>
 #include <future>
 #include <mutex>
 #include <string>
-
-#include "cgs/foundation/error_code.hpp"
-#include "cgs/foundation/game_error.hpp"
-#include "cgs/service/connection_pool_manager.hpp"
-#include "cgs/service/query_cache.hpp"
 
 namespace cgs::service {
 
@@ -44,8 +44,7 @@ bool isReadQuery(std::string_view sql) {
     }
 
     for (std::size_t i = 0; i < kSelect.size(); ++i) {
-        if (std::toupper(static_cast<unsigned char>(remaining[i])) !=
-            kSelect[i]) {
+        if (std::toupper(static_cast<unsigned char>(remaining[i])) != kSelect[i]) {
             return false;
         }
     }
@@ -61,13 +60,13 @@ bool isReadQuery(std::string_view sql) {
 std::string extractTableName(std::string_view sql) {
     // Normalize to uppercase for keyword matching.
     auto upper = std::string(sql);
-    std::transform(upper.begin(), upper.end(), upper.begin(),
-                   [](unsigned char c) { return std::toupper(c); });
+    std::transform(
+        upper.begin(), upper.end(), upper.begin(), [](unsigned char c) { return std::toupper(c); });
 
     // Patterns to search for.
     struct Pattern {
         std::string_view keyword;
-        std::size_t skipWords; // Words to skip after keyword.
+        std::size_t skipWords;  // Words to skip after keyword.
     };
 
     static const Pattern patterns[] = {
@@ -90,8 +89,7 @@ std::string extractTableName(std::string_view sql) {
         auto nameStart = pos + pattern.keyword.size();
 
         // Skip optional whitespace.
-        while (nameStart < sql.size() &&
-               std::isspace(static_cast<unsigned char>(sql[nameStart]))) {
+        while (nameStart < sql.size() && std::isspace(static_cast<unsigned char>(sql[nameStart]))) {
             ++nameStart;
         }
 
@@ -99,8 +97,7 @@ std::string extractTableName(std::string_view sql) {
         auto nameEnd = nameStart;
         while (nameEnd < sql.size()) {
             char c = sql[nameEnd];
-            if (std::isspace(static_cast<unsigned char>(c)) ||
-                c == '(' || c == ';' || c == ',') {
+            if (std::isspace(static_cast<unsigned char>(c)) || c == '(' || c == ';' || c == ',') {
                 break;
             }
             ++nameEnd;
@@ -114,7 +111,7 @@ std::string extractTableName(std::string_view sql) {
     return {};
 }
 
-} // anonymous namespace
+}  // anonymous namespace
 
 // ── Impl ────────────────────────────────────────────────────────────────────
 
@@ -128,9 +125,7 @@ struct DBProxyServer::Impl {
     std::atomic<bool> running{false};
 
     explicit Impl(DBProxyConfig cfg)
-        : config(std::move(cfg))
-        , poolManager(config)
-        , cache(config.cache) {}
+        : config(std::move(cfg)), poolManager(config), cache(config.cache) {}
 };
 
 // ── Construction / destruction / move ───────────────────────────────────────
@@ -239,13 +234,11 @@ GameResult<uint64_t> DBProxyServer::execute(std::string_view sql) {
 
 // ── queryAsync() ────────────────────────────────────────────────────────────
 
-std::future<GameResult<QueryResult>> DBProxyServer::queryAsync(
-    std::string_view sql) {
+std::future<GameResult<QueryResult>> DBProxyServer::queryAsync(std::string_view sql) {
     auto sqlStr = std::string(sql);
-    return std::async(std::launch::async,
-        [this, sqlStr = std::move(sqlStr)]() -> GameResult<QueryResult> {
-            return query(sqlStr);
-        });
+    return std::async(
+        std::launch::async,
+        [this, sqlStr = std::move(sqlStr)]() -> GameResult<QueryResult> { return query(sqlStr); });
 }
 
 // ── query(PreparedStatement) ────────────────────────────────────────────────
@@ -313,14 +306,13 @@ GameResult<uint64_t> DBProxyServer::execute(const PreparedStatement& stmt) {
 
 // ── queryAsync(PreparedStatement) ───────────────────────────────────────────
 
-std::future<GameResult<QueryResult>> DBProxyServer::queryAsync(
-    const PreparedStatement& stmt) {
+std::future<GameResult<QueryResult>> DBProxyServer::queryAsync(const PreparedStatement& stmt) {
     // Copy the statement for the async lambda.
     auto stmtCopy = stmt;
     return std::async(std::launch::async,
-        [this, stmtCopy = std::move(stmtCopy)]() -> GameResult<QueryResult> {
-            return query(stmtCopy);
-        });
+                      [this, stmtCopy = std::move(stmtCopy)]() -> GameResult<QueryResult> {
+                          return query(stmtCopy);
+                      });
 }
 
 // ── Cache management ────────────────────────────────────────────────────────
@@ -358,4 +350,4 @@ const DBProxyConfig& DBProxyServer::config() const noexcept {
     return impl_->config;
 }
 
-} // namespace cgs::service
+}  // namespace cgs::service

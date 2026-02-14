@@ -10,12 +10,12 @@
 /// @see SRS-GML-002.1 .. SRS-GML-002.5
 /// @see SDS-MOD-021
 
+#include "cgs/ecs/entity.hpp"
+#include "cgs/game/combat_types.hpp"
+
 #include <algorithm>
 #include <cstdint>
 #include <vector>
-
-#include "cgs/ecs/entity.hpp"
-#include "cgs/game/combat_types.hpp"
 
 namespace cgs::game {
 
@@ -29,8 +29,8 @@ struct SpellCast {
     uint32_t spellId = 0;
     cgs::ecs::Entity target;
     CastState state = CastState::Idle;
-    float castTime = 0.0f;        ///< Total cast duration (seconds).
-    float remainingTime = 0.0f;   ///< Time left until cast completes.
+    float castTime = 0.0f;       ///< Total cast duration (seconds).
+    float remainingTime = 0.0f;  ///< Time left until cast completes.
 
     /// Begin casting a spell.
     void Begin(uint32_t spell, cgs::ecs::Entity tgt, float duration) noexcept {
@@ -66,11 +66,11 @@ struct AuraInstance {
     uint32_t auraId = 0;
     cgs::ecs::Entity caster;
     int32_t stacks = 1;
-    float duration = 0.0f;        ///< Total duration (seconds).
-    float remainingTime = 0.0f;   ///< Time until expiry.
-    float tickInterval = 0.0f;    ///< Periodic tick interval (0 = no tick).
-    float tickTimer = 0.0f;       ///< Time until next tick.
-    int32_t tickDamage = 0;       ///< Damage/heal per tick (negative = heal).
+    float duration = 0.0f;       ///< Total duration (seconds).
+    float remainingTime = 0.0f;  ///< Time until expiry.
+    float tickInterval = 0.0f;   ///< Periodic tick interval (0 = no tick).
+    float tickTimer = 0.0f;      ///< Time until next tick.
+    int32_t tickDamage = 0;      ///< Damage/heal per tick (negative = heal).
     DamageType tickDamageType = DamageType::Magic;
 };
 
@@ -86,11 +86,8 @@ struct AuraHolder {
     AuraInstance& AddOrStack(const AuraInstance& aura) {
         // Check for existing aura from same caster.
         for (auto& existing : auras) {
-            if (existing.auraId == aura.auraId
-                && existing.caster == aura.caster) {
-                existing.stacks = std::min(
-                    existing.stacks + aura.stacks,
-                    kMaxAuraStacks);
+            if (existing.auraId == aura.auraId && existing.caster == aura.caster) {
+                existing.stacks = std::min(existing.stacks + aura.stacks, kMaxAuraStacks);
                 existing.remainingTime = aura.duration;
                 existing.duration = aura.duration;
                 return existing;
@@ -102,24 +99,19 @@ struct AuraHolder {
 
     /// Remove all auras with the given ID.
     void RemoveById(uint32_t auraId) {
-        std::erase_if(auras, [auraId](const AuraInstance& a) {
-            return a.auraId == auraId;
-        });
+        std::erase_if(auras, [auraId](const AuraInstance& a) { return a.auraId == auraId; });
     }
 
     /// Remove expired auras (remainingTime <= 0).
     void RemoveExpired() {
-        std::erase_if(auras, [](const AuraInstance& a) {
-            return a.remainingTime <= 0.0f;
-        });
+        std::erase_if(auras, [](const AuraInstance& a) { return a.remainingTime <= 0.0f; });
     }
 
     /// Check if the entity has an aura with the given ID.
     [[nodiscard]] bool HasAura(uint32_t auraId) const {
-        return std::any_of(auras.begin(), auras.end(),
-                           [auraId](const AuraInstance& a) {
-                               return a.auraId == auraId;
-                           });
+        return std::any_of(auras.begin(), auras.end(), [auraId](const AuraInstance& a) {
+            return a.auraId == auraId;
+        });
     }
 
     /// Get total stack count for a specific aura ID.
@@ -146,9 +138,9 @@ struct DamageEvent {
     cgs::ecs::Entity victim;
     DamageType type = DamageType::Physical;
     int32_t baseDamage = 0;
-    int32_t finalDamage = 0;     ///< Computed by the damage pipeline.
+    int32_t finalDamage = 0;  ///< Computed by the damage pipeline.
     bool isCritical = false;
-    bool isProcessed = false;    ///< Set to true after CombatSystem handles it.
+    bool isProcessed = false;  ///< Set to true after CombatSystem handles it.
 };
 
 // ── ThreatList (SRS-GML-002 — Threat/Aggro) ────────────────────────────
@@ -180,9 +172,7 @@ struct ThreatList {
 
     /// Remove a source from the threat list.
     void Remove(cgs::ecs::Entity source) {
-        std::erase_if(entries, [source](const ThreatEntry& e) {
-            return e.source == source;
-        });
+        std::erase_if(entries, [source](const ThreatEntry& e) { return e.source == source; });
     }
 
     /// Get the entity with the highest threat (top aggro).
@@ -208,11 +198,10 @@ struct ThreatList {
 
 private:
     void sortDescending() {
-        std::sort(entries.begin(), entries.end(),
-                  [](const ThreatEntry& a, const ThreatEntry& b) {
-                      return a.threat > b.threat;
-                  });
+        std::sort(entries.begin(), entries.end(), [](const ThreatEntry& a, const ThreatEntry& b) {
+            return a.threat > b.threat;
+        });
     }
 };
 
-} // namespace cgs::game
+}  // namespace cgs::game

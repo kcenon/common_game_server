@@ -8,14 +8,14 @@
 ///
 /// @see SRS-SVC-002.3
 
+#include "cgs/service/gateway_types.hpp"
+
 #include <cstdint>
 #include <mutex>
 #include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include "cgs/service/gateway_types.hpp"
 
 namespace cgs::service {
 
@@ -42,8 +42,10 @@ struct RouteMatch {
 class RouteTable {
 public:
     /// Add a route mapping an opcode range to a service.
-    void addRoute(uint16_t opcodeMin, uint16_t opcodeMax,
-                  std::string service, bool requiresAuth = true);
+    void addRoute(uint16_t opcodeMin,
+                  uint16_t opcodeMax,
+                  std::string service,
+                  bool requiresAuth = true);
 
     /// Add a route from a RouteEntry.
     void addRoute(RouteEntry entry);
@@ -68,4 +70,4 @@ private:
     std::vector<RouteEntry> routes_;
 };
 
-} // namespace cgs::service
+}  // namespace cgs::service

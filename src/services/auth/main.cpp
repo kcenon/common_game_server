@@ -5,10 +5,6 @@
 /// Creates an AuthServer with in-memory storage backends
 /// suitable for development and testing.
 
-#include <cstdlib>
-#include <iostream>
-#include <memory>
-
 #include "cgs/foundation/config_manager.hpp"
 #include "cgs/foundation/game_metrics.hpp"
 #include "cgs/service/auth_server.hpp"
@@ -18,10 +14,13 @@
 #include "cgs/service/token_store.hpp"
 #include "cgs/service/user_repository.hpp"
 
+#include <cstdlib>
+#include <iostream>
+#include <memory>
+
 namespace {
 
-cgs::service::AuthConfig buildAuthConfig(
-    const cgs::foundation::ConfigManager& config) {
+cgs::service::AuthConfig buildAuthConfig(const cgs::foundation::ConfigManager& config) {
     cgs::service::AuthConfig cfg;
 
     auto signingKey = config.get<std::string>("auth.signing_key");
@@ -70,17 +69,15 @@ cgs::service::AuthConfig buildAuthConfig(
         cfg.rsaPublicKeyPem = std::move(rsaPublicKey).value();
     }
 
-    auto blacklistInterval =
-        config.get<int>("auth.blacklist_cleanup_interval_seconds");
+    auto blacklistInterval = config.get<int>("auth.blacklist_cleanup_interval_seconds");
     if (blacklistInterval) {
-        cfg.blacklistCleanupInterval =
-            std::chrono::seconds(blacklistInterval.value());
+        cfg.blacklistCleanupInterval = std::chrono::seconds(blacklistInterval.value());
     }
 
     return cfg;
 }
 
-} // namespace
+}  // namespace
 
 int main(int argc, char* argv[]) {
     cgs::service::SignalHandler signals;
@@ -94,20 +91,17 @@ int main(int argc, char* argv[]) {
     cgs::foundation::ConfigManager config;
     auto loadResult = cgs::service::loadConfig(config, configPath);
     if (!loadResult) {
-        std::cerr << "Failed to load config: "
-                  << loadResult.error().message() << "\n";
+        std::cerr << "Failed to load config: " << loadResult.error().message() << "\n";
         return EXIT_FAILURE;
     }
 
     // Health server + metrics.
     auto& metrics = cgs::foundation::GameMetrics::instance();
-    cgs::service::HealthServer health(
-        {.port = 9101, .serviceName = "auth"}, metrics);
+    cgs::service::HealthServer health({.port = 9101, .serviceName = "auth"}, metrics);
 
     auto healthResult = health.start();
     if (!healthResult) {
-        std::cerr << "Failed to start health server: "
-                  << healthResult.error().message() << "\n";
+        std::cerr << "Failed to start health server: " << healthResult.error().message() << "\n";
         return EXIT_FAILURE;
     }
 

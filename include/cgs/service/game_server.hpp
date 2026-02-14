@@ -12,14 +12,14 @@
 /// @see SRS-SVC-003
 /// @see SDS-MOD-032
 
+#include "cgs/ecs/entity.hpp"
+#include "cgs/foundation/game_result.hpp"
+#include "cgs/foundation/types.hpp"
+
 #include <cstdint>
 #include <memory>
 #include <optional>
 #include <vector>
-
-#include "cgs/ecs/entity.hpp"
-#include "cgs/foundation/game_result.hpp"
-#include "cgs/foundation/types.hpp"
 
 namespace cgs::service {
 
@@ -122,16 +122,14 @@ public:
     // -- Instance management --------------------------------------------------
 
     /// Create a new map instance for the given map ID.
-    [[nodiscard]] cgs::foundation::GameResult<uint32_t> createInstance(
-        uint32_t mapId, uint32_t maxPlayers = 100);
+    [[nodiscard]] cgs::foundation::GameResult<uint32_t> createInstance(uint32_t mapId,
+                                                                       uint32_t maxPlayers = 100);
 
     /// Destroy a map instance (must have zero players).
-    [[nodiscard]] cgs::foundation::GameResult<void> destroyInstance(
-        uint32_t instanceId);
+    [[nodiscard]] cgs::foundation::GameResult<void> destroyInstance(uint32_t instanceId);
 
     /// Get instance IDs that can accept new players for a given map.
-    [[nodiscard]] std::vector<uint32_t> availableInstances(
-        uint32_t mapId) const;
+    [[nodiscard]] std::vector<uint32_t> availableInstances(uint32_t mapId) const;
 
     // -- Player lifecycle -----------------------------------------------------
 
@@ -154,8 +152,7 @@ public:
 
     /// Transfer a player to a different map instance.
     [[nodiscard]] cgs::foundation::GameResult<void> transferPlayer(
-        cgs::foundation::PlayerId playerId,
-        uint32_t targetInstanceId);
+        cgs::foundation::PlayerId playerId, uint32_t targetInstanceId);
 
     // -- Statistics -----------------------------------------------------------
 
@@ -170,4 +167,4 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-} // namespace cgs::service
+}  // namespace cgs::service

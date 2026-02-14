@@ -9,4 +9,4 @@
 
 namespace cgs::ecs {
 // Intentionally empty — all Query logic is in the header template.
-} // namespace cgs::ecs
+}  // namespace cgs::ecs

@@ -53,9 +53,8 @@ void SignalHandler::waitForShutdown() const {
 
 // -- Config loading ----------------------------------------------------------
 
-cgs::foundation::GameResult<void>
-loadConfig(cgs::foundation::ConfigManager& config,
-           const std::filesystem::path& defaultPath) {
+cgs::foundation::GameResult<void> loadConfig(cgs::foundation::ConfigManager& config,
+                                             const std::filesystem::path& defaultPath) {
     std::filesystem::path configPath = defaultPath;
 
     // Environment variable override for 12-factor compliance.
@@ -71,7 +70,8 @@ loadConfig(cgs::foundation::ConfigManager& config,
 
 std::filesystem::path parseConfigArg(int argc, char* argv[]) {
     for (int i = 1; i < argc - 1; ++i) {
-        if (std::string_view(argv[i]) == "--config") {  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
+        if (std::string_view(argv[i]) ==
+            "--config") {        // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
             return argv[i + 1];  // NOLINT(cppcoreguidelines-pro-bounds-pointer-arithmetic)
         }
     }
@@ -89,19 +89,16 @@ void GracefulShutdown::execute() {
 
     for (const auto& hook : hooks_) {
         if (std::chrono::steady_clock::now() >= deadline) {
-            std::cerr << "Graceful shutdown timeout reached, skipping: "
-                      << hook.name << "\n";
+            std::cerr << "Graceful shutdown timeout reached, skipping: " << hook.name << "\n";
             break;
         }
 
         try {
             hook.callback();
         } catch (const std::exception& e) {
-            std::cerr << "Shutdown hook '" << hook.name
-                      << "' failed: " << e.what() << "\n";
+            std::cerr << "Shutdown hook '" << hook.name << "' failed: " << e.what() << "\n";
         } catch (...) {
-            std::cerr << "Shutdown hook '" << hook.name
-                      << "' failed with unknown error\n";
+            std::cerr << "Shutdown hook '" << hook.name << "' failed with unknown error\n";
         }
     }
 }
@@ -114,4 +111,4 @@ void GracefulShutdown::setDrainTimeout(std::chrono::seconds timeout) {
     drainTimeout_ = timeout;
 }
 
-} // namespace cgs::service
+}  // namespace cgs::service

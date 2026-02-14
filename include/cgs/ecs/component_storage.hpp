@@ -9,15 +9,15 @@
 ///
 /// @see docs/reference/ECS_DESIGN.md  Section 2.3
 
+#include "cgs/ecs/component_type_id.hpp"
+#include "cgs/ecs/entity.hpp"
+
 #include <cassert>
 #include <cstdint>
 #include <limits>
 #include <type_traits>
 #include <utility>
 #include <vector>
-
-#include "cgs/ecs/component_type_id.hpp"
-#include "cgs/ecs/entity.hpp"
 
 namespace cgs::ecs {
 
@@ -55,8 +55,7 @@ public:
 template <typename T>
 class ComponentStorage final : public IComponentStorage {
 public:
-    static_assert(std::is_move_constructible_v<T>,
-                  "Component type must be move-constructible");
+    static_assert(std::is_move_constructible_v<T>, "Component type must be move-constructible");
 
     using value_type = T;
     using iterator = typename std::vector<T>::iterator;
@@ -209,9 +208,7 @@ public:
     // ── Type ID ─────────────────────────────────────────────────────────
 
     /// The compile-time-generated type ID for this component type.
-    [[nodiscard]] static ComponentTypeId TypeId() noexcept {
-        return ComponentType<T>::Id();
-    }
+    [[nodiscard]] static ComponentTypeId TypeId() noexcept { return ComponentType<T>::Id(); }
 
 private:
     static constexpr uint32_t kInvalidIndex = std::numeric_limits<uint32_t>::max();
@@ -222,11 +219,11 @@ private:
         }
     }
 
-    std::vector<T> dense_;              ///< Packed component data.
-    std::vector<uint32_t> entities_;    ///< dense index -> entity id.
-    std::vector<uint32_t> sparse_;      ///< entity id  -> dense index.
-    std::vector<uint32_t> versions_;    ///< dense index -> change version.
-    uint32_t globalVersion_ = 0;        ///< Monotonically increasing version.
+    std::vector<T> dense_;            ///< Packed component data.
+    std::vector<uint32_t> entities_;  ///< dense index -> entity id.
+    std::vector<uint32_t> sparse_;    ///< entity id  -> dense index.
+    std::vector<uint32_t> versions_;  ///< dense index -> change version.
+    uint32_t globalVersion_ = 0;      ///< Monotonically increasing version.
 };
 
-} // namespace cgs::ecs
+}  // namespace cgs::ecs

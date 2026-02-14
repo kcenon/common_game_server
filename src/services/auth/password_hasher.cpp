@@ -18,8 +18,7 @@ HashedPassword PasswordHasher::hash(std::string_view password) const {
     return {std::move(digest), std::move(salt)};
 }
 
-std::string PasswordHasher::hashWithSalt(std::string_view password,
-                                          std::string_view salt) const {
+std::string PasswordHasher::hashWithSalt(std::string_view password, std::string_view salt) const {
     // SHA-256(salt + password)
     std::string combined;
     combined.reserve(salt.size() + password.size());
@@ -30,14 +29,14 @@ std::string PasswordHasher::hashWithSalt(std::string_view password,
 }
 
 bool PasswordHasher::verify(std::string_view password,
-                             std::string_view storedHash,
-                             std::string_view salt) const {
+                            std::string_view storedHash,
+                            std::string_view salt) const {
     auto computed = hashWithSalt(password, salt);
     return detail::constantTimeEqual(computed, storedHash);
 }
 
 std::string PasswordHasher::generateSalt() {
-    return detail::secureRandomHex(16); // 16 bytes → 32 hex chars
+    return detail::secureRandomHex(16);  // 16 bytes → 32 hex chars
 }
 
-} // namespace cgs::service
+}  // namespace cgs::service

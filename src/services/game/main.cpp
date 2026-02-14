@@ -4,19 +4,18 @@
 /// Standalone executable for the game server.
 /// Runs the ECS-based world simulation with a fixed-rate game loop.
 
-#include <cstdlib>
-#include <iostream>
-
 #include "cgs/foundation/config_manager.hpp"
 #include "cgs/foundation/game_metrics.hpp"
 #include "cgs/service/game_server.hpp"
 #include "cgs/service/health_server.hpp"
 #include "cgs/service/service_runner.hpp"
 
+#include <cstdlib>
+#include <iostream>
+
 namespace {
 
-cgs::service::GameServerConfig buildGameConfig(
-    const cgs::foundation::ConfigManager& config) {
+cgs::service::GameServerConfig buildGameConfig(const cgs::foundation::ConfigManager& config) {
     cgs::service::GameServerConfig cfg;
 
     auto tickRate = config.get<unsigned int>("game.tick_rate");
@@ -42,7 +41,7 @@ cgs::service::GameServerConfig buildGameConfig(
     return cfg;
 }
 
-} // namespace
+}  // namespace
 
 int main(int argc, char* argv[]) {
     cgs::service::SignalHandler signals;
@@ -55,20 +54,17 @@ int main(int argc, char* argv[]) {
     cgs::foundation::ConfigManager config;
     auto loadResult = cgs::service::loadConfig(config, configPath);
     if (!loadResult) {
-        std::cerr << "Failed to load config: "
-                  << loadResult.error().message() << "\n";
+        std::cerr << "Failed to load config: " << loadResult.error().message() << "\n";
         return EXIT_FAILURE;
     }
 
     // Health server + metrics.
     auto& metrics = cgs::foundation::GameMetrics::instance();
-    cgs::service::HealthServer health(
-        {.port = 9110, .serviceName = "game"}, metrics);
+    cgs::service::HealthServer health({.port = 9110, .serviceName = "game"}, metrics);
 
     auto healthResult = health.start();
     if (!healthResult) {
-        std::cerr << "Failed to start health server: "
-                  << healthResult.error().message() << "\n";
+        std::cerr << "Failed to start health server: " << healthResult.error().message() << "\n";
         return EXIT_FAILURE;
     }
 
@@ -77,16 +73,14 @@ int main(int argc, char* argv[]) {
 
     auto startResult = server.start();
     if (!startResult) {
-        std::cerr << "Failed to start game server: "
-                  << startResult.error().message() << "\n";
+        std::cerr << "Failed to start game server: " << startResult.error().message() << "\n";
         return EXIT_FAILURE;
     }
 
     health.setReady(true);
 
     std::cout << "Game server started (tick_rate: " << gameCfg.tickRate
-              << " Hz, max_instances: " << gameCfg.maxInstances
-              << ", health_port: 9110)\n";
+              << " Hz, max_instances: " << gameCfg.maxInstances << ", health_port: 9110)\n";
 
     signals.waitForShutdown();
 

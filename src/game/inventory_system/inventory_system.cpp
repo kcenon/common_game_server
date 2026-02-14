@@ -14,13 +14,10 @@
 
 namespace cgs::game {
 
-InventorySystem::InventorySystem(
-    cgs::ecs::ComponentStorage<Inventory>& inventories,
-    cgs::ecs::ComponentStorage<Equipment>& equipment,
-    cgs::ecs::ComponentStorage<DurabilityEvent>& durabilityEvents)
-    : inventories_(inventories),
-      equipment_(equipment),
-      durabilityEvents_(durabilityEvents) {}
+InventorySystem::InventorySystem(cgs::ecs::ComponentStorage<Inventory>& inventories,
+                                 cgs::ecs::ComponentStorage<Equipment>& equipment,
+                                 cgs::ecs::ComponentStorage<DurabilityEvent>& durabilityEvents)
+    : inventories_(inventories), equipment_(equipment), durabilityEvents_(durabilityEvents) {}
 
 void InventorySystem::Execute(float deltaTime) {
     processDurabilityEvents();
@@ -34,10 +31,9 @@ cgs::ecs::SystemAccessInfo InventorySystem::GetAccessInfo() const {
 }
 
 void InventorySystem::RegisterTemplate(ItemTemplate tmpl) {
-    auto it = std::find_if(templates_.begin(), templates_.end(),
-                           [&tmpl](const ItemTemplate& t) {
-                               return t.id == tmpl.id;
-                           });
+    auto it = std::find_if(templates_.begin(), templates_.end(), [&tmpl](const ItemTemplate& t) {
+        return t.id == tmpl.id;
+    });
     if (it != templates_.end()) {
         *it = std::move(tmpl);
     } else {
@@ -46,10 +42,9 @@ void InventorySystem::RegisterTemplate(ItemTemplate tmpl) {
 }
 
 const ItemTemplate* InventorySystem::GetTemplate(uint32_t templateId) const {
-    auto it = std::find_if(templates_.begin(), templates_.end(),
-                           [templateId](const ItemTemplate& t) {
-                               return t.id == templateId;
-                           });
+    auto it = std::find_if(templates_.begin(),
+                           templates_.end(),
+                           [templateId](const ItemTemplate& t) { return t.id == templateId; });
     return (it != templates_.end()) ? &(*it) : nullptr;
 }
 
@@ -61,7 +56,9 @@ void InventorySystem::processDurabilityEvents() {
         cgs::ecs::Entity eventEntity(entityId, 0);
         auto& event = durabilityEvents_.Get(eventEntity);
 
-        if (event.processed) { continue; }
+        if (event.processed) {
+            continue;
+        }
 
         if (equipment_.Has(event.player)) {
             auto& equip = equipment_.Get(event.player);
@@ -85,7 +82,9 @@ void InventorySystem::updateEnchants(float deltaTime) {
         auto& equip = equipment_.Get(entity);
 
         for (auto& slot : equip.slots) {
-            if (slot.IsEmpty()) { continue; }
+            if (slot.IsEmpty()) {
+                continue;
+            }
             for (auto& enc : slot.enchants) {
                 if (enc.durationRemaining.has_value()) {
                     *enc.durationRemaining -= deltaTime;
@@ -102,7 +101,9 @@ void InventorySystem::updateEnchants(float deltaTime) {
         auto& inv = inventories_.Get(entity);
 
         for (auto& slot : inv.slots) {
-            if (slot.IsEmpty()) { continue; }
+            if (slot.IsEmpty()) {
+                continue;
+            }
             for (auto& enc : slot.enchants) {
                 if (enc.durationRemaining.has_value()) {
                     *enc.durationRemaining -= deltaTime;
@@ -113,4 +114,4 @@ void InventorySystem::updateEnchants(float deltaTime) {
     }
 }
 
-} // namespace cgs::game
+}  // namespace cgs::game

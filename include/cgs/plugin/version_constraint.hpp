@@ -11,13 +11,13 @@
 ///
 /// @see SDS-MOD-018 (Plugin Dependency Resolution)
 
+#include "cgs/foundation/game_result.hpp"
+#include "cgs/plugin/plugin_types.hpp"
+
 #include <optional>
 #include <string>
 #include <string_view>
 #include <vector>
-
-#include "cgs/foundation/game_result.hpp"
-#include "cgs/plugin/plugin_types.hpp"
 
 namespace cgs::plugin {
 
@@ -44,8 +44,8 @@ struct VersionConstraint {
     /// Parse a constraint string like ">=1.2.0", "<2.0.0", "~=1.5".
     ///
     /// @return Parsed constraint, or error if the format is invalid.
-    [[nodiscard]] static cgs::foundation::GameResult<VersionConstraint>
-    Parse(std::string_view spec);
+    [[nodiscard]] static cgs::foundation::GameResult<VersionConstraint> Parse(
+        std::string_view spec);
 
     /// Format the constraint as a human-readable string.
     [[nodiscard]] std::string ToString() const;
@@ -67,8 +67,7 @@ struct DependencySpec {
     /// Parse a dependency string.
     ///
     /// @return Parsed spec, or error if the format is invalid.
-    [[nodiscard]] static cgs::foundation::GameResult<DependencySpec>
-    Parse(std::string_view dep);
+    [[nodiscard]] static cgs::foundation::GameResult<DependencySpec> Parse(std::string_view dep);
 
     /// Format all constraints as a human-readable string.
     [[nodiscard]] std::string ConstraintsToString() const;
@@ -79,4 +78,4 @@ struct DependencySpec {
 /// Examples: "1" → {1,0,0}, "1.2" → {1,2,0}, "1.2.3" → {1,2,3}
 [[nodiscard]] cgs::foundation::GameResult<Version> ParseVersion(std::string_view str);
 
-} // namespace cgs::plugin
+}  // namespace cgs::plugin

@@ -14,4 +14,4 @@ namespace cgs::ecs::detail {
 
 static const auto kAnchor [[maybe_unused]] = nextComponentTypeId;
 
-} // namespace cgs::ecs::detail
+}  // namespace cgs::ecs::detail

@@ -10,16 +10,16 @@
 /// @see SRS-GML-006.1 .. SRS-GML-006.4
 /// @see SDS-MOD-035
 
+#include "cgs/ecs/entity.hpp"
+#include "cgs/game/inventory_types.hpp"
+#include "cgs/game/object_types.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cstdint>
 #include <optional>
 #include <string>
 #include <vector>
-
-#include "cgs/ecs/entity.hpp"
-#include "cgs/game/inventory_types.hpp"
-#include "cgs/game/object_types.hpp"
 
 namespace cgs::game {
 
@@ -73,7 +73,7 @@ struct Enchant {
 
 /// A single slot in inventory or equipment.
 struct InventorySlot {
-    uint32_t itemId = 0;        ///< 0 = empty slot.
+    uint32_t itemId = 0;  ///< 0 = empty slot.
     uint32_t count = 0;
     int32_t durability = kIndestructible;
     int32_t maxDurability = kIndestructible;
@@ -92,15 +92,15 @@ struct InventorySlot {
     }
 
     /// Check if the item in this slot is broken (durability 0, but not indestructible).
-    [[nodiscard]] bool IsBroken() const noexcept {
-        return durability == 0 && maxDurability > 0;
-    }
+    [[nodiscard]] bool IsBroken() const noexcept { return durability == 0 && maxDurability > 0; }
 
     /// Reduce durability by the given amount.
     ///
     /// @return true if the item broke (durability reached 0).
     bool ReduceDurability(int32_t amount) noexcept {
-        if (durability == kIndestructible || durability <= 0) { return false; }
+        if (durability == kIndestructible || durability <= 0) {
+            return false;
+        }
         durability = std::max(durability - amount, 0);
         return durability == 0;
     }
@@ -117,8 +117,7 @@ struct InventorySlot {
     /// Remove expired enchantments.
     void RemoveExpiredEnchants() {
         std::erase_if(enchants, [](const Enchant& e) {
-            return e.durationRemaining.has_value()
-                   && *e.durationRemaining <= 0.0f;
+            return e.durationRemaining.has_value() && *e.durationRemaining <= 0.0f;
         });
     }
 };
@@ -131,7 +130,7 @@ struct ItemTemplate {
     std::string name;
     ItemType type = ItemType::Miscellaneous;
     ItemQuality quality = ItemQuality::Common;
-    uint32_t maxStackSize = 1;      ///< 1 = non-stackable.
+    uint32_t maxStackSize = 1;  ///< 1 = non-stackable.
     int32_t maxDurability = kIndestructible;
     EquipSlot equipSlot = EquipSlot::COUNT;  ///< COUNT = not equippable.
     StatBonuses statBonuses;
@@ -142,9 +141,7 @@ struct ItemTemplate {
     [[nodiscard]] bool IsStackable() const noexcept { return maxStackSize > 1; }
 
     /// Check if this item is equippable (has a valid equip slot).
-    [[nodiscard]] bool IsEquippable() const noexcept {
-        return equipSlot != EquipSlot::COUNT;
-    }
+    [[nodiscard]] bool IsEquippable() const noexcept { return equipSlot != EquipSlot::COUNT; }
 };
 
 // -- Inventory (SRS-GML-006.1) ------------------------------------------------
@@ -159,9 +156,7 @@ struct Inventory {
     int64_t currency = 0;
 
     /// Initialize slots to match capacity.
-    void Initialize() {
-        slots.resize(capacity);
-    }
+    void Initialize() { slots.resize(capacity); }
 
     /// Add an item to the inventory using stacking rules.
     ///
@@ -172,13 +167,17 @@ struct Inventory {
     /// @param addCount   Number of items to add.
     /// @return Number of items actually added (may be less if full).
     uint32_t AddItem(const ItemTemplate& tmpl, uint32_t addCount) {
-        if (slots.empty()) { Initialize(); }
+        if (slots.empty()) {
+            Initialize();
+        }
         uint32_t remaining = addCount;
 
         // First pass: stack onto existing slots.
         if (tmpl.IsStackable()) {
             for (auto& slot : slots) {
-                if (remaining == 0) { break; }
+                if (remaining == 0) {
+                    break;
+                }
                 if (slot.itemId == tmpl.id && slot.count < tmpl.maxStackSize) {
                     uint32_t space = tmpl.maxStackSize - slot.count;
                     uint32_t toAdd = std::min(remaining, space);
@@ -190,11 +189,11 @@ struct Inventory {
 
         // Second pass: fill empty slots.
         for (auto& slot : slots) {
-            if (remaining == 0) { break; }
+            if (remaining == 0) {
+                break;
+            }
             if (slot.IsEmpty()) {
-                uint32_t toAdd = tmpl.IsStackable()
-                    ? std::min(remaining, tmpl.maxStackSize)
-                    : 1;
+                uint32_t toAdd = tmpl.IsStackable() ? std::min(remaining, tmpl.maxStackSize) : 1;
                 slot.itemId = tmpl.id;
                 slot.count = toAdd;
                 slot.durability = tmpl.maxDurability;
@@ -210,9 +209,13 @@ struct Inventory {
     ///
     /// @return true if the removal was successful.
     bool RemoveItem(uint32_t slotIndex, uint32_t removeCount) {
-        if (slotIndex >= slots.size()) { return false; }
+        if (slotIndex >= slots.size()) {
+            return false;
+        }
         auto& slot = slots[slotIndex];
-        if (slot.IsEmpty() || slot.count < removeCount) { return false; }
+        if (slot.IsEmpty() || slot.count < removeCount) {
+            return false;
+        }
 
         slot.count -= removeCount;
         if (slot.count == 0) {
@@ -228,13 +231,19 @@ struct Inventory {
     ///
     /// @return true if the move was successful.
     bool MoveItem(uint32_t fromSlot, uint32_t toSlot) {
-        if (fromSlot >= slots.size() || toSlot >= slots.size()) { return false; }
-        if (fromSlot == toSlot) { return false; }
+        if (fromSlot >= slots.size() || toSlot >= slots.size()) {
+            return false;
+        }
+        if (fromSlot == toSlot) {
+            return false;
+        }
 
         auto& src = slots[fromSlot];
         auto& dst = slots[toSlot];
 
-        if (src.IsEmpty()) { return false; }
+        if (src.IsEmpty()) {
+            return false;
+        }
 
         // Stack merge if same item type.
         if (dst.itemId == src.itemId && !dst.IsEmpty()) {
@@ -254,7 +263,9 @@ struct Inventory {
     /// @param splitCount Number of items to move to the new slot.
     /// @return Index of the new slot, or empty if no space or invalid.
     std::optional<uint32_t> SplitStack(uint32_t slotIndex, uint32_t splitCount) {
-        if (slotIndex >= slots.size()) { return std::nullopt; }
+        if (slotIndex >= slots.size()) {
+            return std::nullopt;
+        }
         auto& src = slots[slotIndex];
         if (src.IsEmpty() || src.count <= splitCount || splitCount == 0) {
             return std::nullopt;
@@ -276,14 +287,18 @@ struct Inventory {
 
     /// Get a pointer to the slot at the given index.
     [[nodiscard]] const InventorySlot* GetItem(uint32_t slotIndex) const {
-        if (slotIndex >= slots.size()) { return nullptr; }
+        if (slotIndex >= slots.size()) {
+            return nullptr;
+        }
         return slots[slotIndex].IsEmpty() ? nullptr : &slots[slotIndex];
     }
 
     /// Find the first slot containing the given item ID.
     [[nodiscard]] std::optional<uint32_t> FindItem(uint32_t itemId) const {
         for (uint32_t i = 0; i < static_cast<uint32_t>(slots.size()); ++i) {
-            if (slots[i].itemId == itemId) { return i; }
+            if (slots[i].itemId == itemId) {
+                return i;
+            }
         }
         return std::nullopt;
     }
@@ -292,7 +307,9 @@ struct Inventory {
     [[nodiscard]] uint32_t FreeSlots() const {
         uint32_t count = 0;
         for (const auto& slot : slots) {
-            if (slot.IsEmpty()) { ++count; }
+            if (slot.IsEmpty()) {
+                ++count;
+            }
         }
         return count;
     }
@@ -301,7 +318,9 @@ struct Inventory {
     [[nodiscard]] uint32_t CountItem(uint32_t itemId) const {
         uint32_t total = 0;
         for (const auto& slot : slots) {
-            if (slot.itemId == itemId) { total += slot.count; }
+            if (slot.itemId == itemId) {
+                total += slot.count;
+            }
         }
         return total;
     }
@@ -321,7 +340,9 @@ struct Equipment {
     /// @return The previously equipped item (empty slot if nothing was there).
     InventorySlot Equip(EquipSlot slot, InventorySlot item) {
         auto idx = static_cast<std::size_t>(slot);
-        if (idx >= kEquipSlotCount) { return {}; }
+        if (idx >= kEquipSlotCount) {
+            return {};
+        }
 
         InventorySlot previous = std::move(slots[idx]);
         item.count = 1;  // Equipment slots always hold 1 item.
@@ -334,7 +355,9 @@ struct Equipment {
     /// @return The unequipped item (empty slot if nothing was there).
     InventorySlot Unequip(EquipSlot slot) {
         auto idx = static_cast<std::size_t>(slot);
-        if (idx >= kEquipSlotCount) { return {}; }
+        if (idx >= kEquipSlotCount) {
+            return {};
+        }
 
         InventorySlot removed = std::move(slots[idx]);
         slots[idx] = InventorySlot{};
@@ -344,7 +367,9 @@ struct Equipment {
     /// Get the equipped item in the specified slot.
     [[nodiscard]] const InventorySlot* GetEquipped(EquipSlot slot) const {
         auto idx = static_cast<std::size_t>(slot);
-        if (idx >= kEquipSlotCount) { return nullptr; }
+        if (idx >= kEquipSlotCount) {
+            return nullptr;
+        }
         return slots[idx].IsEmpty() ? nullptr : &slots[idx];
     }
 
@@ -358,7 +383,9 @@ struct Equipment {
         const std::vector<ItemTemplate>& templates) const {
         StatBonuses total;
         for (const auto& slot : slots) {
-            if (slot.IsEmpty() || slot.IsBroken()) { continue; }
+            if (slot.IsEmpty() || slot.IsBroken()) {
+                continue;
+            }
 
             // Look up the item template for base stat bonuses.
             for (const auto& tmpl : templates) {
@@ -384,9 +411,9 @@ struct Equipment {
 /// Follows the same pattern as DamageEvent and QuestEvent.
 struct DurabilityEvent {
     cgs::ecs::Entity player;
-    EquipSlot slot = EquipSlot::COUNT;   ///< Which equipment slot to degrade.
-    int32_t amount = 1;                  ///< Durability points to reduce.
-    bool processed = false;              ///< Set to true after processing.
+    EquipSlot slot = EquipSlot::COUNT;  ///< Which equipment slot to degrade.
+    int32_t amount = 1;                 ///< Durability points to reduce.
+    bool processed = false;             ///< Set to true after processing.
 };
 
-} // namespace cgs::game
+}  // namespace cgs::game

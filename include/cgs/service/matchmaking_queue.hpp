@@ -11,15 +11,15 @@
 /// @see SRS-SVC-004.1, SRS-SVC-004.2
 /// @see SDS-MOD-033
 
+#include "cgs/foundation/game_result.hpp"
+#include "cgs/service/lobby_types.hpp"
+
 #include <atomic>
 #include <cstdint>
 #include <mutex>
 #include <optional>
 #include <unordered_map>
 #include <vector>
-
-#include "cgs/foundation/game_result.hpp"
-#include "cgs/service/lobby_types.hpp"
 
 namespace cgs::service {
 
@@ -40,8 +40,7 @@ public:
     /// Add a player to the queue.
     ///
     /// @return Error if the queue is full or the player is already queued.
-    [[nodiscard]] cgs::foundation::GameResult<void> enqueue(
-        MatchmakingTicket ticket);
+    [[nodiscard]] cgs::foundation::GameResult<void> enqueue(MatchmakingTicket ticket);
 
     /// Remove a player from the queue.
     ///
@@ -60,8 +59,7 @@ public:
     [[nodiscard]] bool isQueued(uint64_t playerId) const;
 
     /// Get a player's ticket.
-    [[nodiscard]] std::optional<MatchmakingTicket> getTicket(
-        uint64_t playerId) const;
+    [[nodiscard]] std::optional<MatchmakingTicket> getTicket(uint64_t playerId) const;
 
     /// Get the current number of players in the queue.
     [[nodiscard]] std::size_t queueSize() const;
@@ -72,8 +70,7 @@ public:
 private:
     /// Calculate the effective rating tolerance for a ticket
     /// based on how long it has been waiting.
-    [[nodiscard]] int32_t effectiveTolerance(
-        const MatchmakingTicket& ticket) const;
+    [[nodiscard]] int32_t effectiveTolerance(const MatchmakingTicket& ticket) const;
 
     /// Generate a unique match ID.
     [[nodiscard]] uint64_t nextMatchId();
@@ -85,4 +82,4 @@ private:
     mutable std::mutex mutex_;
 };
 
-} // namespace cgs::service
+}  // namespace cgs::service

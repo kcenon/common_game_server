@@ -52,4 +52,4 @@ private:
     std::unordered_map<std::string, std::deque<TimePoint>> attempts_;
 };
 
-} // namespace cgs::service
+}  // namespace cgs::service

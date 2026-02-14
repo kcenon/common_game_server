@@ -54,16 +54,9 @@ enum class ItemType : uint8_t {
 };
 
 /// Item quality / rarity tier.
-enum class ItemQuality : uint8_t {
-    Poor,
-    Common,
-    Uncommon,
-    Rare,
-    Epic,
-    Legendary
-};
+enum class ItemQuality : uint8_t { Poor, Common, Uncommon, Rare, Epic, Legendary };
 
 /// Durability value meaning the item is indestructible.
 constexpr int32_t kIndestructible = -1;
 
-} // namespace cgs::game
+}  // namespace cgs::game

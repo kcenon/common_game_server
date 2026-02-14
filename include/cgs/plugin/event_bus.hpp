@@ -85,8 +85,7 @@ public:
     /// @param priority  Handler priority (lower = called first, default 0).
     /// @return A unique subscription ID for later unsubscription.
     template <typename E>
-    SubscriptionId Subscribe(std::function<void(const E&)> handler,
-                             int32_t priority = 0) {
+    SubscriptionId Subscribe(std::function<void(const E&)> handler, int32_t priority = 0) {
         std::lock_guard lock(mutex_);
 
         auto id = nextId_++;
@@ -159,9 +158,7 @@ public:
     template <typename E>
     void PublishDeferred(E event) {
         std::lock_guard lock(mutex_);
-        deferredQueue_.push_back([this, evt = std::move(event)]() {
-            Publish(evt);
-        });
+        deferredQueue_.push_back([this, evt = std::move(event)]() { Publish(evt); });
     }
 
     /// Flush the deferred event queue.
@@ -220,10 +217,10 @@ private:
     /// Sort handlers by priority (ascending), stable to preserve
     /// insertion order within the same priority level.
     static void sortHandlers(std::vector<HandlerEntry>& handlers) {
-        std::stable_sort(handlers.begin(), handlers.end(),
-                         [](const HandlerEntry& a, const HandlerEntry& b) {
-                             return a.priority < b.priority;
-                         });
+        std::stable_sort(
+            handlers.begin(), handlers.end(), [](const HandlerEntry& a, const HandlerEntry& b) {
+                return a.priority < b.priority;
+            });
     }
 
     /// Internal unsubscribe without locking (caller must hold mutex_).
@@ -237,10 +234,8 @@ private:
         if (handlersIt != handlers_.end()) {
             auto& vec = handlersIt->second;
             vec.erase(
-                std::remove_if(vec.begin(), vec.end(),
-                               [id](const HandlerEntry& e) {
-                                   return e.id == id;
-                               }),
+                std::remove_if(
+                    vec.begin(), vec.end(), [id](const HandlerEntry& e) { return e.id == id; }),
                 vec.end());
 
             if (vec.empty()) {
@@ -267,4 +262,4 @@ private:
     mutable std::mutex mutex_;
 };
 
-} // namespace cgs::plugin
+}  // namespace cgs::plugin

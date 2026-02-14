@@ -17,6 +17,8 @@
 /// @see docs/reference/ECS_DESIGN.md  Section 3
 /// @see SDS-MOD-012
 
+#include "cgs/ecs/component_type_id.hpp"
+
 #include <cassert>
 #include <cstdint>
 #include <functional>
@@ -26,8 +28,6 @@
 #include <unordered_map>
 #include <unordered_set>
 #include <vector>
-
-#include "cgs/ecs/component_type_id.hpp"
 
 namespace cgs::ecs {
 
@@ -47,7 +47,7 @@ inline SystemTypeId nextSystemTypeId() noexcept {
     return counter.fetch_add(1, std::memory_order_relaxed);
 }
 
-} // namespace detail
+}  // namespace detail
 
 /// Obtain the unique SystemTypeId for system type `T`.
 ///
@@ -261,8 +261,7 @@ public:
 
     /// Function that executes a vector of tasks in parallel.
     /// Must block until all tasks complete.
-    using ParallelExecutor =
-        std::function<void(const std::vector<std::function<void()>>&)>;
+    using ParallelExecutor = std::function<void(const std::vector<std::function<void()>>&)>;
 
     /// Set the executor for parallel system batches.
     ///
@@ -306,14 +305,12 @@ public:
     /// Retrieve the execution order for a specific stage (after Build).
     ///
     /// @return Vector of SystemTypeIds in execution order.
-    [[nodiscard]] const std::vector<SystemTypeId>&
-    GetExecutionOrder(SystemStage stage) const;
+    [[nodiscard]] const std::vector<SystemTypeId>& GetExecutionOrder(SystemStage stage) const;
 
     /// Retrieve the parallel batches for a specific stage (after Build).
     ///
     /// @return Vector of ParallelBatches in execution order.
-    [[nodiscard]] const std::vector<ParallelBatch>&
-    GetParallelBatches(SystemStage stage) const;
+    [[nodiscard]] const std::vector<ParallelBatch>& GetParallelBatches(SystemStage stage) const;
 
 private:
     /// Internal entry for a registered system.
@@ -329,9 +326,8 @@ private:
     /// @param ids  System type IDs belonging to the stage.
     /// @param[out] sorted  Output execution order.
     /// @return true on success, false on circular dependency.
-    [[nodiscard]] bool topologicalSort(
-        const std::vector<SystemTypeId>& ids,
-        std::vector<SystemTypeId>& sorted);
+    [[nodiscard]] bool topologicalSort(const std::vector<SystemTypeId>& ids,
+                                       std::vector<SystemTypeId>& sorted);
 
     /// Execute all systems in a single stage (sequential or parallel).
     void executeStage(SystemStage stage, float deltaTime);
@@ -340,9 +336,7 @@ private:
     void executeBatch(const ParallelBatch& batch, float deltaTime);
 
     /// Compute parallel batches from the topological order.
-    void computeParallelBatches(
-        SystemStage stage,
-        const std::vector<SystemTypeId>& order);
+    void computeParallelBatches(SystemStage stage, const std::vector<SystemTypeId>& order);
 
     /// All registered systems, keyed by SystemTypeId.
     std::unordered_map<SystemTypeId, SystemEntry> systems_;
@@ -395,8 +389,7 @@ private:
 
 template <typename T, typename... Args>
 T& SystemScheduler::Register(Args&&... args) {
-    static_assert(std::is_base_of_v<ISystem, T>,
-                  "T must derive from ISystem");
+    static_assert(std::is_base_of_v<ISystem, T>, "T must derive from ISystem");
 
     const auto typeId = SystemType<T>::Id();
 
@@ -447,4 +440,4 @@ T* SystemScheduler::GetSystem() {
     return nullptr;
 }
 
-} // namespace cgs::ecs
+}  // namespace cgs::ecs

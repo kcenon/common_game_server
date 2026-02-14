@@ -45,14 +45,10 @@ public:
     static Result err(E error) { return Result(std::move(error)); }
 
     /// Check if this result holds a value.
-    [[nodiscard]] bool hasValue() const noexcept {
-        return std::holds_alternative<T>(data_);
-    }
+    [[nodiscard]] bool hasValue() const noexcept { return std::holds_alternative<T>(data_); }
 
     /// Check if this result holds an error.
-    [[nodiscard]] bool hasError() const noexcept {
-        return std::holds_alternative<E>(data_);
-    }
+    [[nodiscard]] bool hasError() const noexcept { return std::holds_alternative<E>(data_); }
 
     /// Implicit conversion to bool (true if success).
     explicit operator bool() const noexcept { return hasValue(); }
@@ -99,4 +95,4 @@ private:
     E error_;
 };
 
-} // namespace cgs
+}  // namespace cgs

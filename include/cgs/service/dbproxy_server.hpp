@@ -15,13 +15,13 @@
 /// @see SRS-SVC-005
 /// @see SDS-MOD-034
 
-#include <future>
-#include <memory>
-#include <string_view>
-
 #include "cgs/foundation/game_database.hpp"
 #include "cgs/foundation/game_result.hpp"
 #include "cgs/service/dbproxy_types.hpp"
+
+#include <future>
+#include <memory>
+#include <string_view>
 
 namespace cgs::service {
 
@@ -72,20 +72,18 @@ public:
     /// The query is first checked against the cache. On cache miss,
     /// it is routed to a read replica (if available) or the primary.
     /// Results are cached for future reads.
-    [[nodiscard]] cgs::foundation::GameResult<cgs::foundation::QueryResult>
-    query(std::string_view sql);
+    [[nodiscard]] cgs::foundation::GameResult<cgs::foundation::QueryResult> query(
+        std::string_view sql);
 
     /// Execute a write command (INSERT/UPDATE/DELETE/DDL).
     ///
     /// Always routed to the primary. Automatically invalidates cache
     /// entries that reference tables mentioned in the SQL.
-    [[nodiscard]] cgs::foundation::GameResult<uint64_t>
-    execute(std::string_view sql);
+    [[nodiscard]] cgs::foundation::GameResult<uint64_t> execute(std::string_view sql);
 
     /// Execute a SELECT query asynchronously.
-    [[nodiscard]] std::future<
-        cgs::foundation::GameResult<cgs::foundation::QueryResult>>
-    queryAsync(std::string_view sql);
+    [[nodiscard]] std::future<cgs::foundation::GameResult<cgs::foundation::QueryResult>> queryAsync(
+        std::string_view sql);
 
     // ── Parameterized query execution (SRS-NFR-016) ──────────────────────
 
@@ -93,20 +91,19 @@ public:
     ///
     /// Prevents SQL injection by resolving bound parameters with proper
     /// escaping. Cache lookup uses the resolved SQL string.
-    [[nodiscard]] cgs::foundation::GameResult<cgs::foundation::QueryResult>
-    query(const cgs::foundation::PreparedStatement& stmt);
+    [[nodiscard]] cgs::foundation::GameResult<cgs::foundation::QueryResult> query(
+        const cgs::foundation::PreparedStatement& stmt);
 
     /// Execute a parameterized write command using PreparedStatement.
     ///
     /// Prevents SQL injection by resolving bound parameters with proper
     /// escaping. Cache invalidation uses the resolved SQL.
-    [[nodiscard]] cgs::foundation::GameResult<uint64_t>
-    execute(const cgs::foundation::PreparedStatement& stmt);
+    [[nodiscard]] cgs::foundation::GameResult<uint64_t> execute(
+        const cgs::foundation::PreparedStatement& stmt);
 
     /// Execute a parameterized SELECT query asynchronously.
-    [[nodiscard]] std::future<
-        cgs::foundation::GameResult<cgs::foundation::QueryResult>>
-    queryAsync(const cgs::foundation::PreparedStatement& stmt);
+    [[nodiscard]] std::future<cgs::foundation::GameResult<cgs::foundation::QueryResult>> queryAsync(
+        const cgs::foundation::PreparedStatement& stmt);
 
     // ── Cache management ────────────────────────────────────────────────
 
@@ -138,4 +135,4 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-} // namespace cgs::service
+}  // namespace cgs::service

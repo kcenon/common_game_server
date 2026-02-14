@@ -7,8 +7,7 @@ namespace cgs::service {
 
 GameLoop::GameLoop(uint32_t tickRate)
     : tickRate_(tickRate > 0 ? tickRate : 20),
-      targetFrameTime_(std::chrono::microseconds(
-          1'000'000 / (tickRate > 0 ? tickRate : 20))) {}
+      targetFrameTime_(std::chrono::microseconds(1'000'000 / (tickRate > 0 ? tickRate : 20))) {}
 
 GameLoop::~GameLoop() {
     stop();
@@ -106,10 +105,10 @@ TickMetrics GameLoop::executeTick() {
     {
         std::lock_guard<std::mutex> lock(callbackMutex_);
         if (tickCallback_) {
-            auto dtSeconds = static_cast<float>(
-                std::chrono::duration_cast<std::chrono::microseconds>(
-                    targetFrameTime_)
-                    .count()) /
+            auto dtSeconds =
+                static_cast<float>(
+                    std::chrono::duration_cast<std::chrono::microseconds>(targetFrameTime_)
+                        .count()) /
                 1'000'000.0f;
             tickCallback_(dtSeconds);
         }
@@ -118,24 +117,20 @@ TickMetrics GameLoop::executeTick() {
     auto updateEnd = std::chrono::steady_clock::now();
 
     auto updateDuration =
-        std::chrono::duration_cast<std::chrono::microseconds>(
-            updateEnd - frameStart);
+        std::chrono::duration_cast<std::chrono::microseconds>(updateEnd - frameStart);
 
-    auto targetUs =
-        std::chrono::duration_cast<std::chrono::microseconds>(targetFrameTime_);
+    auto targetUs = std::chrono::duration_cast<std::chrono::microseconds>(targetFrameTime_);
 
     TickMetrics metrics;
     metrics.updateTime = updateDuration;
-    metrics.frameTime = updateDuration; // For manual tick(), frame = update.
-    metrics.budgetUtilization =
-        targetUs.count() > 0
-            ? static_cast<float>(updateDuration.count()) /
-                  static_cast<float>(targetUs.count())
-            : 0.0f;
+    metrics.frameTime = updateDuration;  // For manual tick(), frame = update.
+    metrics.budgetUtilization = targetUs.count() > 0 ? static_cast<float>(updateDuration.count()) /
+                                                           static_cast<float>(targetUs.count())
+                                                     : 0.0f;
     metrics.tickNumber = tickCount_.fetch_add(1);
     metrics.overrun = updateDuration > targetFrameTime_;
 
     return metrics;
 }
 
-} // namespace cgs::service
+}  // namespace cgs::service

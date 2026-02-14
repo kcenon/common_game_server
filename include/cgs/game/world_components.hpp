@@ -10,10 +10,10 @@
 /// @see SRS-GML-003.1 .. SRS-GML-003.5
 /// @see SDS-MOD-022
 
-#include <cstdint>
-
 #include "cgs/ecs/entity.hpp"
 #include "cgs/game/world_types.hpp"
+
+#include <cstdint>
 
 namespace cgs::game {
 
@@ -64,4 +64,4 @@ struct VisibilityRange {
     float range = kDefaultVisibilityRange;
 };
 
-} // namespace cgs::game
+}  // namespace cgs::game

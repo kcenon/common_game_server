@@ -11,7 +11,27 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  lint:
+    name: Lint (clang-format)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install clang-format
+        run: pip install clang-format==21.1.8
+
+      - name: Check formatting
+        run: |
+          find include/cgs src -name '*.hpp' -o -name '*.cpp' \
+            | xargs clang-format --dry-run --Werror
+
   build-and-test:
+    needs: lint
     name: Build & Test (${{ matrix.os }}, ${{ matrix.build_type }})
     runs-on: ${{ matrix.os }}
     strategy:

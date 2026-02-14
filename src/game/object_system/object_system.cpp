@@ -12,25 +12,23 @@
 
 namespace cgs::game {
 
-ObjectUpdateSystem::ObjectUpdateSystem(
-    cgs::ecs::ComponentStorage<Transform>& transforms,
-    cgs::ecs::ComponentStorage<Movement>& movements)
+ObjectUpdateSystem::ObjectUpdateSystem(cgs::ecs::ComponentStorage<Transform>& transforms,
+                                       cgs::ecs::ComponentStorage<Movement>& movements)
     : transforms_(transforms), movements_(movements) {}
 
 void ObjectUpdateSystem::Execute(float deltaTime) {
     cgs::ecs::Query<Transform, Movement> query(transforms_, movements_);
 
-    query.ForEach([deltaTime](cgs::ecs::Entity /*entity*/,
-                              Transform& transform,
-                              Movement& movement) {
-        // Skip idle entities — no position change needed.
-        if (movement.state == MovementState::Idle) {
-            return;
-        }
+    query.ForEach(
+        [deltaTime](cgs::ecs::Entity /*entity*/, Transform& transform, Movement& movement) {
+            // Skip idle entities — no position change needed.
+            if (movement.state == MovementState::Idle) {
+                return;
+            }
 
-        // Integrate: position += direction * speed * dt.
-        transform.position += movement.direction * movement.speed * deltaTime;
-    });
+            // Integrate: position += direction * speed * dt.
+            transform.position += movement.direction * movement.speed * deltaTime;
+        });
 }
 
 cgs::ecs::SystemAccessInfo ObjectUpdateSystem::GetAccessInfo() const {
@@ -40,4 +38,4 @@ cgs::ecs::SystemAccessInfo ObjectUpdateSystem::GetAccessInfo() const {
     return info;
 }
 
-} // namespace cgs::game
+}  // namespace cgs::game

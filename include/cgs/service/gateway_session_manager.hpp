@@ -9,6 +9,10 @@
 /// @see SRS-SVC-002.1
 /// @see SRS-SVC-002.4
 
+#include "cgs/foundation/game_result.hpp"
+#include "cgs/foundation/types.hpp"
+#include "cgs/service/gateway_types.hpp"
+
 #include <cstdint>
 #include <functional>
 #include <mutex>
@@ -17,10 +21,6 @@
 #include <string_view>
 #include <unordered_map>
 #include <vector>
-
-#include "cgs/foundation/game_result.hpp"
-#include "cgs/foundation/types.hpp"
-#include "cgs/service/gateway_types.hpp"
 
 namespace cgs::service {
 
@@ -70,12 +70,10 @@ public:
     void touchSession(cgs::foundation::SessionId sessionId);
 
     /// Update the current service for a session.
-    [[nodiscard]] bool setCurrentService(cgs::foundation::SessionId sessionId,
-                                         std::string service);
+    [[nodiscard]] bool setCurrentService(cgs::foundation::SessionId sessionId, std::string service);
 
     /// Get sessions in a specific state.
-    [[nodiscard]] std::vector<ClientSession> getSessionsByState(
-        ClientState state) const;
+    [[nodiscard]] std::vector<ClientSession> getSessionsByState(ClientState state) const;
 
     /// Get session count.
     [[nodiscard]] std::size_t sessionCount() const;
@@ -97,4 +95,4 @@ private:
     std::unordered_map<cgs::foundation::SessionId, ClientSession> sessions_;
 };
 
-} // namespace cgs::service
+}  // namespace cgs::service

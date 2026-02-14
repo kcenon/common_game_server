@@ -23,11 +23,7 @@ namespace cgs::foundation {
 // ── Metric types ────────────────────────────────────────────────────────────
 
 /// Classification of a metric for Prometheus TYPE annotation.
-enum class MetricType : uint8_t {
-    Counter,
-    Gauge,
-    Histogram
-};
+enum class MetricType : uint8_t { Counter, Gauge, Histogram };
 
 /// Bucket boundaries for histogram metrics.
 ///
@@ -59,11 +55,7 @@ struct TraceSpan {
 // ── Health checking ─────────────────────────────────────────────────────────
 
 /// Overall health status of a component or the service itself.
-enum class HealthStatus : uint8_t {
-    Healthy,
-    Degraded,
-    Unhealthy
-};
+enum class HealthStatus : uint8_t { Healthy, Degraded, Unhealthy };
 
 /// Aggregated health check result for the service.
 struct HealthCheckResult {
@@ -171,4 +163,4 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-} // namespace cgs::foundation
+}  // namespace cgs::foundation

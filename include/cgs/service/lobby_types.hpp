@@ -19,28 +19,28 @@ namespace cgs::service {
 
 /// Available game modes for matchmaking.
 enum class GameMode : uint8_t {
-    Duel,         ///< 1v1 match.
-    Arena,        ///< Small team PvP (e.g. 3v3).
-    Battleground, ///< Large team PvP (e.g. 10v10).
-    Dungeon,      ///< PvE group content.
-    Raid          ///< Large PvE content.
+    Duel,          ///< 1v1 match.
+    Arena,         ///< Small team PvP (e.g. 3v3).
+    Battleground,  ///< Large team PvP (e.g. 10v10).
+    Dungeon,       ///< PvE group content.
+    Raid           ///< Large PvE content.
 };
 
 /// Server regions for latency-based matchmaking.
 enum class Region : uint8_t {
-    Any,       ///< No preference (match with any region).
-    NAEast,    ///< North America East.
-    NAWest,    ///< North America West.
-    EU,        ///< Europe.
-    Asia,      ///< Asia.
-    Oceania    ///< Oceania.
+    Any,     ///< No preference (match with any region).
+    NAEast,  ///< North America East.
+    NAWest,  ///< North America West.
+    EU,      ///< Europe.
+    Asia,    ///< Asia.
+    Oceania  ///< Oceania.
 };
 
 /// Player skill rating for matchmaking.
 struct PlayerRating {
-    int32_t mmr = 1500;        ///< Match-Making Rating (Elo-based).
-    float uncertainty = 350.0f; ///< Rating uncertainty (higher = less confident).
-    uint32_t gamesPlayed = 0;   ///< Total ranked games played.
+    int32_t mmr = 1500;          ///< Match-Making Rating (Elo-based).
+    float uncertainty = 350.0f;  ///< Rating uncertainty (higher = less confident).
+    uint32_t gamesPlayed = 0;    ///< Total ranked games played.
 };
 
 /// A player's request to join a matchmaking queue.
@@ -116,4 +116,4 @@ struct LobbyStats {
     uint64_t partiesDisbanded = 0;
 };
 
-} // namespace cgs::service
+}  // namespace cgs::service

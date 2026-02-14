@@ -9,6 +9,9 @@
 ///
 /// Part of SRS-NFR-013 (zero data loss on crash).
 
+#include "cgs/foundation/game_result.hpp"
+#include "cgs/foundation/types.hpp"
+
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
@@ -17,18 +20,15 @@
 #include <string>
 #include <vector>
 
-#include "cgs/foundation/game_result.hpp"
-#include "cgs/foundation/types.hpp"
-
 namespace cgs::service {
 
 /// Type of WAL entry operation.
 enum class WalOperation : uint8_t {
-    PlayerJoin = 1,    ///< Player entered the world.
-    PlayerLeave = 2,   ///< Player left the world.
-    StateUpdate = 3,   ///< Player state mutation (position, stats, etc.).
-    InventoryChange = 4, ///< Inventory modification.
-    QuestUpdate = 5,   ///< Quest progress update.
+    PlayerJoin = 1,       ///< Player entered the world.
+    PlayerLeave = 2,      ///< Player left the world.
+    StateUpdate = 3,      ///< Player state mutation (position, stats, etc.).
+    InventoryChange = 4,  ///< Inventory modification.
+    QuestUpdate = 5,      ///< Quest progress update.
 };
 
 /// A single WAL entry representing one player state mutation.
@@ -38,11 +38,11 @@ enum class WalOperation : uint8_t {
 ///   [8 bytes: player_id]  [1 byte: operation]  [4 bytes: data_size]
 ///   [N bytes: data]       [4 bytes: crc32]
 struct WalEntry {
-    uint64_t sequence = 0;         ///< Monotonically increasing sequence number.
-    uint64_t timestampUs = 0;      ///< Microseconds since epoch.
+    uint64_t sequence = 0;     ///< Monotonically increasing sequence number.
+    uint64_t timestampUs = 0;  ///< Microseconds since epoch.
     cgs::foundation::PlayerId playerId;
     WalOperation operation = WalOperation::StateUpdate;
-    std::vector<uint8_t> data;     ///< Opaque serialized payload.
+    std::vector<uint8_t> data;  ///< Opaque serialized payload.
 };
 
 /// Configuration for the WriteAheadLog.
@@ -106,14 +106,12 @@ public:
     /// @param callback Called for each entry in order.
     /// @return Number of entries replayed, or an error.
     [[nodiscard]] cgs::foundation::GameResult<uint64_t> replay(
-        uint64_t afterSequence,
-        std::function<void(const WalEntry&)> callback) const;
+        uint64_t afterSequence, std::function<void(const WalEntry&)> callback) const;
 
     /// Remove all entries with sequence <= beforeSequence.
     ///
     /// Called after a successful snapshot to reclaim disk space.
-    [[nodiscard]] cgs::foundation::GameResult<void> truncateBefore(
-        uint64_t beforeSequence);
+    [[nodiscard]] cgs::foundation::GameResult<void> truncateBefore(uint64_t beforeSequence);
 
     /// Flush any buffered data to disk.
     [[nodiscard]] cgs::foundation::GameResult<void> flush();
@@ -132,4 +130,4 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-} // namespace cgs::service
+}  // namespace cgs::service

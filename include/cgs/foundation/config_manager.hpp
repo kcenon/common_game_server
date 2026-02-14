@@ -3,6 +3,8 @@
 /// @file config_manager.hpp
 /// @brief YAML-based configuration management with typed access and watch support.
 
+#include "cgs/foundation/game_result.hpp"
+
 #include <filesystem>
 #include <functional>
 #include <mutex>
@@ -10,10 +12,7 @@
 #include <string_view>
 #include <unordered_map>
 #include <vector>
-
 #include <yaml-cpp/yaml.h>
-
-#include "cgs/foundation/game_result.hpp"
 
 namespace cgs::foundation {
 
@@ -93,4 +92,4 @@ void ConfigManager::set(std::string_view key, const T& value) {
     notifyWatchers(key);
 }
 
-} // namespace cgs::foundation
+}  // namespace cgs::foundation

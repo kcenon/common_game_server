@@ -34,12 +34,12 @@ enum class BTStatus : uint8_t {
 
 /// High-level AI state for the AIBrain component.
 enum class AIState : uint8_t {
-    Idle,       ///< Standing still, awaiting stimuli.
-    Patrolling, ///< Walking between waypoints.
-    Chasing,    ///< Moving toward a target.
-    Attacking,  ///< Engaged in combat.
-    Fleeing,    ///< Running away from a threat.
-    Dead        ///< Entity is dead, AI suspended.
+    Idle,        ///< Standing still, awaiting stimuli.
+    Patrolling,  ///< Walking between waypoints.
+    Chasing,     ///< Moving toward a target.
+    Attacking,   ///< Engaged in combat.
+    Fleeing,     ///< Running away from a threat.
+    Dead         ///< Entity is dead, AI suspended.
 };
 
 /// Parallel node completion policy.
@@ -48,4 +48,4 @@ enum class BTParallelPolicy : uint8_t {
     RequireOne   ///< Succeed when at least one child succeeds.
 };
 
-} // namespace cgs::game
+}  // namespace cgs::game

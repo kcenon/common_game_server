@@ -16,8 +16,7 @@ std::optional<UserRecord> InMemoryUserRepository::findById(uint64_t id) const {
     return it->second;
 }
 
-std::optional<UserRecord> InMemoryUserRepository::findByUsername(
-    std::string_view username) const {
+std::optional<UserRecord> InMemoryUserRepository::findByUsername(std::string_view username) const {
     std::lock_guard<std::mutex> lock(mutex_);
     for (const auto& [id, user] : users_) {
         if (user.username == username) {
@@ -27,8 +26,7 @@ std::optional<UserRecord> InMemoryUserRepository::findByUsername(
     return std::nullopt;
 }
 
-std::optional<UserRecord> InMemoryUserRepository::findByEmail(
-    std::string_view email) const {
+std::optional<UserRecord> InMemoryUserRepository::findByEmail(std::string_view email) const {
     std::lock_guard<std::mutex> lock(mutex_);
     for (const auto& [id, user] : users_) {
         if (user.email == email) {
@@ -60,4 +58,4 @@ bool InMemoryUserRepository::update(const UserRecord& record) {
     return true;
 }
 
-} // namespace cgs::service
+}  // namespace cgs::service

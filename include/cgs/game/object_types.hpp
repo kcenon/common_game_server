@@ -15,17 +15,17 @@ constexpr std::size_t kMaxAttributes = 16;
 
 /// Classification of game world objects.
 enum class ObjectType : uint8_t {
-    Player,      ///< Player-controlled character.
-    Creature,    ///< AI-controlled NPC or monster.
-    GameObject   ///< Static or interactive world object.
+    Player,     ///< Player-controlled character.
+    Creature,   ///< AI-controlled NPC or monster.
+    GameObject  ///< Static or interactive world object.
 };
 
 /// Movement state machine states.
 enum class MovementState : uint8_t {
-    Idle,        ///< Standing still.
-    Walking,     ///< Moving at walk speed.
-    Running,     ///< Moving at run speed.
-    Falling      ///< Airborne / falling.
+    Idle,     ///< Standing still.
+    Walking,  ///< Moving at walk speed.
+    Running,  ///< Moving at run speed.
+    Falling   ///< Airborne / falling.
 };
 
-} // namespace cgs::game
+}  // namespace cgs::game

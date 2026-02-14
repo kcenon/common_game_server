@@ -3,34 +3,29 @@
 
 #include "cgs/service/matchmaking_queue.hpp"
 
-#include <algorithm>
-#include <numeric>
-
 #include "cgs/foundation/error_code.hpp"
 #include "cgs/foundation/game_error.hpp"
 #include "cgs/service/elo_calculator.hpp"
 
+#include <algorithm>
+#include <numeric>
+
 namespace cgs::service {
 
-MatchmakingQueue::MatchmakingQueue(QueueConfig config)
-    : config_(std::move(config)) {}
+MatchmakingQueue::MatchmakingQueue(QueueConfig config) : config_(std::move(config)) {}
 
-cgs::foundation::GameResult<void> MatchmakingQueue::enqueue(
-    MatchmakingTicket ticket) {
+cgs::foundation::GameResult<void> MatchmakingQueue::enqueue(MatchmakingTicket ticket) {
     std::lock_guard<std::mutex> lock(mutex_);
 
     if (tickets_.size() >= static_cast<std::size_t>(config_.maxQueueSize)) {
-        return cgs::Result<void, cgs::foundation::GameError>::err(
-            cgs::foundation::GameError(
-                cgs::foundation::ErrorCode::QueueFull,
-                "Matchmaking queue is full"));
+        return cgs::Result<void, cgs::foundation::GameError>::err(cgs::foundation::GameError(
+            cgs::foundation::ErrorCode::QueueFull, "Matchmaking queue is full"));
     }
 
     if (playerIndex_.count(ticket.playerId) > 0) {
         return cgs::Result<void, cgs::foundation::GameError>::err(
-            cgs::foundation::GameError(
-                cgs::foundation::ErrorCode::AlreadyInQueue,
-                "Player is already in the matchmaking queue"));
+            cgs::foundation::GameError(cgs::foundation::ErrorCode::AlreadyInQueue,
+                                       "Player is already in the matchmaking queue"));
     }
 
     playerIndex_[ticket.playerId] = tickets_.size();
@@ -91,8 +86,7 @@ std::optional<MatchResult> MatchmakingQueue::tryMatch() {
             }
 
             // Region must be compatible (Any matches everything).
-            if (anchor.region != Region::Any &&
-                candidate.region != Region::Any &&
+            if (anchor.region != Region::Any && candidate.region != Region::Any &&
                 anchor.region != candidate.region) {
                 continue;
             }
@@ -108,15 +102,13 @@ std::optional<MatchResult> MatchmakingQueue::tryMatch() {
 
             candidates.push_back(i);
 
-            if (candidates.size() >=
-                static_cast<std::size_t>(config_.maxPlayersPerMatch)) {
+            if (candidates.size() >= static_cast<std::size_t>(config_.maxPlayersPerMatch)) {
                 break;
             }
         }
 
         // Check if we have enough players.
-        if (candidates.size() <
-            static_cast<std::size_t>(config_.minPlayersPerMatch)) {
+        if (candidates.size() < static_cast<std::size_t>(config_.minPlayersPerMatch)) {
             continue;
         }
 
@@ -164,8 +156,7 @@ bool MatchmakingQueue::isQueued(uint64_t playerId) const {
     return playerIndex_.count(playerId) > 0;
 }
 
-std::optional<MatchmakingTicket> MatchmakingQueue::getTicket(
-    uint64_t playerId) const {
+std::optional<MatchmakingTicket> MatchmakingQueue::getTicket(uint64_t playerId) const {
     std::lock_guard<std::mutex> lock(mutex_);
 
     auto it = playerIndex_.find(playerId);
@@ -184,19 +175,17 @@ const QueueConfig& MatchmakingQueue::config() const noexcept {
     return config_;
 }
 
-int32_t MatchmakingQueue::effectiveTolerance(
-    const MatchmakingTicket& ticket) const {
+int32_t MatchmakingQueue::effectiveTolerance(const MatchmakingTicket& ticket) const {
     auto now = std::chrono::steady_clock::now();
-    auto waited = std::chrono::duration_cast<std::chrono::seconds>(
-        now - ticket.enqueuedAt);
+    auto waited = std::chrono::duration_cast<std::chrono::seconds>(now - ticket.enqueuedAt);
 
     if (config_.expansionInterval.count() <= 0) {
         return config_.initialRatingTolerance;
     }
 
     auto expansions = waited.count() / config_.expansionInterval.count();
-    int32_t expanded = config_.initialRatingTolerance +
-                       static_cast<int32_t>(expansions) * config_.expansionStep;
+    int32_t expanded =
+        config_.initialRatingTolerance + static_cast<int32_t>(expansions) * config_.expansionStep;
 
     return std::min(expanded, config_.maxRatingTolerance);
 }
@@ -205,4 +194,4 @@ uint64_t MatchmakingQueue::nextMatchId() {
     return nextMatchId_.fetch_add(1);
 }
 
-} // namespace cgs::service
+}  // namespace cgs::service

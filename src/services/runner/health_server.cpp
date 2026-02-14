@@ -37,28 +37,38 @@ std::string healthToJson(const cgs::foundation::HealthCheckResult& result,
     out << R"({"status":")";
 
     switch (result.status) {
-        case cgs::foundation::HealthStatus::Healthy:   out << "healthy"; break;
-        case cgs::foundation::HealthStatus::Degraded:  out << "degraded"; break;
-        case cgs::foundation::HealthStatus::Unhealthy: out << "unhealthy"; break;
+        case cgs::foundation::HealthStatus::Healthy:
+            out << "healthy";
+            break;
+        case cgs::foundation::HealthStatus::Degraded:
+            out << "degraded";
+            break;
+        case cgs::foundation::HealthStatus::Unhealthy:
+            out << "unhealthy";
+            break;
     }
 
-    out << R"(","service":")" << result.serviceName
-        << R"(","uptime_seconds":)" << uptime.count();
+    out << R"(","service":")" << result.serviceName << R"(","uptime_seconds":)" << uptime.count();
 
     if (!result.components.empty()) {
         out << R"(,"components":{)";
         bool first = true;
         for (const auto& [name, status] : result.components) {
-            if (!first) { out << ","; }
+            if (!first) {
+                out << ",";
+            }
             first = false;
             out << R"(")" << name << R"(":)";
             switch (status) {
                 case cgs::foundation::HealthStatus::Healthy:
-                    out << R"("healthy")"; break;
+                    out << R"("healthy")";
+                    break;
                 case cgs::foundation::HealthStatus::Degraded:
-                    out << R"("degraded")"; break;
+                    out << R"("degraded")";
+                    break;
                 case cgs::foundation::HealthStatus::Unhealthy:
-                    out << R"("unhealthy")"; break;
+                    out << R"("unhealthy")";
+                    break;
             }
         }
         out << "}";
@@ -69,18 +79,24 @@ std::string healthToJson(const cgs::foundation::HealthCheckResult& result,
 }
 
 /// Build a minimal HTTP response.
-std::string httpResponse(int statusCode, std::string_view contentType,
-                         std::string_view body) {
+std::string httpResponse(int statusCode, std::string_view contentType, std::string_view body) {
     std::ostringstream out;
     out << "HTTP/1.1 " << statusCode;
     switch (statusCode) {
-        case 200: out << " OK"; break;
-        case 404: out << " Not Found"; break;
-        case 503: out << " Service Unavailable"; break;
-        default:  out << " Error"; break;
+        case 200:
+            out << " OK";
+            break;
+        case 404:
+            out << " Not Found";
+            break;
+        case 503:
+            out << " Service Unavailable";
+            break;
+        default:
+            out << " Error";
+            break;
     }
-    out << "\r\nContent-Type: " << contentType
-        << "\r\nContent-Length: " << body.size()
+    out << "\r\nContent-Type: " << contentType << "\r\nContent-Length: " << body.size()
         << "\r\nConnection: close"
         << "\r\n\r\n"
         << body;
@@ -92,14 +108,18 @@ std::string httpResponse(int statusCode, std::string_view contentType,
 std::string_view extractPath(std::string_view request) {
     // Find "GET " or "HEAD "
     auto methodEnd = request.find(' ');
-    if (methodEnd == std::string_view::npos) { return "/"; }
+    if (methodEnd == std::string_view::npos) {
+        return "/";
+    }
     auto pathStart = methodEnd + 1;
     auto pathEnd = request.find(' ', pathStart);
-    if (pathEnd == std::string_view::npos) { return "/"; }
+    if (pathEnd == std::string_view::npos) {
+        return "/";
+    }
     return request.substr(pathStart, pathEnd - pathStart);
 }
 
-} // anonymous namespace
+}  // anonymous namespace
 
 // ── Impl ────────────────────────────────────────────────────────────────────
 
@@ -123,12 +143,18 @@ struct HealthServer::Impl {
 
             // Poll with 500ms timeout for shutdown responsiveness.
             int ret = poll(&pfd, 1, 500);
-            if (ret <= 0) { continue; }
+            if (ret <= 0) {
+                continue;
+            }
 
-            if ((pfd.revents & POLLIN) == 0) { continue; }
+            if ((pfd.revents & POLLIN) == 0) {
+                continue;
+            }
 
             int clientFd = accept(listenFd, nullptr, nullptr);
-            if (clientFd < 0) { continue; }
+            if (clientFd < 0) {
+                continue;
+            }
 
             handleClient(clientFd);
             close(clientFd);
@@ -139,10 +165,11 @@ struct HealthServer::Impl {
         // Read the request (small buffer, we only need the first line).
         std::array<char, 1024> buf{};
         auto bytesRead = read(clientFd, buf.data(), buf.size() - 1);
-        if (bytesRead <= 0) { return; }
+        if (bytesRead <= 0) {
+            return;
+        }
 
-        std::string_view request(buf.data(),
-                                 static_cast<std::size_t>(bytesRead));
+        std::string_view request(buf.data(), static_cast<std::size_t>(bytesRead));
         auto path = extractPath(request);
 
         std::string response;
@@ -164,14 +191,13 @@ struct HealthServer::Impl {
                 response = httpResponse(200, "application/json", body);
             } else {
                 response = httpResponse(
-                    503, "application/json",
-                    R"({"status":"not_ready","service":")" + config.serviceName +
-                        R"("})");
+                    503,
+                    "application/json",
+                    R"({"status":"not_ready","service":")" + config.serviceName + R"("})");
             }
         } else if (path == "/metrics") {
             auto body = metrics.scrape();
-            response = httpResponse(
-                200, "text/plain; version=0.0.4; charset=utf-8", body);
+            response = httpResponse(200, "text/plain; version=0.0.4; charset=utf-8", body);
         } else {
             response = httpResponse(404, "text/plain", "Not Found");
         }
@@ -185,8 +211,7 @@ struct HealthServer::Impl {
 
 // ── Public API ──────────────────────────────────────────────────────────────
 
-HealthServer::HealthServer(HealthServerConfig config,
-                           cgs::foundation::GameMetrics& metrics)
+HealthServer::HealthServer(HealthServerConfig config, cgs::foundation::GameMetrics& metrics)
     : impl_(std::make_unique<Impl>(std::move(config), metrics)) {}
 
 HealthServer::~HealthServer() {
@@ -201,16 +226,13 @@ cgs::foundation::GameResult<void> HealthServer::start() {
     // Create socket.
     impl_->listenFd = socket(AF_INET, SOCK_STREAM, 0);
     if (impl_->listenFd < 0) {
-        return cgs::foundation::GameResult<void>::err(
-            cgs::foundation::GameError(
-                cgs::foundation::ErrorCode::NetworkError,
-                "Failed to create health server socket"));
+        return cgs::foundation::GameResult<void>::err(cgs::foundation::GameError(
+            cgs::foundation::ErrorCode::NetworkError, "Failed to create health server socket"));
     }
 
     // Allow address reuse.
     int optval = 1;
-    setsockopt(impl_->listenFd, SOL_SOCKET, SO_REUSEADDR,
-               &optval, sizeof(optval));
+    setsockopt(impl_->listenFd, SOL_SOCKET, SO_REUSEADDR, &optval, sizeof(optval));
 
     // Bind.
     struct sockaddr_in addr{};
@@ -223,21 +245,17 @@ cgs::foundation::GameResult<void> HealthServer::start() {
              sizeof(addr)) < 0) {
         close(impl_->listenFd);
         impl_->listenFd = -1;
-        return cgs::foundation::GameResult<void>::err(
-            cgs::foundation::GameError(
-                cgs::foundation::ErrorCode::ListenFailed,
-                "Failed to bind health server on port " +
-                    std::to_string(impl_->config.port)));
+        return cgs::foundation::GameResult<void>::err(cgs::foundation::GameError(
+            cgs::foundation::ErrorCode::ListenFailed,
+            "Failed to bind health server on port " + std::to_string(impl_->config.port)));
     }
 
     // Listen with small backlog (only K8s probes + Prometheus).
     if (listen(impl_->listenFd, 8) < 0) {
         close(impl_->listenFd);
         impl_->listenFd = -1;
-        return cgs::foundation::GameResult<void>::err(
-            cgs::foundation::GameError(
-                cgs::foundation::ErrorCode::ListenFailed,
-                "Failed to listen on health server socket"));
+        return cgs::foundation::GameResult<void>::err(cgs::foundation::GameError(
+            cgs::foundation::ErrorCode::ListenFailed, "Failed to listen on health server socket"));
     }
 
     impl_->startTime = std::chrono::steady_clock::now();
@@ -278,4 +296,4 @@ uint16_t HealthServer::port() const {
     return impl_->config.port;
 }
 
-} // namespace cgs::service
+}  // namespace cgs::service

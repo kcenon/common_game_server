@@ -11,6 +11,9 @@
 /// @see SRS-GML-004.2, SRS-GML-004.3
 /// @see SDS-MOD-023
 
+#include "cgs/ecs/entity.hpp"
+#include "cgs/game/ai_types.hpp"
+
 #include <any>
 #include <cstdint>
 #include <functional>
@@ -18,9 +21,6 @@
 #include <string>
 #include <unordered_map>
 #include <vector>
-
-#include "cgs/ecs/entity.hpp"
-#include "cgs/game/ai_types.hpp"
 
 namespace cgs::game {
 
@@ -65,9 +65,7 @@ public:
     }
 
     /// Check whether a key exists in the blackboard.
-    [[nodiscard]] bool Has(const std::string& key) const {
-        return data_.contains(key);
-    }
+    [[nodiscard]] bool Has(const std::string& key) const { return data_.contains(key); }
 
     /// Remove a single entry.
     void Erase(const std::string& key) { data_.erase(key); }
@@ -116,9 +114,7 @@ public:
 /// Returns Running when a child returns Running (resumes from that child).
 class BTSequence : public BTNode {
 public:
-    void AddChild(std::unique_ptr<BTNode> child) {
-        children_.push_back(std::move(child));
-    }
+    void AddChild(std::unique_ptr<BTNode> child) { children_.push_back(std::move(child)); }
 
     BTStatus Tick(BTContext& context) override {
         while (currentChild_ < children_.size()) {
@@ -156,9 +152,7 @@ private:
 /// Returns Running when a child returns Running (resumes from that child).
 class BTSelector : public BTNode {
 public:
-    void AddChild(std::unique_ptr<BTNode> child) {
-        children_.push_back(std::move(child));
-    }
+    void AddChild(std::unique_ptr<BTNode> child) { children_.push_back(std::move(child)); }
 
     BTStatus Tick(BTContext& context) override {
         while (currentChild_ < children_.size()) {
@@ -197,12 +191,9 @@ private:
 ///   Returns Running when the decisive threshold is not yet met.
 class BTParallel : public BTNode {
 public:
-    explicit BTParallel(BTParallelPolicy policy = BTParallelPolicy::RequireAll)
-        : policy_(policy) {}
+    explicit BTParallel(BTParallelPolicy policy = BTParallelPolicy::RequireAll) : policy_(policy) {}
 
-    void AddChild(std::unique_ptr<BTNode> child) {
-        children_.push_back(std::move(child));
-    }
+    void AddChild(std::unique_ptr<BTNode> child) { children_.push_back(std::move(child)); }
 
     BTStatus Tick(BTContext& context) override {
         std::size_t successCount = 0;
@@ -258,8 +249,7 @@ private:
 /// Running passes through unchanged.
 class BTInverter : public BTNode {
 public:
-    explicit BTInverter(std::unique_ptr<BTNode> child)
-        : child_(std::move(child)) {}
+    explicit BTInverter(std::unique_ptr<BTNode> child) : child_(std::move(child)) {}
 
     BTStatus Tick(BTContext& context) override {
         auto status = child_->Tick(context);
@@ -284,8 +274,7 @@ private:
 /// If maxRepeats is 0, repeats indefinitely (always returns Running).
 class BTRepeater : public BTNode {
 public:
-    explicit BTRepeater(std::unique_ptr<BTNode> child,
-                        uint32_t maxRepeats = 0)
+    explicit BTRepeater(std::unique_ptr<BTNode> child, uint32_t maxRepeats = 0)
         : child_(std::move(child)), maxRepeats_(maxRepeats) {}
 
     BTStatus Tick(BTContext& context) override {
@@ -330,8 +319,7 @@ class BTCondition : public BTNode {
 public:
     using Predicate = std::function<bool(BTContext&)>;
 
-    explicit BTCondition(Predicate predicate)
-        : predicate_(std::move(predicate)) {}
+    explicit BTCondition(Predicate predicate) : predicate_(std::move(predicate)) {}
 
     BTStatus Tick(BTContext& context) override {
         return predicate_(context) ? BTStatus::Success : BTStatus::Failure;
@@ -348,15 +336,12 @@ class BTAction : public BTNode {
 public:
     using ActionFunc = std::function<BTStatus(BTContext&)>;
 
-    explicit BTAction(ActionFunc action)
-        : action_(std::move(action)) {}
+    explicit BTAction(ActionFunc action) : action_(std::move(action)) {}
 
-    BTStatus Tick(BTContext& context) override {
-        return action_(context);
-    }
+    BTStatus Tick(BTContext& context) override { return action_(context); }
 
 private:
     ActionFunc action_;
 };
 
-} // namespace cgs::game
+}  // namespace cgs::game

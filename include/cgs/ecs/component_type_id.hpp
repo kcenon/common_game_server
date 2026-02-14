@@ -27,7 +27,7 @@ inline ComponentTypeId nextComponentTypeId() noexcept {
     return counter.fetch_add(1, std::memory_order_relaxed);
 }
 
-} // namespace detail
+}  // namespace detail
 
 /// Obtain the unique ComponentTypeId for type `T`.
 ///
@@ -46,4 +46,4 @@ struct ComponentType {
     }
 };
 
-} // namespace cgs::ecs
+}  // namespace cgs::ecs

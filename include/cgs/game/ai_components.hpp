@@ -9,12 +9,12 @@
 /// @see SRS-GML-004.1
 /// @see SDS-MOD-023
 
-#include <memory>
-
 #include "cgs/ecs/entity.hpp"
 #include "cgs/game/ai_types.hpp"
 #include "cgs/game/behavior_tree.hpp"
 #include "cgs/game/math_types.hpp"
+
+#include <memory>
 
 namespace cgs::game {
 
@@ -48,4 +48,4 @@ struct AIBrain {
     cgs::ecs::Entity target;
 };
 
-} // namespace cgs::game
+}  // namespace cgs::game

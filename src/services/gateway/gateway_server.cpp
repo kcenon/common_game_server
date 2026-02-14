@@ -4,15 +4,15 @@
 
 #include "cgs/service/gateway_server.hpp"
 
-#include <atomic>
-#include <string>
-
 #include "cgs/foundation/error_code.hpp"
 #include "cgs/foundation/game_error.hpp"
 #include "cgs/service/auth_server.hpp"
 #include "cgs/service/gateway_session_manager.hpp"
 #include "cgs/service/route_table.hpp"
 #include "cgs/service/token_bucket.hpp"
+
+#include <atomic>
+#include <string>
 
 namespace cgs::service {
 
@@ -51,7 +51,7 @@ std::vector<uint8_t> statusPayload(bool success) {
     return {success ? static_cast<uint8_t>(0x00) : static_cast<uint8_t>(0x01)};
 }
 
-} // anonymous namespace
+}  // anonymous namespace
 
 // -- Impl ---------------------------------------------------------------------
 
@@ -71,22 +71,21 @@ struct GatewayServer::Impl {
     std::atomic<uint64_t> rateLimitHits{0};
 
     explicit Impl(GatewayConfig cfg, std::shared_ptr<AuthServer> auth)
-        : config(std::move(cfg))
-        , authServer(std::move(auth))
-        , sessions(config.maxConnections)
-        , rateLimiter(config.rateLimitCapacity, config.rateLimitRefillRate) {}
+        : config(std::move(cfg)),
+          authServer(std::move(auth)),
+          sessions(config.maxConnections),
+          rateLimiter(config.rateLimitCapacity, config.rateLimitRefillRate) {}
 
     /// Handle gateway-level opcodes (0x0000-0x00FF) internally.
-    GameResult<GatewayAction> handleGatewayOpcode(
-        SessionId sessionId, uint16_t opcode,
-        std::vector<uint8_t> payload, const ClientSession& session) {
-
+    GameResult<GatewayAction> handleGatewayOpcode(SessionId sessionId,
+                                                  uint16_t opcode,
+                                                  std::vector<uint8_t> payload,
+                                                  const ClientSession& session) {
         switch (opcode) {
             case GatewayOpcode::Authenticate: {
                 if (session.state != ClientState::Unauthenticated) {
                     messagesDropped.fetch_add(1, std::memory_order_relaxed);
-                    return GameResult<GatewayAction>::ok(
-                        makeDrop("already authenticated"));
+                    return GameResult<GatewayAction>::ok(makeDrop("already authenticated"));
                 }
 
                 std::string token(payload.begin(), payload.end());
@@ -95,8 +94,7 @@ struct GatewayServer::Impl {
                 if (validationResult.hasError()) {
                     authFailureCount.fetch_add(1, std::memory_order_relaxed);
                     return GameResult<GatewayAction>::ok(
-                        makeReply(GatewayOpcode::AuthResult,
-                                  statusPayload(false)));
+                        makeReply(GatewayOpcode::AuthResult, statusPayload(false)));
                 }
 
                 auto& claims = validationResult.value();
@@ -107,12 +105,10 @@ struct GatewayServer::Impl {
                     // Subject might not be numeric; use 0.
                 }
 
-                if (!sessions.authenticateSession(
-                        sessionId, claims, userId)) {
+                if (!sessions.authenticateSession(sessionId, claims, userId)) {
                     authFailureCount.fetch_add(1, std::memory_order_relaxed);
                     return GameResult<GatewayAction>::ok(
-                        makeReply(GatewayOpcode::AuthResult,
-                                  statusPayload(false)));
+                        makeReply(GatewayOpcode::AuthResult, statusPayload(false)));
                 }
                 authSuccessCount.fetch_add(1, std::memory_order_relaxed);
                 return GameResult<GatewayAction>::ok(
@@ -122,25 +118,21 @@ struct GatewayServer::Impl {
             case GatewayOpcode::MigrationAck: {
                 if (session.state != ClientState::Migrating) {
                     messagesDropped.fetch_add(1, std::memory_order_relaxed);
-                    return GameResult<GatewayAction>::ok(
-                        makeDrop("not in migration state"));
+                    return GameResult<GatewayAction>::ok(makeDrop("not in migration state"));
                 }
 
                 (void)sessions.completeMigration(sessionId);
-                return GameResult<GatewayAction>::ok(
-                    makeDrop("migration ack processed"));
+                return GameResult<GatewayAction>::ok(makeDrop("migration ack processed"));
             }
 
             case GatewayOpcode::Pong: {
                 // Pong is a heartbeat response; activity already touched.
-                return GameResult<GatewayAction>::ok(
-                    makeDrop("pong received"));
+                return GameResult<GatewayAction>::ok(makeDrop("pong received"));
             }
 
             default: {
                 messagesDropped.fetch_add(1, std::memory_order_relaxed);
-                return GameResult<GatewayAction>::ok(
-                    makeDrop("unknown gateway opcode"));
+                return GameResult<GatewayAction>::ok(makeDrop("unknown gateway opcode"));
             }
         }
     }
@@ -148,8 +140,7 @@ struct GatewayServer::Impl {
 
 // -- Construction / destruction / move ----------------------------------------
 
-GatewayServer::GatewayServer(GatewayConfig config,
-                             std::shared_ptr<AuthServer> authServer)
+GatewayServer::GatewayServer(GatewayConfig config, std::shared_ptr<AuthServer> authServer)
     : impl_(std::make_unique<Impl>(std::move(config), std::move(authServer))) {}
 
 GatewayServer::~GatewayServer() {
@@ -166,8 +157,7 @@ GatewayServer& GatewayServer::operator=(GatewayServer&&) noexcept = default;
 GameResult<void> GatewayServer::start() {
     if (impl_->running.load()) {
         return GameResult<void>::err(
-            GameError(ErrorCode::GatewayAlreadyStarted,
-                      "gateway server is already running"));
+            GameError(ErrorCode::GatewayAlreadyStarted, "gateway server is already running"));
     }
 
     impl_->running.store(true);
@@ -184,26 +174,24 @@ bool GatewayServer::isRunning() const noexcept {
 
 // -- Route configuration ------------------------------------------------------
 
-void GatewayServer::addRoute(uint16_t opcodeMin, uint16_t opcodeMax,
-                             std::string service, bool requiresAuth) {
-    impl_->routes.addRoute(opcodeMin, opcodeMax, std::move(service),
-                           requiresAuth);
+void GatewayServer::addRoute(uint16_t opcodeMin,
+                             uint16_t opcodeMax,
+                             std::string service,
+                             bool requiresAuth) {
+    impl_->routes.addRoute(opcodeMin, opcodeMax, std::move(service), requiresAuth);
 }
 
 // -- Connection handling ------------------------------------------------------
 
-GameResult<void> GatewayServer::handleConnect(
-    SessionId sessionId, std::string remoteAddress) {
+GameResult<void> GatewayServer::handleConnect(SessionId sessionId, std::string remoteAddress) {
     if (!impl_->running.load()) {
         return GameResult<void>::err(
-            GameError(ErrorCode::GatewayNotStarted,
-                      "gateway server is not running"));
+            GameError(ErrorCode::GatewayNotStarted, "gateway server is not running"));
     }
 
     if (!impl_->sessions.createSession(sessionId, std::move(remoteAddress))) {
-        return GameResult<void>::err(
-            GameError(ErrorCode::ConnectionLimitReached,
-                      "connection limit reached or duplicate session"));
+        return GameResult<void>::err(GameError(ErrorCode::ConnectionLimitReached,
+                                               "connection limit reached or duplicate session"));
     }
 
     return GameResult<void>::ok();
@@ -217,19 +205,18 @@ void GatewayServer::handleDisconnect(SessionId sessionId) {
     impl_->sessions.removeSession(sessionId);
 }
 
-GameResult<GatewayAction> GatewayServer::handleMessage(
-    SessionId sessionId, uint16_t opcode, std::vector<uint8_t> payload) {
+GameResult<GatewayAction> GatewayServer::handleMessage(SessionId sessionId,
+                                                       uint16_t opcode,
+                                                       std::vector<uint8_t> payload) {
     if (!impl_->running.load()) {
         return GameResult<GatewayAction>::err(
-            GameError(ErrorCode::GatewayNotStarted,
-                      "gateway server is not running"));
+            GameError(ErrorCode::GatewayNotStarted, "gateway server is not running"));
     }
 
     auto session = impl_->sessions.getSession(sessionId);
     if (!session.has_value()) {
         return GameResult<GatewayAction>::err(
-            GameError(ErrorCode::SessionNotFound,
-                      "session not found"));
+            GameError(ErrorCode::SessionNotFound, "session not found"));
     }
 
     // Rate limit check using the client's IP address.
@@ -237,8 +224,7 @@ GameResult<GatewayAction> GatewayServer::handleMessage(
         impl_->rateLimitHits.fetch_add(1, std::memory_order_relaxed);
         impl_->messagesDropped.fetch_add(1, std::memory_order_relaxed);
         return GameResult<GatewayAction>::err(
-            GameError(ErrorCode::GatewayRateLimited,
-                      "rate limit exceeded"));
+            GameError(ErrorCode::GatewayRateLimited, "rate limit exceeded"));
     }
 
     // Update activity timestamp.
@@ -246,25 +232,21 @@ GameResult<GatewayAction> GatewayServer::handleMessage(
 
     // Handle gateway-level opcodes (0x0000-0x00FF).
     if (RouteTable::isGatewayOpcode(opcode)) {
-        return impl_->handleGatewayOpcode(sessionId, opcode,
-                                          std::move(payload), *session);
+        return impl_->handleGatewayOpcode(sessionId, opcode, std::move(payload), *session);
     }
 
     // Resolve the route for non-gateway opcodes.
     auto match = impl_->routes.resolve(opcode);
     if (!match.has_value()) {
         impl_->messagesDropped.fetch_add(1, std::memory_order_relaxed);
-        return GameResult<GatewayAction>::ok(
-            makeDrop("no route for opcode"));
+        return GameResult<GatewayAction>::ok(makeDrop("no route for opcode"));
     }
 
     // Check authentication requirement.
-    if (match->requiresAuth &&
-        session->state != ClientState::Authenticated) {
+    if (match->requiresAuth && session->state != ClientState::Authenticated) {
         impl_->messagesDropped.fetch_add(1, std::memory_order_relaxed);
         return GameResult<GatewayAction>::err(
-            GameError(ErrorCode::ClientNotAuthenticated,
-                      "authentication required for this route"));
+            GameError(ErrorCode::ClientNotAuthenticated, "authentication required for this route"));
     }
 
     impl_->messagesRouted.fetch_add(1, std::memory_order_relaxed);
@@ -273,19 +255,17 @@ GameResult<GatewayAction> GatewayServer::handleMessage(
 
 // -- Migration ----------------------------------------------------------------
 
-GameResult<void> GatewayServer::initiateServerTransfer(
-    SessionId sessionId, std::string targetService) {
+GameResult<void> GatewayServer::initiateServerTransfer(SessionId sessionId,
+                                                       std::string targetService) {
     if (!impl_->running.load()) {
         return GameResult<void>::err(
-            GameError(ErrorCode::GatewayNotStarted,
-                      "gateway server is not running"));
+            GameError(ErrorCode::GatewayNotStarted, "gateway server is not running"));
     }
 
     if (!impl_->sessions.beginMigration(sessionId, std::move(targetService))) {
-        return GameResult<void>::err(
-            GameError(ErrorCode::MigrationFailed,
-                      "cannot begin migration (session not authenticated "
-                      "or not found)"));
+        return GameResult<void>::err(GameError(ErrorCode::MigrationFailed,
+                                               "cannot begin migration (session not authenticated "
+                                               "or not found)"));
     }
 
     return GameResult<void>::ok();
@@ -302,8 +282,7 @@ std::vector<SessionId> GatewayServer::cleanupIdleSessions() {
 }
 
 std::vector<SessionId> GatewayServer::cleanupExpiredAuth() {
-    auto expired = impl_->sessions.findExpiredAuthSessions(
-        impl_->config.authTimeout);
+    auto expired = impl_->sessions.findExpiredAuthSessions(impl_->config.authTimeout);
     for (auto sid : expired) {
         handleDisconnect(sid);
     }
@@ -315,18 +294,13 @@ std::vector<SessionId> GatewayServer::cleanupExpiredAuth() {
 GatewayStats GatewayServer::stats() const {
     GatewayStats s;
     s.totalConnections = impl_->sessions.sessionCount();
-    s.authenticatedConnections =
-        impl_->sessions.sessionCount(ClientState::Authenticated);
-    s.unauthenticatedConnections =
-        impl_->sessions.sessionCount(ClientState::Unauthenticated);
-    s.migratingConnections =
-        impl_->sessions.sessionCount(ClientState::Migrating);
+    s.authenticatedConnections = impl_->sessions.sessionCount(ClientState::Authenticated);
+    s.unauthenticatedConnections = impl_->sessions.sessionCount(ClientState::Unauthenticated);
+    s.migratingConnections = impl_->sessions.sessionCount(ClientState::Migrating);
     s.messagesRouted = impl_->messagesRouted.load(std::memory_order_relaxed);
     s.messagesDropped = impl_->messagesDropped.load(std::memory_order_relaxed);
-    s.authSuccessCount =
-        impl_->authSuccessCount.load(std::memory_order_relaxed);
-    s.authFailureCount =
-        impl_->authFailureCount.load(std::memory_order_relaxed);
+    s.authSuccessCount = impl_->authSuccessCount.load(std::memory_order_relaxed);
+    s.authFailureCount = impl_->authFailureCount.load(std::memory_order_relaxed);
     s.rateLimitHits = impl_->rateLimitHits.load(std::memory_order_relaxed);
     return s;
 }
@@ -335,4 +309,4 @@ const GatewayConfig& GatewayServer::config() const noexcept {
     return impl_->config;
 }
 
-} // namespace cgs::service
+}  // namespace cgs::service

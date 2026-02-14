@@ -39,8 +39,7 @@ public:
     ///
     /// @param jti       The JWT ID claim value.
     /// @param expiresAt When the token naturally expires (for auto-cleanup).
-    void revoke(std::string_view jti,
-                std::chrono::system_clock::time_point expiresAt);
+    void revoke(std::string_view jti, std::chrono::system_clock::time_point expiresAt);
 
     /// Check if a token is blacklisted.
     [[nodiscard]] bool isRevoked(std::string_view jti) const;
@@ -53,10 +52,9 @@ public:
 
 private:
     mutable std::shared_mutex mutex_;
-    std::unordered_map<std::string,
-                       std::chrono::system_clock::time_point> entries_;
+    std::unordered_map<std::string, std::chrono::system_clock::time_point> entries_;
     std::chrono::seconds cleanupInterval_;
     std::chrono::system_clock::time_point lastCleanup_;
 };
 
-} // namespace cgs::service
+}  // namespace cgs::service

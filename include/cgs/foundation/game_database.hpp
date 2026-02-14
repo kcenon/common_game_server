@@ -8,6 +8,8 @@
 /// transaction support with RAII guards, and a configurable connection pool.
 /// Part of the Database System Adapter (SDS-MOD-005).
 
+#include "cgs/foundation/game_result.hpp"
+
 #include <chrono>
 #include <cstdint>
 #include <future>
@@ -17,8 +19,6 @@
 #include <unordered_map>
 #include <variant>
 #include <vector>
-
-#include "cgs/foundation/game_result.hpp"
 
 namespace cgs::foundation {
 
@@ -39,11 +39,7 @@ using QueryResult = std::vector<DbRow>;
 // ── Database types ──────────────────────────────────────────────────────────
 
 /// Supported database backend types.
-enum class DatabaseType : uint8_t {
-    PostgreSQL,
-    MySQL,
-    SQLite
-};
+enum class DatabaseType : uint8_t { PostgreSQL, MySQL, SQLite };
 
 /// Configuration for GameDatabase connection pool.
 struct DatabaseConfig {
@@ -205,8 +201,7 @@ public:
     // ── Asynchronous queries ────────────────────────────────────────────
 
     /// Execute a SELECT query asynchronously and return a future.
-    [[nodiscard]] std::future<GameResult<QueryResult>> queryAsync(
-        std::string_view sql);
+    [[nodiscard]] std::future<GameResult<QueryResult>> queryAsync(std::string_view sql);
 
     // ── Prepared statements ─────────────────────────────────────────────
 
@@ -234,4 +229,4 @@ private:
     std::unique_ptr<Impl> impl_;
 };
 
-} // namespace cgs::foundation
+}  // namespace cgs::foundation

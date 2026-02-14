@@ -7,13 +7,13 @@
 /// @see SRS-PLG-005.3
 /// @see SDS-MOD-023
 
+#include "cgs/foundation/game_result.hpp"
+#include "cgs/plugin/plugin_types.hpp"
+
 #include <chrono>
 #include <cstdint>
 #include <string>
 #include <vector>
-
-#include "cgs/foundation/game_result.hpp"
-#include "cgs/plugin/plugin_types.hpp"
 
 namespace cgs::plugin {
 
@@ -59,16 +59,15 @@ public:
     /// Serialize the plugin's current state into a byte buffer.
     ///
     /// Called before the plugin is unloaded during a hot reload cycle.
-    [[nodiscard]] virtual cgs::foundation::GameResult<std::vector<uint8_t>>
-    SerializeState() = 0;
+    [[nodiscard]] virtual cgs::foundation::GameResult<std::vector<uint8_t>> SerializeState() = 0;
 
     /// Restore the plugin's state from a previously serialized buffer.
     ///
     /// Called after the plugin is reloaded and initialized.
     /// @param data  Pointer to the serialized state bytes.
     /// @param size  Number of bytes in the buffer.
-    [[nodiscard]] virtual cgs::foundation::GameResult<void>
-    DeserializeState(const uint8_t* data, std::size_t size) = 0;
+    [[nodiscard]] virtual cgs::foundation::GameResult<void> DeserializeState(const uint8_t* data,
+                                                                             std::size_t size) = 0;
 
     /// Return a version number for the serialized state format.
     ///
@@ -77,4 +76,4 @@ public:
     [[nodiscard]] virtual uint32_t GetStateVersion() const = 0;
 };
 
-} // namespace cgs::plugin
+}  // namespace cgs::plugin

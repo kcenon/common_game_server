@@ -6,15 +6,6 @@
 
 A unified, production-ready game server framework built with C++20, combining proven patterns from multiple game server implementations.
 
-## Overview
-
-Common Game Server unifies the best aspects of four existing projects into a cohesive, high-performance framework:
-
-- **common_game_server_system (CGSS)**: Standardized specifications and 7 foundation systems
-- **game_server**: Battle-tested MMORPG implementation patterns
-- **unified_game_server (UGS)**: Modern microservices and ECS architecture
-- **game_server_system**: Integration target (foundation layer)
-
 ## Key Features
 
 - **Entity-Component System (ECS)**: Data-oriented design with parallel execution and component queries
@@ -49,7 +40,7 @@ Common Game Server unifies the best aspects of four existing projects into a coh
 |  Layer 2: FOUNDATION ADAPTER LAYER                                 |
 |           Result<T,E> pattern, no exceptions                       |
 +-------------------------------------------------------------------+
-|  Layer 1: 7 FOUNDATION SYSTEMS (from CGSS)                         |
+|  Layer 1: 7 FOUNDATION SYSTEMS                                      |
 |           common, thread, logger, network, database, container,    |
 |           monitoring                                               |
 +-------------------------------------------------------------------+
@@ -282,11 +273,3 @@ git config blame.ignoreRevsFile .git-blame-ignore-revs
 
 This project is licensed under the BSD 3-Clause License - see the [LICENSE](LICENSE) file for details.
 
-## Acknowledgments
-
-This project builds upon proven patterns from:
-
-- common_game_server_system (CGSS)
-- game_server
-- unified_game_server (UGS)
-- game_server_system

@@ -112,26 +112,6 @@ Technical reference documents providing detailed specifications and implementati
 
 ### Architecture & Design
 
-#### [reference/PROJECT_ANALYSIS.md](./reference/PROJECT_ANALYSIS.md)
-**Source Project Analysis**
-
-| Attribute | Value |
-|-----------|-------|
-| Lines | 890 |
-| Version | 0.1.0.0 |
-
-**Contents**:
-- Detailed analysis of 4 source projects
-  - common_game_server_system
-  - game_server_system
-  - game_server
-  - unified_game_server
-- Code structure analysis
-- Key contributions from each project
-- Feature comparison matrix
-
----
-
 #### [reference/ECS_DESIGN.md](./reference/ECS_DESIGN.md)
 **Entity-Component System Design**
 
@@ -356,14 +336,14 @@ Technical reference documents providing detailed specifications and implementati
 | Category | Count | Total Lines |
 |----------|-------|-------------|
 | Core Documents | 4 | 2,541 |
-| Reference Documents | 10 | 13,408 |
-| **Total** | **14** | **15,949** |
+| Reference Documents | 9 | 12,518 |
+| **Total** | **13** | **15,059** |
 
 ### By Size
 
 | Size Range | Documents |
 |------------|-----------|
-| < 1,000 lines | PRD, ROADMAP, ARCHITECTURE, INTEGRATION_STRATEGY, PROJECT_ANALYSIS |
+| < 1,000 lines | PRD, ROADMAP, ARCHITECTURE, INTEGRATION_STRATEGY |
 | 1,000 - 1,500 lines | ECS_DESIGN, PLUGIN_SYSTEM, DATABASE_SCHEMA, CODING_STANDARDS, DEPLOYMENT_GUIDE, FOUNDATION_ADAPTERS, CONFIGURATION_GUIDE |
 | > 1,500 lines | PROTOCOL_DESIGN, TESTING_STRATEGY |
 
@@ -374,16 +354,11 @@ Technical reference documents providing detailed specifications and implementati
 | Version | Date | Changes |
 |---------|------|---------|
 | 0.1.0.0 | 2026-02-03 | Initial documentation set (14 documents) |
+| 0.2.0.0 | 2026-02-14 | Removed PROJECT_ANALYSIS.md (legacy project references cleanup) |
 
 ---
 
 ## Related Resources
-
-### Source Projects
-- `common_game_server_system` - Foundation specifications
-- `game_server_system` - Integration target
-- `game_server` - Legacy MMORPG implementation
-- `unified_game_server` - Modern ECS architecture
 
 ### Foundation Systems
 - `common_system` - Core utilities

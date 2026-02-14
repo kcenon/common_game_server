@@ -4,8 +4,6 @@
 
 **Version**: 0.1.0.0
 **Last Updated**: 2026-02-03
-**Source**: unified_game_server (UGS)
-
 ---
 
 ## 1. Overview
@@ -31,7 +29,7 @@ Entity-Component System (ECS) is a data-oriented design pattern that separates:
 ### 1.3 ECS vs Traditional OOP
 
 ```cpp
-// Traditional OOP (game_server style)
+// Traditional OOP style
 class Player : public Unit {
     void Update(float dt) override {
         UpdateMovement(dt);      // Cache miss
@@ -818,7 +816,7 @@ private:
 
 ## 5. Game Logic Components
 
-### 5.1 Object System Components (from game_server)
+### 5.1 Object System Components
 
 ```cpp
 namespace game::components {
@@ -1188,7 +1186,7 @@ void BadUpdate(World& world, float dt) {
 
 ---
 
-## 7. Integration with game_server
+## 7. Legacy Bridge Integration
 
 ### 7.1 Hybrid Bridge
 
@@ -1251,10 +1249,9 @@ private:
 ### 8.2 Related Documents
 
 - [ARCHITECTURE.md](../ARCHITECTURE.md) - System architecture
-- [PROJECT_ANALYSIS.md](./PROJECT_ANALYSIS.md) - Source analysis
 - [PLUGIN_SYSTEM.md](./PLUGIN_SYSTEM.md) - Plugin integration
 
 ---
 
 *ECS Design Version*: 1.0.0
-*Source*: unified_game_server
+*ECS Design for Common Game Server*

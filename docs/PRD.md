@@ -12,12 +12,7 @@
 
 ### 1.1 Vision
 
-Create a **unified, production-ready game server framework** that combines the best aspects of four existing projects:
-
-- **common_game_server_system (CGSS)**: Standardized specifications and guidelines
-- **game_server**: Battle-tested MMORPG implementation patterns
-- **unified_game_server (UGS)**: Modern microservices and ECS architecture
-- **game_server_system**: Integration target (foundation layer)
+Create a **unified, production-ready game server framework** that combines the best aspects of proven game server patterns and modern architecture approaches.
 
 ### 1.2 Mission
 
@@ -106,35 +101,35 @@ Deliver a flexible, high-performance game server framework that:
 
 #### FR-001: Foundation System Integration
 
-| ID | Requirement | Priority | Source |
-|----|-------------|----------|--------|
-| FR-001.1 | Integrate common_system for base types and Result<T,E> pattern | P0 | CGSS |
-| FR-001.2 | Integrate thread_system for job scheduling (1.24M jobs/sec) | P0 | CGSS |
-| FR-001.3 | Integrate logger_system for structured logging (4.3M msg/sec) | P0 | CGSS |
-| FR-001.4 | Integrate network_system for TCP/UDP/WebSocket (305K msg/sec) | P0 | CGSS |
-| FR-001.5 | Integrate database_system for PostgreSQL/MySQL support | P0 | CGSS |
-| FR-001.6 | Integrate monitoring_system for metrics and tracing | P0 | CGSS |
-| FR-001.7 | Integrate container_system for serialization (2M/sec) | P0 | CGSS |
+| ID | Requirement | Priority |
+|----|-------------|----------|
+| FR-001.1 | Integrate common_system for base types and Result<T,E> pattern | P0 |
+| FR-001.2 | Integrate thread_system for job scheduling (1.24M jobs/sec) | P0 |
+| FR-001.3 | Integrate logger_system for structured logging (4.3M msg/sec) | P0 |
+| FR-001.4 | Integrate network_system for TCP/UDP/WebSocket (305K msg/sec) | P0 |
+| FR-001.5 | Integrate database_system for PostgreSQL/MySQL support | P0 |
+| FR-001.6 | Integrate monitoring_system for metrics and tracing | P0 |
+| FR-001.7 | Integrate container_system for serialization (2M/sec) | P0 |
 
 #### FR-002: Entity-Component System (ECS)
 
-| ID | Requirement | Priority | Source |
-|----|-------------|----------|--------|
-| FR-002.1 | Implement sparse set-based component storage | P0 | UGS |
-| FR-002.2 | Support entity creation/destruction at runtime | P0 | UGS |
-| FR-002.3 | Provide system scheduling with dependency management | P0 | UGS |
-| FR-002.4 | Enable parallel system execution where safe | P1 | UGS |
-| FR-002.5 | Support component queries with filters | P0 | UGS |
+| ID | Requirement | Priority |
+|----|-------------|----------|
+| FR-002.1 | Implement sparse set-based component storage | P0 |
+| FR-002.2 | Support entity creation/destruction at runtime | P0 |
+| FR-002.3 | Provide system scheduling with dependency management | P0 |
+| FR-002.4 | Enable parallel system execution where safe | P1 |
+| FR-002.5 | Support component queries with filters | P0 |
 
 #### FR-003: Plugin System
 
-| ID | Requirement | Priority | Source |
-|----|-------------|----------|--------|
-| FR-003.1 | Define plugin interface for game logic modules | P0 | UGS |
-| FR-003.2 | Support plugin lifecycle (load, init, update, shutdown) | P0 | UGS |
-| FR-003.3 | Enable plugin-to-plugin communication via events | P1 | UGS |
-| FR-003.4 | Provide plugin dependency resolution | P1 | UGS |
-| FR-003.5 | Support hot-reload for development (optional) | P2 | UGS |
+| ID | Requirement | Priority |
+|----|-------------|----------|
+| FR-003.1 | Define plugin interface for game logic modules | P0 |
+| FR-003.2 | Support plugin lifecycle (load, init, update, shutdown) | P0 |
+| FR-003.3 | Enable plugin-to-plugin communication via events | P1 |
+| FR-003.4 | Provide plugin dependency resolution | P1 |
+| FR-003.5 | Support hot-reload for development (optional) | P2 |
 
 #### FR-004: Game Logic Layer
 
@@ -149,13 +144,13 @@ Deliver a flexible, high-performance game server framework that:
 
 #### FR-005: Microservices
 
-| ID | Requirement | Priority | Source |
-|----|-------------|----------|--------|
-| FR-005.1 | Implement AuthServer for authentication | P0 | UGS |
-| FR-005.2 | Implement GatewayServer for client routing | P0 | UGS |
-| FR-005.3 | Implement GameServer for world simulation | P0 | UGS |
-| FR-005.4 | Implement LobbyServer for matchmaking | P1 | UGS |
-| FR-005.5 | Implement DBProxy for database connection pooling | P1 | UGS |
+| ID | Requirement | Priority |
+|----|-------------|----------|
+| FR-005.1 | Implement AuthServer for authentication | P0 |
+| FR-005.2 | Implement GatewayServer for client routing | P0 |
+| FR-005.3 | Implement GameServer for world simulation | P0 |
+| FR-005.4 | Implement LobbyServer for matchmaking | P1 |
+| FR-005.5 | Implement DBProxy for database connection pooling | P1 |
 
 ### 5.2 Non-Functional Requirements
 
@@ -209,7 +204,7 @@ Deliver a flexible, high-performance game server framework that:
 | Orchestration | Kubernetes | Cloud-native scaling |
 | Monitoring | Prometheus + Grafana | Industry standard |
 
-### 6.2 Mandatory Guidelines (from CGSS)
+### 6.2 Mandatory Guidelines
 
 1. **Foundation Systems Only**: All functionality must use 7 foundation systems
 2. **No Direct External Libraries**: Use foundation system wrappers
@@ -287,7 +282,6 @@ Deliver a flexible, high-performance game server framework that:
 - [ARCHITECTURE.md](./ARCHITECTURE.md) - Technical architecture design
 - [INTEGRATION_STRATEGY.md](./INTEGRATION_STRATEGY.md) - Integration approach
 - [ROADMAP.md](./ROADMAP.md) - Detailed implementation plan
-- [reference/PROJECT_ANALYSIS.md](./reference/PROJECT_ANALYSIS.md) - Source project analysis
 - [reference/ECS_DESIGN.md](./reference/ECS_DESIGN.md) - ECS architecture details
 - [reference/PLUGIN_SYSTEM.md](./reference/PLUGIN_SYSTEM.md) - Plugin system design
 - [reference/FOUNDATION_ADAPTERS.md](./reference/FOUNDATION_ADAPTERS.md) - Adapter patterns

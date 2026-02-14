@@ -4,8 +4,6 @@
 
 **Version**: 0.1.0.0
 **Last Updated**: 2026-02-03
-**Source**: unified_game_server (UGS) + game_server
-
 ---
 
 ## 1. Overview
@@ -1386,10 +1384,9 @@ private:
 ### 9.2 Related Documents
 
 - [ARCHITECTURE.md](../ARCHITECTURE.md) - System architecture
-- [PROJECT_ANALYSIS.md](./PROJECT_ANALYSIS.md) - Source analysis
 - [ECS_DESIGN.md](./ECS_DESIGN.md) - ECS integration
 
 ---
 
 *Foundation Adapters Version*: 1.0.0
-*Source*: unified_game_server + game_server
+*Foundation Adapter Patterns for Common Game Server*

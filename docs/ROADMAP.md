@@ -21,8 +21,6 @@
 │  [████████]   [████████]   [████████████][████████]  [████████]  [████████] │
 │  Week 1-4     Week 5-8     Week 9-14     Week 15-18  Week 19-22  Week 23-26 │
 │                                                                              │
-│  ► CGSS       ► UGS ECS    ► game_server ► UGS       ► UGS       ► All      │
-│    systems      import       port          services    plugins     sources   │
 │  ► Adapters   ► Base       ► Combat      ► Auth      ► MMORPG    ► K8s      │
 │               components   ► World       ► Gateway   ► API       ► Monitor  │
 │                            ► AI          ► Lobby       stable    ► Security │
@@ -35,7 +33,6 @@
 ## 2. Phase 1: Foundation Integration
 
 **Duration**: Weeks 1-4
-**Source**: common_game_server_system (CGSS)
 **Goal**: Establish core infrastructure
 
 ### Week 1: Project Setup & Common System
@@ -111,7 +108,6 @@ src/
 ## 3. Phase 2: Core ECS Integration
 
 **Duration**: Weeks 5-8
-**Source**: unified_game_server (UGS)
 **Goal**: Implement Entity-Component System
 
 ### Week 5: ECS Core Import
@@ -188,7 +184,6 @@ src/
 ## 4. Phase 3: Game Logic Integration
 
 **Duration**: Weeks 9-14
-**Source**: game_server
 **Goal**: Port proven game mechanics to ECS
 
 ### Week 9-10: Object System Port
@@ -282,7 +277,6 @@ src/
 ## 5. Phase 4: Services Integration
 
 **Duration**: Weeks 15-18
-**Source**: unified_game_server (UGS)
 **Goal**: Implement microservices architecture
 
 ### Week 15: Auth Service
@@ -366,7 +360,6 @@ src/
 ## 6. Phase 5: Plugin System Integration
 
 **Duration**: Weeks 19-22
-**Source**: unified_game_server (UGS) + game_server
 **Goal**: Create plugin architecture and MMORPG plugin
 
 ### Week 19: Plugin Framework

@@ -62,7 +62,7 @@ This document defines the unified architecture for the Common Game Server framew
 │  │ - GameObject  │ - Combat Log  │ - Terrain     │                  │    │
 │  └─────────────────────────────────────────────────────────────────┘    │
 ├─────────────────────────────────────────────────────────────────────────┤
-│  Layer 4: CORE ECS LAYER (from unified_game_server)                     │
+│  Layer 4: CORE ECS LAYER                                                │
 │  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐       │
 │  │   Entity    │ │  Component  │ │   System    │ │    World    │       │
 │  │   Manager   │ │   Storage   │ │   Runner    │ │   Manager   │       │
@@ -73,7 +73,7 @@ This document defines the unified architecture for the Common Game Server framew
 │  │ - Recycle   │ │             │ │             │ │             │       │
 │  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘       │
 ├─────────────────────────────────────────────────────────────────────────┤
-│  Layer 3: SERVICE LAYER (from unified_game_server)                      │
+│  Layer 3: SERVICE LAYER                                                  │
 │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐      │
 │  │   Auth   │ │ Gateway  │ │   Game   │ │  Lobby   │ │ DBProxy  │      │
 │  │ Service  │ │ Service  │ │ Service  │ │ Service  │ │ Service  │      │
@@ -92,7 +92,7 @@ This document defines the unified architecture for the Common Game Server framew
 │  │ system     │ system      │ system        │ system      │ system   │  │
 │  └───────────────────────────────────────────────────────────────────┘  │
 ├─────────────────────────────────────────────────────────────────────────┤
-│  Layer 1: FOUNDATION LAYER (7 Systems from CGSS)                        │
+│  Layer 1: FOUNDATION LAYER (7 Systems)                                  │
 │  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐           │
 │  │ common  │ │ thread  │ │ logger  │ │ network │ │database │           │
 │  │ _system │ │ _system │ │ _system │ │ _system │ │ _system │           │
@@ -106,14 +106,14 @@ This document defines the unified architecture for the Common Game Server framew
 
 ### 2.2 Layer Responsibilities
 
-| Layer | Responsibility | Source Project |
-|-------|---------------|----------------|
-| **L1: Foundation** | Core infrastructure (logging, network, DB) | CGSS |
-| **L2: Adapter** | Game-specific wrappers for foundation | UGS + game_server |
-| **L3: Service** | Microservices for game operations | UGS |
-| **L4: Core ECS** | Entity-Component System runtime | UGS |
-| **L5: Game Logic** | Reusable game systems (combat, world) | game_server |
-| **L6: Plugin** | Game-specific implementations | UGS |
+| Layer | Responsibility |
+|-------|---------------|
+| **L1: Foundation** | Core infrastructure (logging, network, DB) |
+| **L2: Adapter** | Game-specific wrappers for foundation |
+| **L3: Service** | Microservices for game operations |
+| **L4: Core ECS** | Entity-Component System runtime |
+| **L5: Game Logic** | Reusable game systems (combat, world) |
+| **L6: Plugin** | Game-specific implementations |
 
 ---
 
@@ -124,7 +124,7 @@ This document defines the unified architecture for the Common Game Server framew
 Seven foundation systems providing core infrastructure:
 
 ```cpp
-// All systems follow consistent patterns from CGSS
+// All systems follow consistent patterns
 namespace foundation {
 
 // common_system - Base types, Result<T,E>, DI

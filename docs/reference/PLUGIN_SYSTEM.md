@@ -4,8 +4,6 @@
 
 **Version**: 0.1.0.0
 **Last Updated**: 2026-02-03
-**Source**: unified_game_server (UGS)
-
 ---
 
 ## 1. Overview
@@ -1189,9 +1187,8 @@ extern "C" game::plugin::GamePlugin* create_plugin() {
 
 - [ARCHITECTURE.md](../ARCHITECTURE.md) - System architecture
 - [ECS_DESIGN.md](./ECS_DESIGN.md) - ECS integration
-- [PROJECT_ANALYSIS.md](./PROJECT_ANALYSIS.md) - Source analysis
 
 ---
 
 *Plugin System Version*: 1.0.0
-*Source*: unified_game_server
+*Plugin System Design for Common Game Server*

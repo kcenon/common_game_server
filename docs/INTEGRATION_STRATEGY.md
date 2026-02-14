@@ -10,14 +10,13 @@
 
 ## 1. Executive Summary
 
-This document outlines the strategy for integrating four game server projects into a unified framework:
+This document outlines the strategy for building a unified game server framework with the following key contributions:
 
-| Source Project | Key Contribution | Integration Priority |
-|----------------|------------------|---------------------|
-| **common_game_server_system (CGSS)** | Standards, specifications, guidelines | Foundation |
-| **game_server** | Proven MMORPG game logic | Game Logic Layer |
-| **unified_game_server (UGS)** | Modern architecture, ECS, plugins | Core Architecture |
-| **game_server_system** | Integration target | Placeholder |
+| Key Contribution | Integration Priority |
+|------------------|---------------------|
+| Standards, specifications, guidelines | Foundation |
+| Proven MMORPG game logic | Game Logic Layer |
+| Modern architecture, ECS, plugins | Core Architecture |
 
 ---
 
@@ -27,26 +26,26 @@ This document outlines the strategy for integrating four game server projects in
 
 | Principle | Description | Rationale |
 |-----------|-------------|-----------|
-| **Standards First** | CGSS specifications as the foundation | Consistency |
-| **Architecture from UGS** | ECS + microservices from UGS | Scalability |
-| **Logic from game_server** | Port proven game mechanics | Reliability |
+| **Standards First** | Specifications as the foundation | Consistency |
+| **Modern Architecture** | ECS + microservices | Scalability |
+| **Proven Logic** | Port proven game mechanics | Reliability |
 | **Adapter Pattern** | Isolate foundation from game logic | Maintainability |
 | **Plugin Architecture** | Game-specific code as plugins | Extensibility |
 
 ### 2.2 Integration Decision Matrix
 
-| Component | Source | Reason |
-|-----------|--------|--------|
-| 7 Foundation Systems | CGSS | Standardized, well-documented |
-| Error handling (Result<T,E>) | CGSS | Type-safe error propagation |
-| ECS implementation | UGS | Cache-friendly, scalable |
-| Plugin system | UGS | Supports multiple game genres |
-| Microservices | UGS | Cloud-native scaling |
-| Object/Unit system | game_server | Battle-tested MMORPG logic |
-| Combat system | game_server | Proven mechanics |
-| World/Map system | game_server | Grid-based spatial management |
-| AI/Pathfinding | game_server | Working implementation |
-| Foundation Adapters | UGS + game_server | Combined best practices |
+| Component | Reason |
+|-----------|--------|
+| 7 Foundation Systems | Standardized, well-documented |
+| Error handling (Result<T,E>) | Type-safe error propagation |
+| ECS implementation | Cache-friendly, scalable |
+| Plugin system | Supports multiple game genres |
+| Microservices | Cloud-native scaling |
+| Object/Unit system | Battle-tested MMORPG logic |
+| Combat system | Proven mechanics |
+| World/Map system | Grid-based spatial management |
+| AI/Pathfinding | Working implementation |
+| Foundation Adapters | Combined best practices |
 
 ---
 
@@ -54,7 +53,7 @@ This document outlines the strategy for integrating four game server projects in
 
 ### 3.1 Phase 1: Foundation Integration (Weeks 1-4)
 
-#### 3.1.1 CGSS Integration
+#### 3.1.1 Foundation Integration
 
 **Objective**: Establish foundation layer with 7 systems
 
@@ -224,9 +223,9 @@ void Player::save() {
 
 ### 3.2 Phase 2: Core ECS Integration (Weeks 5-8)
 
-#### 3.2.1 UGS ECS Import
+#### 3.2.1 ECS Implementation
 
-**Objective**: Integrate Entity-Component System from unified_game_server
+**Objective**: Integrate Entity-Component System
 
 ```
 Tasks:
@@ -329,10 +328,10 @@ EntityId convert_to_ecs(ecs::World& world, legacy::Object* obj) {
 
 #### 3.3.1 Object System Port
 
-**Objective**: Port game_server Object/Unit/Player systems to ECS
+**Objective**: Port Object/Unit/Player systems to ECS
 
 ```cpp
-// Original game_server structure (OOP)
+// Original structure (OOP)
 class Object {
     ObjectGUID guid_;
     ObjectType type_;
@@ -405,7 +404,7 @@ public:
 **Objective**: Port combat mechanics to ECS
 
 ```cpp
-// Combat Components (from game_server mechanics)
+// Combat Components
 struct CombatStateComponent {
     bool in_combat;
     EntityId current_target;
@@ -534,9 +533,9 @@ class ZoneTransitionSystem : public ecs::System {
 
 ### 3.4 Phase 4: Services Integration (Weeks 15-18)
 
-#### 3.4.1 UGS Microservices Import
+#### 3.4.1 Microservices Implementation
 
-**Objective**: Integrate microservices architecture from UGS
+**Objective**: Integrate microservices architecture
 
 ```cpp
 // Service base class
@@ -660,7 +659,7 @@ public:
     void register_command(const std::string& name, CommandHandler handler);
 };
 
-// MMORPG Plugin (combines game_server logic)
+// MMORPG Plugin
 class MMORPGPlugin : public GamePlugin {
 public:
     Result<void> on_load(PluginContext& ctx) override {
@@ -794,7 +793,7 @@ void WorldTick::update(float delta_time) {
 |-------|----------|
 | **Phase 1** | All 7 foundation systems integrated, adapters complete, tests passing |
 | **Phase 2** | ECS operational, 10K entities @ <5ms, basic systems working |
-| **Phase 3** | Object/Combat/World systems ported, feature parity with game_server |
+| **Phase 3** | Object/Combat/World systems ported, feature parity with MMORPG requirements |
 | **Phase 4** | All microservices operational, inter-service communication working |
 | **Phase 5** | MMORPG plugin complete, plugin API stable |
 | **Phase 6** | K8s deployment working, 10K CCU load test passed |
@@ -814,21 +813,20 @@ void WorldTick::update(float delta_time) {
 
 ### 6.1 Source Code Mapping
 
-| Target Directory | Source | Content |
-|------------------|--------|---------|
-| `src/foundation/` | New | Foundation adapters |
-| `src/core/ecs/` | UGS | ECS implementation |
-| `src/game/object/` | game_server | Object system (ported) |
-| `src/game/combat/` | game_server | Combat system (ported) |
-| `src/game/world/` | game_server | World system (ported) |
-| `src/services/` | UGS | Microservices |
-| `src/plugins/mmorpg/` | game_server + UGS | MMORPG plugin |
+| Target Directory | Content |
+|------------------|---------|
+| `src/foundation/` | Foundation adapters |
+| `src/core/ecs/` | ECS implementation |
+| `src/game/object/` | Object system (ported) |
+| `src/game/combat/` | Combat system (ported) |
+| `src/game/world/` | World system (ported) |
+| `src/services/` | Microservices |
+| `src/plugins/mmorpg/` | MMORPG plugin |
 
 ### 6.2 Related Documents
 
 - [ARCHITECTURE.md](./ARCHITECTURE.md) - System architecture
 - [ROADMAP.md](./ROADMAP.md) - Implementation timeline
-- [reference/PROJECT_ANALYSIS.md](./reference/PROJECT_ANALYSIS.md) - Source analysis
 
 ---
 

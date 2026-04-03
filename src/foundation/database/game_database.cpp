@@ -22,8 +22,6 @@ static ::database::database_types toKcenon(DatabaseType type) {
     switch (type) {
         case DatabaseType::PostgreSQL:
             return ::database::database_types::postgres;
-        case DatabaseType::MySQL:
-            return ::database::database_types::mysql;
         case DatabaseType::SQLite:
             return ::database::database_types::sqlite;
     }

@@ -440,7 +440,7 @@ add_executable(cgs_foundation_network_integration_tests
 )
 target_link_libraries(cgs_foundation_network_integration_tests PRIVATE
     cgs::foundation_network
-    NetworkSystem
+    network_system
     GTest::gtest_main
 )
 gtest_discover_tests(cgs_foundation_network_integration_tests
@@ -453,7 +453,7 @@ add_executable(cgs_foundation_network_throughput_tests
 )
 target_link_libraries(cgs_foundation_network_throughput_tests PRIVATE
     cgs::foundation_network
-    NetworkSystem
+    network_system
     GTest::gtest_main
 )
 gtest_discover_tests(cgs_foundation_network_throughput_tests

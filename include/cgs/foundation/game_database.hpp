@@ -39,7 +39,7 @@ using QueryResult = std::vector<DbRow>;
 // ── Database types ──────────────────────────────────────────────────────────
 
 /// Supported database backend types.
-enum class DatabaseType : uint8_t { PostgreSQL, MySQL, SQLite };
+enum class DatabaseType : uint8_t { PostgreSQL, SQLite };
 
 /// Configuration for GameDatabase connection pool.
 struct DatabaseConfig {

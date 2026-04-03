@@ -4,6 +4,6 @@ add_library(cgs_foundation_network
 )
 target_link_libraries(cgs_foundation_network
     PUBLIC cgs_core
-    PRIVATE NetworkSystem
+    PRIVATE network_system
 )
 add_library(cgs::foundation_network ALIAS cgs_foundation_network)

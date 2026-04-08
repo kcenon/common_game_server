@@ -82,7 +82,8 @@ Doxygen 사이트로 렌더링됩니다. 각 튜토리얼은 `cmake --preset deb
 | 튜토리얼 | 주제 |
 |---|---|
 | `tutorial_database.dox` | `GameDatabase`, 프리페어드 스테이트먼트, 트랜잭션 |
-| `tutorial_networking.dox` | `NetworkMessage`, 시그널, TLS |
+| `tutorial_networking.dox` | 서버 측 `NetworkMessage`, 시그널, TLS |
+| `tutorial_client.dox` | 클라이언트 측 루프백 라운드트립 (`kcenon::network` 파사드 사용) |
 
 동반 실행 프로그램은 [`../examples/README.md`](../examples/README.md)를
 참조하세요.

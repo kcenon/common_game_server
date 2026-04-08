@@ -340,6 +340,10 @@
  *
  * @section tut_net_next Next Steps
  *
+ * - @ref tutorial_client — The other half of the conversation:
+ *   how to write a C++ client that connects to this server and
+ *   exchanges `NetworkMessage` frames. Runnable loopback example
+ *   in `examples/11_client.cpp`.
  * - @ref tutorial_result_errors — Every network call returns
  *   `GameResult<T>`.
  * - @ref tutorial_foundation_adapters — Register

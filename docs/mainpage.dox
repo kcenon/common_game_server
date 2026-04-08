@@ -108,7 +108,8 @@
  *
  * **Persistence and networking**
  * - @subpage tutorial_database - GameDatabase, prepared statements, transactions
- * - @subpage tutorial_networking - NetworkMessage wire format, signals, TLS
+ * - @subpage tutorial_networking - Server-side NetworkMessage wire format, signals, TLS
+ * - @subpage tutorial_client - Client-side loopback round-trip with kcenon facades
  *
  * Every tutorial has a runnable companion program under
  * `examples/NN_<topic>.cpp` that you can build with

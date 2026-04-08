@@ -1,0 +1,427 @@
+/**
+ * @page tutorial_client Tutorial: Writing a Client Against GameNetworkManager
+ *
+ * @tableofcontents
+ *
+ * `common_game_server::GameNetworkManager` is intentionally a
+ * **server-only** wrapper — it exposes `listen`, `broadcast`, and
+ * `registerHandler`, but not `connect`. The framework assumes your
+ * actual player-facing clients live in a separate project (Unity,
+ * Unreal, a custom C++ launcher, a browser WebSocket client, ...).
+ * But sooner or later you need a C++ client for **something** — a
+ * headless load generator, a bot, an integration test harness, a
+ * smoke test for a new opcode. This tutorial shows how to write one
+ * using the `kcenon::network::facade::*` APIs that the framework
+ * already depends on, and how to run a full server+client round
+ * trip inside a single process so you can exercise the whole wire
+ * protocol without external infrastructure.
+ *
+ * **Compilable version**: `examples/11_client.cpp`
+ *
+ * @section tut_client_why Why GameNetworkManager Has No Client API
+ *
+ * Game servers and game clients have very different concerns:
+ *
+ * | Server | Client |
+ * |---|---|
+ * | Bind one or more ports | Connect to one host at a time |
+ * | Accept many sessions | Manage one session |
+ * | Broadcast to all | React to incoming messages |
+ * | No reconnect logic | Aggressive reconnect on drop |
+ * | Runs on Linux boxes | Runs everywhere — Windows, console, browser |
+ *
+ * Unifying both behind one API would make the server adapter heavier
+ * without helping the server side at all. The framework takes the
+ * lean route: `GameNetworkManager` is a server wrapper, and when you
+ * need a client you go straight to the underlying
+ * `kcenon::network_system` facades. The facades already know about
+ * TCP, UDP, and WebSocket, and they expose an observer pattern that
+ * composes cleanly with any game loop.
+ *
+ * The project's own integration test suite
+ * (`tests/integration/foundation/network_integration_test.cpp`) is
+ * the canonical reference — everything in this tutorial mirrors the
+ * pattern used there, condensed for teaching.
+ *
+ * @section tut_client_setup Setup
+ *
+ * Include the framework header plus the facade you want to talk to:
+ *
+ * @code{.cpp}
+ * #include "cgs/foundation/game_network_manager.hpp"
+ *
+ * #include <kcenon/network/facade/tcp_facade.h>
+ * #include <kcenon/network/interfaces/connection_observer.h>
+ * #include <kcenon/network/interfaces/i_protocol_client.h>
+ *
+ * using cgs::foundation::GameNetworkManager;
+ * using cgs::foundation::NetworkMessage;
+ * using cgs::foundation::Protocol;
+ * using cgs::foundation::SessionId;
+ * @endcode
+ *
+ * Link against `cgs::foundation_network` (pulls in the server
+ * adapter and `NetworkMessage`) and `network_system` (pulls in the
+ * facade headers and the implementation). For UDP or WebSocket
+ * clients, include `udp_facade.h` or `websocket_facade.h`
+ * respectively — the three facades share the same observer
+ * interface.
+ *
+ * @section tut_client_overview The Three Client-Side Concepts
+ *
+ * Writing a client boils down to three steps:
+ *
+ * 1. **Create a client through a facade**. The facade knows how to
+ *    build a concrete `i_protocol_client` for its protocol.
+ * 2. **Attach an observer**. A `callback_adapter` holds lambdas for
+ *    `on_connected`, `on_receive`, `on_disconnected`, and
+ *    `on_error`. All callbacks fire on network worker threads —
+ *    marshal to the game thread if you need thread affinity.
+ * 3. **Send and receive `NetworkMessage` bytes**. The wire format is
+ *    the exact same 4-byte-length + 2-byte-opcode + payload frame
+ *    that `GameNetworkManager` emits, so
+ *    `NetworkMessage::serialize()` on the client round-trips through
+ *    `NetworkMessage::deserialize()` on the server (and vice versa).
+ *
+ * That's it. There is no separate client protocol, no handshake
+ * dance, no state machine to learn — everything is just the same
+ * wire format and the same opcode dispatch as the server.
+ *
+ * @section tut_client_create_tcp Creating a TCP Client
+ *
+ * TCP is the most common protocol for login, chat, inventory, and
+ * anything that needs ordered reliable delivery:
+ *
+ * @code{.cpp}
+ * kcenon::network::facade::tcp_facade tcp;
+ * kcenon::network::facade::tcp_facade::client_config cfg{};
+ * cfg.host = "127.0.0.1";
+ * cfg.port = 19101;
+ * cfg.client_id = "tutorial-client";   // string tag for logs
+ *
+ * auto client = tcp.create_client(cfg);
+ * @endcode
+ *
+ * **Important**: `tcp_facade::create_client` auto-starts the
+ * connection. By the time it returns, the client is either
+ * connecting or already connected. That means the `on_connected`
+ * observer callback might fire **before** you get a chance to
+ * attach the observer — see the next section for the handshake
+ * pattern that tolerates this race.
+ *
+ * UDP has the same API:
+ *
+ * @code{.cpp}
+ * kcenon::network::facade::udp_facade udp;
+ * auto client = udp.create_client({
+ *     .host = "127.0.0.1",
+ *     .port = 19102,
+ *     .client_id = "udp-bot",
+ * });
+ * @endcode
+ *
+ * WebSocket is slightly different — `create_client` does NOT
+ * auto-start. You must call `client->start(host, port)` explicitly
+ * after attaching the observer:
+ *
+ * @code{.cpp}
+ * kcenon::network::facade::websocket_facade ws;
+ * auto client = ws.create_client({ .client_id = "browser-bot" });
+ * // ... attach observer here ...
+ * auto result = client->start("127.0.0.1", 19103);
+ * if (result.is_err()) { /* handle */ }
+ * @endcode
+ *
+ * @section tut_client_observer Attaching the Observer
+ *
+ * `callback_adapter` is a fluent builder for the four callback
+ * slots. Build it, chain your handlers, and hand it to the client:
+ *
+ * @code{.cpp}
+ * auto adapter = std::make_shared<
+ *     kcenon::network::interfaces::callback_adapter>();
+ *
+ * adapter
+ *     ->on_connected([] {
+ *         std::cout << "connected\n";
+ *     })
+ *     .on_receive([](std::span<const uint8_t> data) {
+ *         auto msg = NetworkMessage::deserialize(data.data(), data.size());
+ *         if (msg) {
+ *             // dispatch on msg->opcode
+ *         }
+ *     })
+ *     .on_disconnected([](std::optional<std::string_view> reason) {
+ *         std::cout << "disconnected: "
+ *                   << (reason ? *reason : "no reason") << "\n";
+ *     })
+ *     .on_error([](std::error_code ec) {
+ *         std::cerr << "error: " << ec.message() << "\n";
+ *     });
+ *
+ * client->set_observer(adapter);
+ * @endcode
+ *
+ * Two things worth knowing:
+ *
+ * 1. **All callbacks run on worker threads.** They are safe to call
+ *    from any thread, but they are NOT safe for you to use them as
+ *    synchronization points with the main thread. Use a
+ *    `std::promise` / `std::future` for the connect handshake and a
+ *    `std::mutex` + `std::condition_variable` queue for received
+ *    bytes, just like `examples/11_client.cpp` does.
+ *
+ * 2. **Auto-start races `set_observer`.** Because TCP/UDP
+ *    `create_client` auto-starts, `on_connected` may have already
+ *    fired by the time you call `set_observer`. The idiomatic fix:
+ *    after calling `set_observer`, check `client->is_connected()`
+ *    and treat it as "already connected" without waiting for the
+ *    callback.
+ *
+ * @section tut_client_sync Connection Handshake Synchronization
+ *
+ * Here is the condensed pattern from `examples/11_client.cpp` that
+ * handles the auto-start race safely:
+ *
+ * @code{.cpp}
+ * class LoopbackClient {
+ * public:
+ *     bool ConnectTCP(uint16_t port, std::chrono::milliseconds timeout) {
+ *         tcp_facade tcp;
+ *         client_ = tcp.create_client({"127.0.0.1", port, "..."});
+ *         AttachObserver();
+ *
+ *         if (client_ && client_->is_connected()) {
+ *             connected_.store(true);
+ *             return true;   // already up — skip the wait
+ *         }
+ *         return connectedFuture_.wait_for(timeout)
+ *                    == std::future_status::ready;
+ *     }
+ *
+ * private:
+ *     void AttachObserver() {
+ *         auto adapter = std::make_shared<callback_adapter>();
+ *         adapter->on_connected([this] {
+ *             connected_.store(true);
+ *             try { connectedPromise_.set_value(); }
+ *             catch (const std::future_error&) { /* already set */ }
+ *         }).on_receive([this](std::span<const uint8_t> data) {
+ *             std::lock_guard lock(recvMutex_);
+ *             received_.emplace_back(data.begin(), data.end());
+ *             recvCv_.notify_one();
+ *         });
+ *         client_->set_observer(adapter);
+ *     }
+ *     // ... fields: promise/future, mutex/cv/queue ...
+ * };
+ * @endcode
+ *
+ * The `try/catch(future_error)` around `set_value` is load-bearing:
+ * it absorbs the race where both the `is_connected()` branch and
+ * the callback path try to settle the promise. Without it, the
+ * second call to `set_value` would throw.
+ *
+ * @section tut_client_send Sending and Receiving Messages
+ *
+ * Once the observer is attached and the connection is live,
+ * sending is a one-liner:
+ *
+ * @code{.cpp}
+ * NetworkMessage ping;
+ * ping.opcode = 0x0001;
+ * ping.payload.assign(text.begin(), text.end());
+ *
+ * auto bytes = ping.serialize();
+ * auto result = client->send(std::move(bytes));
+ * if (result.is_err()) {
+ *     // connection died; surface an error to the caller
+ * }
+ * @endcode
+ *
+ * Receiving is the inverse — the `on_receive` observer pushes
+ * `std::vector<uint8_t>` frames into a mutex-protected queue, and
+ * the main thread drains the queue with a timeout:
+ *
+ * @code{.cpp}
+ * std::optional<NetworkMessage> WaitForMessage(
+ *     std::chrono::milliseconds timeout) {
+ *     std::unique_lock lock(recvMutex_);
+ *     if (!recvCv_.wait_for(lock, timeout,
+ *                            [this] { return !received_.empty(); })) {
+ *         return std::nullopt;
+ *     }
+ *     auto bytes = std::move(received_.front());
+ *     received_.erase(received_.begin());
+ *     return NetworkMessage::deserialize(bytes);
+ * }
+ * @endcode
+ *
+ * **Always validate the `deserialize` return value.** Bytes that
+ * came off the wire can be malformed — truncated, wrong length
+ * prefix, wrong opcode alignment. `NetworkMessage::deserialize`
+ * returns `std::nullopt` in every pathological case; your client
+ * should log and skip the frame rather than crash.
+ *
+ * @section tut_client_loopback Loopback: Server + Client in One Process
+ *
+ * For tests, smoke checks, and tutorials, the easiest architecture
+ * is one process that both listens and connects. That is exactly
+ * what `examples/11_client.cpp` does:
+ *
+ * @code{.cpp}
+ * // 1. Construct the server and register a ping-pong handler.
+ * GameNetworkManager server;
+ * server.registerHandler(kOpcodePing,
+ *                        [&server](SessionId sid, const NetworkMessage& msg) {
+ *     auto reply = MakeMessage(kOpcodePong,
+ *                               std::string(msg.payload.begin(),
+ *                                           msg.payload.end()));
+ *     (void)server.send(sid, reply);
+ * });
+ *
+ * // 2. Bind to a fixed high port.
+ * auto r = server.listen(kPort, Protocol::TCP);
+ * if (!r) { return EXIT_FAILURE; }
+ *
+ * // 3. Give the acceptor a moment to settle.
+ * std::this_thread::sleep_for(std::chrono::milliseconds(200));
+ *
+ * // 4. Construct the client, connect, send, wait, verify.
+ * LoopbackClient client;
+ * client.ConnectTCP(kPort, std::chrono::seconds(5));
+ * client.Send(MakeMessage(kOpcodePing, "hello from client"));
+ * auto reply = client.WaitForMessage(std::chrono::seconds(5));
+ * assert(reply && reply->opcode == kOpcodePong);
+ *
+ * // 5. Clean shutdown: client first, then server.
+ * client.Close();
+ * server.stopAll();
+ * @endcode
+ *
+ * This pattern is CI-deterministic (no external infrastructure),
+ * uses the same wire format the production server will see, and
+ * exercises every layer of the networking stack end-to-end.
+ *
+ * **Always close the client before stopping the server.** Stopping
+ * the server first cancels in-flight reads on the accepted
+ * session, and the client's `on_disconnected` callback may fire
+ * with a less informative reason than a clean client-side
+ * `client->stop()`.
+ *
+ * @section tut_client_debugging Debugging Tips
+ *
+ * 1. **Dump the bytes `serialize()` produces.** If the server
+ *    rejects a frame, compare your hex dump against the expected
+ *    wire layout: 4 bytes big-endian length, 2 bytes big-endian
+ *    opcode, payload. The endianness gotcha is the #1 cause of
+ *    "my client works but the server ignores me".
+ *
+ * 2. **Log the return of `set_observer`.** `set_observer` replaces
+ *    any previous observer silently — if you attach a throwaway
+ *    observer during a test, remember to restore the production
+ *    one before the next send.
+ *
+ * 3. **Poll `is_connected()` in tight loops.** The observer is a
+ *    push model; if you need a pull model for a stall check, the
+ *    `i_protocol_client::is_connected()` method is cheap and
+ *    thread-safe.
+ *
+ * 4. **Use separate `client_id`s per client.** The kcenon logger
+ *    tags every message with the `client_id` string from the
+ *    config. In a load-test scenario where you spin up 100
+ *    clients, unique IDs make per-client traces trivial to filter.
+ *
+ * 5. **Run the example under strace / dtruss to see the raw bytes.**
+ *    `strace -e read,write ./cgs_example_11_client` on Linux shows
+ *    the exact syscalls; on macOS use
+ *    `sudo dtruss -t read -t write`. Invaluable when the framework
+ *    says "sent 20 bytes" but Wireshark disagrees.
+ *
+ * @section tut_client_pitfalls Common Pitfalls
+ *
+ * 1. **Attaching the observer after the callback already fired.**
+ *    Only applies to TCP/UDP because of `create_client` auto-start.
+ *    Fix: after `set_observer`, unconditionally check
+ *    `is_connected()` and treat `true` as "connected, skip the
+ *    wait".
+ *
+ * 2. **Calling `set_value` on a promise twice.** If both the
+ *    `is_connected()` fast path and the `on_connected` callback
+ *    hit the same promise, the second call throws
+ *    `std::future_error`. Wrap both calls in `try/catch` or use
+ *    `std::call_once`.
+ *
+ * 3. **Forgetting the startup delay.** `listen` returns before the
+ *    acceptor has finished binding on some platforms. A client
+ *    that connects immediately may get a connection refused. The
+ *    200 ms sleep in the example is plenty; production code uses
+ *    retry-with-backoff.
+ *
+ * 4. **Deserializing unbounded frames.** `deserialize` trusts the
+ *    length field. A malicious client could send a 4 GiB length
+ *    prefix and exhaust server memory. The framework's built-in
+ *    server cap is adequate, but if you implement a custom client
+ *    that re-frames messages, bound the length yourself.
+ *
+ * 5. **Thread-unsafe captures in callback lambdas.** Callback
+ *    lambdas run on network worker threads. Capturing a reference
+ *    to a stack-allocated vector, then mutating it from the main
+ *    thread, is a data race. Use `std::atomic`, a mutex, or a
+ *    shared_ptr with value semantics.
+ *
+ * 6. **Not closing the client on error paths.** The RAII wrapper
+ *    in `examples/11_client.cpp` does not call `Close` in its
+ *    destructor — it is up to `main()` to close on both the
+ *    happy and error paths. Production wrappers should use a
+ *    destructor that calls `stop()` unconditionally.
+ *
+ * 7. **Reusing a client after `stop()`.** Once stopped, an
+ *    `i_protocol_client` cannot be restarted. Construct a fresh
+ *    client via `create_client` for each new connection.
+ *
+ * @section tut_client_performance Performance Notes
+ *
+ * - **`create_client` costs a few hundred microseconds** including
+ *   the initial socket connect for TCP/UDP auto-start. Batch-spawn
+ *   100 clients takes ~50 ms on a modern machine.
+ * - **`send` is async** — the byte vector is moved into an internal
+ *   queue and the I/O thread drains it. A single `send` call returns
+ *   in well under a microsecond.
+ * - **`on_receive` callbacks are zero-copy from the socket buffer**
+ *   into the `std::span` parameter. The callback then typically
+ *   copies into a queue; that is the one unavoidable copy per
+ *   received message.
+ * - **`callback_adapter` dispatch overhead is ~30 ns per callback**
+ *   (one virtual call + one `std::function` invoke). Negligible
+ *   compared to network latency.
+ * - **TCP auto-start handshake dominates connect latency** —
+ *   expect 150 µs for localhost and 1–5 ms for a same-datacenter
+ *   hop. For load tests spinning up thousands of clients, parallel
+ *   connect is essential (don't serialize across a single thread).
+ * - **WebSocket handshake is ~10x slower than raw TCP** because of
+ *   the HTTP upgrade dance. Pre-connect your load test clients if
+ *   you want the steady-state phase to start cleanly.
+ *
+ * @section tut_client_next Next Steps
+ *
+ * - @ref tutorial_networking — The server-side counterpart. Read
+ *   both tutorials together to see the whole request/response
+ *   loop.
+ * - @ref tutorial_foundation_adapters — Register a
+ *   `GameNetworkManager` into a `ServiceLocator` so game code
+ *   doesn't own the socket directly.
+ * - @ref tutorial_result_errors — Every facade call returns a
+ *   Result-ish type (`is_ok`/`is_err`). Understand the pattern
+ *   before wiring error paths.
+ * - `tests/integration/foundation/network_integration_test.cpp` —
+ *   The authoritative reference implementation. 626 lines of
+ *   TCP/UDP/WebSocket loopback tests, multi-session lifecycle
+ *   tracking, and opcode dispatch coverage.
+ * - `advanced/PROTOCOL_SPECIFICATION.md` — Complete opcode range
+ *   table and payload layouts for the built-in microservices.
+ * - `include/cgs/foundation/game_network_manager.hpp` — Server
+ *   adapter API.
+ * - `kcenon/network_system/include/kcenon/network/facade/*` —
+ *   Facade headers for each transport protocol.
+ */

@@ -23,6 +23,7 @@ INPUT                  = include/cgs \
                          docs/tutorial_quest.dox \
                          docs/tutorial_database.dox \
                          docs/tutorial_networking.dox \
+                         docs/tutorial_client.dox \
                          docs/faq.dox \
                          docs/troubleshooting.dox
 FILE_PATTERNS          = *.h *.hpp *.md *.dox

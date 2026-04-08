@@ -1,0 +1,334 @@
+/**
+ * @page tutorial_database Tutorial: Database Adapter, Prepared Statements, Transactions
+ *
+ * @tableofcontents
+ *
+ * Game servers persist the things that matter: accounts, characters,
+ * quest logs, inventories, guild rosters, auction listings, combat
+ * replays. `common_game_server` wraps the kcenon `database_system`
+ * in a game-friendly `GameDatabase` adapter with connection pooling,
+ * RAII transactions, named-parameter prepared statements, and
+ * `GameResult<T>`-based error handling. This tutorial walks through
+ * every layer from configuration to transaction rollback.
+ *
+ * **Compilable version**: `examples/09_database.cpp`
+ *
+ * The runnable example stops short of running real queries because
+ * that requires a live PostgreSQL server. It demonstrates the
+ * offline parts (prepared statement binding, configuration,
+ * `GameResult<void>` error handling), and the tutorial covers the
+ * online parts with source snippets.
+ *
+ * @section tut_db_setup Setup
+ *
+ * @code{.cpp}
+ * #include "cgs/foundation/game_database.hpp"
+ * #include "cgs/foundation/game_error.hpp"
+ * #include "cgs/foundation/game_result.hpp"
+ *
+ * using namespace cgs::foundation;
+ * @endcode
+ *
+ * Link against `cgs::foundation_database`. The adapter transitively
+ * pulls in the kcenon `database_system` and its PostgreSQL driver.
+ *
+ * @section tut_db_config Configuring the Pool
+ *
+ * `DatabaseConfig` controls the connection pool before you connect:
+ *
+ * @code{.cpp}
+ * struct DatabaseConfig {
+ *     std::string connectionString;
+ *     DatabaseType dbType = DatabaseType::PostgreSQL;
+ *     uint32_t minConnections = 2;
+ *     uint32_t maxConnections = 10;
+ *     std::chrono::seconds connectionTimeout{30};
+ * };
+ * @endcode
+ *
+ * | Field | Meaning |
+ * |---|---|
+ * | `connectionString` | libpq-style `key=value` string (or SQLite path) |
+ * | `dbType` | `PostgreSQL` (primary) or `SQLite` (for embedded tests) |
+ * | `minConnections` | Warm connections opened at startup |
+ * | `maxConnections` | Upper bound the pool grows to under load |
+ * | `connectionTimeout` | Max wait before a borrower gets an error |
+ *
+ * Sizing guidance:
+ * - **Min** = roughly 2× the average concurrent transactions per
+ *   tick. Keeps warm-path latency low.
+ * - **Max** = 1.5× the number of worker threads that run DB calls.
+ *   Avoids pool exhaustion at 95th-percentile load.
+ * - **Timeout** = well below your frame budget. If a DB call takes
+ *   longer than one tick you've got a bigger problem than
+ *   borrowing timeouts.
+ *
+ * @section tut_db_connect Connecting
+ *
+ * `connect` returns `GameResult<void>` — check it before any query.
+ *
+ * @code{.cpp}
+ * GameDatabase db;
+ * auto result = db.connect(config);
+ * if (!result) {
+ *     const auto& err = result.error();
+ *     CGS_LOG_ERROR(LogCategory::Database, err.message());
+ *     return EXIT_FAILURE;
+ * }
+ *
+ * CGS_LOG_INFO(LogCategory::Database, "connected");
+ * @endcode
+ *
+ * On failure, common error codes are:
+ *
+ * | Code | Cause |
+ * |---|---|
+ * | `ConnectionFailed` | TCP connect to the DB host failed |
+ * | `NotConnected` | Credentials were rejected by the server |
+ * | `ConnectionPoolExhausted` | Pool already maxed on a previous call |
+ *
+ * Always call `disconnect()` before destroying the `GameDatabase` if
+ * you want an orderly shutdown — the destructor also closes the
+ * pool but does not flush in-flight async queries.
+ *
+ * @section tut_db_query Running a Query
+ *
+ * The simplest query is a one-shot SELECT:
+ *
+ * @code{.cpp}
+ * auto rows = db.query("SELECT id, name FROM players WHERE level > 10");
+ * if (rows) {
+ *     for (const DbRow& row : rows.value()) {
+ *         auto nameIt = row.find("name");
+ *         if (nameIt != row.end()) {
+ *             auto* name = std::get_if<std::string>(&nameIt->second);
+ *             if (name) std::cout << *name << "\n";
+ *         }
+ *     }
+ * } else {
+ *     std::cerr << rows.error().message() << "\n";
+ * }
+ * @endcode
+ *
+ * `QueryResult` is a `std::vector<DbRow>`, where each `DbRow` is a
+ * `std::unordered_map<std::string, DbValue>`. `DbValue` is a
+ * `std::variant<DbNull, std::string, int64_t, double, bool>` — pull
+ * the concrete type out with `std::get_if`.
+ *
+ * For writes (INSERT / UPDATE / DELETE / DDL), use `execute` — it
+ * returns the number of affected rows:
+ *
+ * @code{.cpp}
+ * auto n = db.execute("UPDATE players SET last_login = NOW() WHERE id = 42");
+ * if (n) {
+ *     std::cout << n.value() << " rows updated\n";
+ * }
+ * @endcode
+ *
+ * @section tut_db_prepared Prepared Statements
+ *
+ * Prepared statements use named parameters with the `$name` syntax:
+ *
+ * @code{.cpp}
+ * PreparedStatement stmt("SELECT id, name, level FROM players "
+ *                         "WHERE level >= $min_level AND guild_id = $guild "
+ *                         "ORDER BY name LIMIT $limit");
+ * stmt.bindInt("min_level", 30)
+ *     .bindString("guild", "Knights of Valor")
+ *     .bindInt("limit", 10);
+ *
+ * auto rows = db.execute(stmt);
+ * @endcode
+ *
+ * **Never concatenate user input into a SQL string.** Always bind
+ * parameters. Prepared statements are the only defense against SQL
+ * injection, and they are faster than string-concat because the
+ * server caches the parsed plan.
+ *
+ * Binding supports `string`, `int64_t`, `double`, `bool`, and NULL:
+ *
+ * @code{.cpp}
+ * stmt.bindString("name", "Arthur");
+ * stmt.bindInt("level", 80);
+ * stmt.bindDouble("xp", 12345.67);
+ * stmt.bindBool("is_admin", false);
+ * stmt.bindNull("optional_field");
+ * @endcode
+ *
+ * `clearBindings()` resets all bindings so you can reuse a
+ * statement for a new parameter set inside a loop.
+ *
+ * `resolve()` returns the interpolated SQL as a string — useful for
+ * logging and debugging, but **do not pass it back to `query()`**;
+ * that defeats the prepared-statement plan cache. Always execute
+ * the statement object directly.
+ *
+ * @section tut_db_transactions Transactions
+ *
+ * `beginTransaction` returns a RAII `Transaction` that automatically
+ * rolls back on destruction if you forget to commit:
+ *
+ * @code{.cpp}
+ * auto txnResult = db.beginTransaction();
+ * if (!txnResult) {
+ *     return txnResult.error();
+ * }
+ * auto txn = std::move(txnResult).value();
+ *
+ * auto insertResult = txn.execute(
+ *     "INSERT INTO auctions (seller, item, price) "
+ *     "VALUES ('Arthur', 2001, 500)");
+ * if (!insertResult) {
+ *     // Transaction destructor will roll back automatically.
+ *     return insertResult.error();
+ * }
+ *
+ * auto updateResult = txn.execute(
+ *     "UPDATE players SET gold = gold - 500 WHERE name = 'Arthur'");
+ * if (!updateResult) {
+ *     return updateResult.error();
+ * }
+ *
+ * auto commitResult = txn.commit();
+ * if (!commitResult) {
+ *     return commitResult.error();
+ * }
+ * @endcode
+ *
+ * The key guarantees:
+ *
+ * - `Transaction::~Transaction` calls `rollback()` if neither
+ *   `commit()` nor `rollback()` has been invoked.
+ * - All queries inside a `Transaction` use a **single pooled
+ *   connection** for the duration — other queries on the same
+ *   `GameDatabase` use different pooled connections.
+ * - `isActive()` returns `true` until the first commit/rollback.
+ *
+ * You cannot nest transactions. If you need save-points, issue
+ * raw `SAVEPOINT` / `ROLLBACK TO SAVEPOINT` SQL inside the
+ * outer transaction.
+ *
+ * @section tut_db_async Asynchronous Queries
+ *
+ * For cases where you don't want to block the game tick, use
+ * `queryAsync`:
+ *
+ * @code{.cpp}
+ * std::future<GameResult<QueryResult>> future =
+ *     db.queryAsync("SELECT id FROM sessions WHERE expires_at < NOW()");
+ *
+ * // Do other work during this tick...
+ *
+ * // Next tick (or when the future is ready):
+ * if (future.wait_for(std::chrono::milliseconds(0)) ==
+ *         std::future_status::ready) {
+ *     auto result = future.get();
+ *     if (result) {
+ *         // process rows
+ *     }
+ * }
+ * @endcode
+ *
+ * Async runs on the kcenon thread pool — the game loop never
+ * blocks waiting for PostgreSQL.
+ *
+ * @section tut_db_debugging Debugging Tips
+ *
+ * 1. **Log `resolve()` before execution.** When a prepared
+ *    statement produces unexpected results, logging the resolved
+ *    SQL side-by-side with the input parameters is the fastest
+ *    way to spot a bad binding.
+ *
+ * 2. **Break on `GameDatabase::connect` failures.** A subsystem
+ *    that silently skips DB work is far worse than a loud crash
+ *    at startup. Assert connect succeeded during initialization.
+ *
+ * 3. **Count `poolSize()` vs. `activeConnections()`.** If the
+ *    former grows and the former never shrinks, you have a leak.
+ *    Likely culprit: a `Transaction` held across an `return` path
+ *    that never commits or rolls back.
+ *
+ * 4. **Log every transaction boundary.**
+ *    `CGS_LOG_DEBUG(LogCategory::Database, "txn begin/commit")`
+ *    in staging helps triage deadlocks and connection starvation.
+ *
+ * 5. **Use `EXPLAIN ANALYZE` in psql.** When a query is slower
+ *    than expected, extract the resolved SQL from the log and
+ *    run `EXPLAIN ANALYZE` directly against the database. Index
+ *    hints are usually the fix.
+ *
+ * @section tut_db_pitfalls Common Pitfalls
+ *
+ * 1. **Transaction leaks across early returns.** If you return
+ *    out of a function that holds a Transaction by value, the
+ *    RAII destructor rolls it back — good. If you return a
+ *    `GameResult<Transaction>` and the caller drops it, the
+ *    destructor also rolls it back — also good. The pitfall is
+ *    when you accidentally copy the Transaction (impossible —
+ *    it's deleted) or forget to `std::move` into an rvalue
+ *    pipeline.
+ *
+ * 2. **Mixing raw SQL with prepared statements.** If you call
+ *    `db.query("SELECT ... WHERE name = 'Arthur'")` with a
+ *    user-supplied name, you have a SQL injection. ALWAYS use
+ *    prepared statements for anything touching user input.
+ *
+ * 3. **N+1 queries.** Iterating a list of players and querying
+ *    each one's inventory is the classic N+1. Rewrite as a
+ *    single `WHERE player_id IN (...)` or an explicit JOIN.
+ *
+ * 4. **Not checking `activeConnections()`.** If the pool is
+ *    maxed, new queries wait up to `connectionTimeout`. A
+ *    monitoring alert on `activeConnections() == maxConnections`
+ *    catches capacity issues before they page you.
+ *
+ * 5. **Reusing a statement across threads.** `PreparedStatement`
+ *    is not thread-safe. Give each thread its own copy or
+ *    protect with a mutex.
+ *
+ * 6. **Passing large payloads by value.** `DbValue` holds
+ *    `std::string`. A SELECT that returns huge BLOB columns
+ *    allocates a new string per row. Consider streaming APIs
+ *    if you read > 1 MB per query.
+ *
+ * 7. **Assuming auto-commit.** `GameDatabase::execute` commits
+ *    its single statement immediately unless you are inside a
+ *    `Transaction`. Two separate `execute` calls are two
+ *    separate transactions — if the second fails, the first is
+ *    already durable. Wrap related writes in a Transaction.
+ *
+ * @section tut_db_performance Performance Notes
+ *
+ * - **`connect` allocates `minConnections` connections up front**
+ *   so the first query does not pay the handshake cost.
+ * - **Connection acquisition is `O(1)`** when the pool has free
+ *   slots. Contended borrowing costs one condition-variable
+ *   wakeup.
+ * - **Prepared statements reuse the plan cache** on the server
+ *   for every execution of the same SQL template. First
+ *   execution parses and plans; subsequent executions skip both.
+ * - **`queryAsync` has ~5 µs framework overhead** on top of the
+ *   actual query time, plus one thread-pool hop.
+ * - **Transactions hold one pooled connection exclusively.**
+ *   Keep them short — a 30-second transaction starves the
+ *   pool for every other caller.
+ * - **`DbValue` is a `std::variant`** — ~32 bytes on 64-bit
+ *   platforms. `QueryResult` with 1,000 rows × 10 columns is
+ *   ~320 KB of variant storage plus the string payloads.
+ *
+ * @section tut_db_next Next Steps
+ *
+ * - @ref tutorial_result_errors — Every database method returns
+ *   `GameResult<T>`. Make sure you understand the pattern.
+ * - @ref tutorial_foundation_adapters — Register the
+ *   `GameDatabase` in a `ServiceLocator` for DI-friendly
+ *   access.
+ * - @ref tutorial_quest — Quest logs and completed-quest sets
+ *   are the canonical database persistence target.
+ * - @ref tutorial_inventory — Persisting inventories is another
+ *   textbook use case.
+ * - `advanced/DATABASE_SCHEMA.md` — Schema design for the
+ *   built-in game tables.
+ * - `include/cgs/foundation/game_database.hpp` — authoritative
+ *   `GameDatabase` / `Transaction` / `PreparedStatement` API.
+ */

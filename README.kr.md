@@ -2,7 +2,8 @@
 
 [![CI](https://github.com/kcenon/common_game_server/actions/workflows/ci.yml/badge.svg)](https://github.com/kcenon/common_game_server/actions/workflows/ci.yml)
 [![Code Coverage](https://github.com/kcenon/common_game_server/actions/workflows/coverage.yml/badge.svg)](https://github.com/kcenon/common_game_server/actions/workflows/coverage.yml)
-[![API Docs](https://github.com/kcenon/common_game_server/actions/workflows/docs.yml/badge.svg)](https://github.com/kcenon/common_game_server/actions/workflows/docs.yml)
+[![API Docs](https://github.com/kcenon/common_game_server/actions/workflows/build-Doxygen.yaml/badge.svg)](https://github.com/kcenon/common_game_server/actions/workflows/build-Doxygen.yaml)
+[![GitHub Pages](https://img.shields.io/badge/docs-gh--pages-blue)](https://kcenon.github.io/common_game_server/)
 [![License](https://img.shields.io/badge/license-BSD%203--Clause-blue.svg)](LICENSE)
 [![Language](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
 

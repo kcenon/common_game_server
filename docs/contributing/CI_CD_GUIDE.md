@@ -9,7 +9,7 @@ for `common_game_server`.
 |----------|------|---------|---------|
 | CI | `.github/workflows/ci.yml` | push, PR | Lint + build + test (3 configs) |
 | Code Coverage | `.github/workflows/coverage.yml` | push, PR | lcov coverage report |
-| API Docs | `.github/workflows/docs.yml` | push, PR | Doxygen HTML generation |
+| Generate-Documentation | `.github/workflows/build-Doxygen.yaml` | push, PR | Doxygen HTML generation; deploys to `gh-pages` on main push (calls `kcenon/common_system/.github/workflows/doxygen.yml`) |
 | Benchmarks | `.github/workflows/benchmarks.yml` | manual / scheduled | Performance benchmark suite |
 | Load Test | `.github/workflows/load-test.yml` | manual | CCU validation scripts |
 | Chaos Tests | `.github/workflows/chaos-tests.yml` | manual | Fault injection & resilience |

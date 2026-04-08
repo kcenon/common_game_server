@@ -64,8 +64,8 @@ Key CMake options:
 Presets: `default`, `debug`, `release`, `asan`, `tsan`, `ci`, `conan-release`, `conan-debug`
 
 CI: GitHub Actions — `ci.yml` (lint + 3-config build & test), `coverage.yml` (lcov),
-`docs.yml` (Doxygen), `benchmarks.yml` (manual), `load-test.yml` (manual),
-`chaos-tests.yml` (manual).
+`build-Doxygen.yaml` (Doxygen + gh-pages deploy via common_system reusable workflow),
+`benchmarks.yml` (manual), `load-test.yml` (manual), `chaos-tests.yml` (manual).
 
 ## Key Patterns
 

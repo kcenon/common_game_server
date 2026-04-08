@@ -76,29 +76,6 @@
                 "CGS_BUILD_BENCHMARKS": "ON",
                 "CGS_BUILD_SERVICES": "ON"
             }
-        },
-        {
-            "name": "conan-release",
-            "displayName": "Conan Release",
-            "description": "Release build with Conan-provided dependencies",
-            "binaryDir": "${sourceDir}/build/Release",
-            "cacheVariables": {
-                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/build/Release/generators/conan_toolchain.cmake",
-                "CMAKE_BUILD_TYPE": "Release",
-                "CGS_BUILD_TESTS": "ON"
-            }
-        },
-        {
-            "name": "conan-debug",
-            "displayName": "Conan Debug",
-            "description": "Debug build with Conan-provided dependencies",
-            "binaryDir": "${sourceDir}/build/Debug",
-            "cacheVariables": {
-                "CMAKE_TOOLCHAIN_FILE": "${sourceDir}/build/Debug/generators/conan_toolchain.cmake",
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CGS_BUILD_TESTS": "ON",
-                "CGS_ENABLE_COVERAGE": "ON"
-            }
         }
     ],
     "buildPresets": [
@@ -107,9 +84,7 @@
         {"name": "release", "configurePreset": "release"},
         {"name": "asan", "configurePreset": "asan"},
         {"name": "tsan", "configurePreset": "tsan"},
-        {"name": "ci", "configurePreset": "ci"},
-        {"name": "conan-release", "configurePreset": "conan-release"},
-        {"name": "conan-debug", "configurePreset": "conan-debug"}
+        {"name": "ci", "configurePreset": "ci"}
     ],
     "testPresets": [
         {
@@ -121,11 +96,6 @@
             "name": "ci",
             "configurePreset": "ci",
             "output": {"outputOnFailure": true, "verbosity": "verbose"}
-        },
-        {
-            "name": "conan-release",
-            "configurePreset": "conan-release",
-            "output": {"outputOnFailure": true}
         }
     ]
 }

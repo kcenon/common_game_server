@@ -1,0 +1,106 @@
+/**
+ * @mainpage common_game_server — Unified Game Server Framework
+ *
+ * @tableofcontents
+ *
+ * @section overview Overview
+ *
+ * `common_game_server` is a production-ready C++20 game server framework
+ * combining proven patterns from multiple game server implementations.
+ * It is the **Tier 3 application layer** of the kcenon ecosystem.
+ *
+ * @section features Key Features
+ *
+ * | Feature | Description |
+ * | --- | --- |
+ * | Entity-Component System | Data-oriented design with parallel execution |
+ * | Plugin Architecture | Hot-reloadable plugins with dependency resolution |
+ * | Microservices | 5 horizontally scalable services (Auth, Gateway, Game, Lobby, DBProxy) |
+ * | Foundation Adapters | 7 thin wrappers over kcenon foundation systems |
+ * | Game Logic Systems | Object, Combat, World, AI, Quest, Inventory |
+ * | Security | JWT RS256, TLS 1.3, input validation, SQL parameterization |
+ * | Reliability | WAL + snapshots, circuit breaker, graceful shutdown |
+ * | Cloud-Native | Kubernetes manifests, Prometheus, Grafana |
+ *
+ * @section architecture Layered Architecture
+ *
+ * @code{.unparsed}
+ * Layer 6: PLUGIN LAYER         (MMORPG, Battle Royale, RTS, Custom)
+ * Layer 5: GAME LOGIC LAYER     (Object, Combat, World, AI, Quest, Inventory)
+ * Layer 4: CORE ECS LAYER       (Entity, Component, Scheduler, Query)
+ * Layer 3: SERVICE LAYER        (Auth, Gateway, Game, Lobby, DBProxy)
+ * Layer 2: FOUNDATION ADAPTERS  (Result<T,E>, no exceptions)
+ * Layer 1: KCENON FOUNDATIONS   (common, thread, logger, network, db, container, monitoring)
+ * @endcode
+ *
+ * Detailed architecture: see ARCHITECTURE.md
+ *
+ * @section quickstart Quick Start
+ *
+ * @code{.cpp}
+ * #include <cgs/cgs.hpp>
+ *
+ * int main() {
+ *     using namespace cgs::foundation;
+ *     using namespace cgs::ecs;
+ *
+ *     // Create the foundation facade
+ *     auto foundation = GameFoundation::create_default();
+ *     foundation.logger().info("server starting");
+ *
+ *     // Set up an entity manager
+ *     EntityManager em;
+ *     auto e = em.create();
+ *     em.add<Position>(e, {0.0f, 0.0f});
+ *
+ *     // Schedule and tick systems
+ *     SystemScheduler sched;
+ *     sched.add<MovementSystem>();
+ *     sched.tick(em, 0.05f);  // 50 ms (20 Hz)
+ *
+ *     return 0;
+ * }
+ * @endcode
+ *
+ * @section ecosystem kcenon Ecosystem Position
+ *
+ * `common_game_server` consumes the entire kcenon foundation stack:
+ *
+ * | Tier | System | Used For |
+ * | --- | --- | --- |
+ * | 0 | common_system | Result<T>, interfaces, DI, event bus |
+ * | 1 | thread_system | Thread pool adapter |
+ * | 1 | container_system | Type-safe state containers |
+ * | 2 | logger_system | Structured logging |
+ * | 2 | monitoring_system | Metrics and tracing |
+ * | 2 | database_system | PostgreSQL access |
+ * | 2 | network_system | TCP/WebSocket |
+ *
+ * See ECOSYSTEM.md for the complete dependency graph.
+ *
+ * @section modules Module Overview
+ *
+ * - @ref cgs::core - Core types: Result<T, E>, error codes
+ * - @ref cgs::foundation - Foundation adapter interfaces
+ * - @ref cgs::ecs - Entity-Component System
+ * - @ref cgs::game - Game logic systems
+ * - @ref cgs::plugin - Plugin interfaces and manager
+ * - @ref cgs::service - Microservice types and configurations
+ *
+ * @section tutorials Tutorials
+ *
+ * - @subpage tutorial_ecs - Building with the Entity-Component System
+ * - @subpage tutorial_plugin - Authoring a custom plugin
+ * - @subpage tutorial_service - Running and configuring microservices
+ *
+ * @section getting_help Getting Help
+ *
+ * - @subpage faq - Frequently Asked Questions
+ * - @subpage troubleshooting - Common issues and solutions
+ * - GitHub Issues: https://github.com/kcenon/common_game_server/issues
+ * - Documentation: https://kcenon.github.io/common_game_server/
+ *
+ * @section license License
+ *
+ * BSD 3-Clause License. See LICENSE for details.
+ */

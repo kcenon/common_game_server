@@ -1,794 +1,240 @@
-# Architecture Design Document
+# Architecture
 
-## Common Game Server - Unified Architecture
+> **English** · [한국어](ARCHITECTURE.kr.md)
 
-**Version**: 0.1.0.0
-**Last Updated**: 2026-02-03
-**Status**: Draft
+This document describes the high-level architecture of `common_game_server`.
+For internal details of specific subsystems, see the [`advanced/`](advanced/)
+directory.
 
----
+## Layered Model
 
-## 1. Overview
-
-### 1.1 Purpose
-
-This document defines the unified architecture for the Common Game Server framework, combining the strengths of four source projects into a cohesive, production-ready system.
-
-### 1.2 Scope
-
-- System architecture and component design
-- Layer definitions and responsibilities
-- Integration patterns and data flow
-- Deployment architecture
-
-### 1.3 Design Principles
-
-| Principle | Description | Application |
-|-----------|-------------|-------------|
-| **Modularity** | Separate concerns into distinct layers | 6-layer architecture |
-| **Extensibility** | Support new game types without core changes | Plugin system |
-| **Performance** | Optimize for game server workloads | ECS, cache-friendly design |
-| **Reliability** | Graceful degradation, fault tolerance | Microservices, health checks |
-| **Testability** | Easy to test in isolation | Dependency injection, adapters |
-
----
-
-## 2. System Architecture
-
-### 2.1 High-Level Architecture
+`common_game_server` is organized as 6 layers, with strict downward dependency
+flow. Higher layers may depend on lower layers, but never the reverse.
 
 ```
-┌─────────────────────────────────────────────────────────────────────────┐
-│                         COMMON GAME SERVER                               │
-├─────────────────────────────────────────────────────────────────────────┤
-│  Layer 6: PLUGIN LAYER                                                   │
-│  ┌───────────────┐ ┌───────────────┐ ┌───────────────┐ ┌─────────────┐  │
-│  │ MMORPG Plugin │ │ Battle Royale │ │  RTS Plugin   │ │Custom Plugin│  │
-│  │               │ │    Plugin     │ │               │ │             │  │
-│  │ - Character   │ │ - Zone Shrink │ │ - Unit Control│ │ - Custom    │  │
-│  │ - Combat      │ │ - Loot System │ │ - Base Build  │ │   Systems   │  │
-│  │ - Quest       │ │ - Spectate    │ │ - Resource    │ │             │  │
-│  │ - Guild       │ │               │ │               │ │             │  │
-│  └───────────────┘ └───────────────┘ └───────────────┘ └─────────────┘  │
-├─────────────────────────────────────────────────────────────────────────┤
-│  Layer 5: GAME LOGIC LAYER (from game_server)                           │
-│  ┌─────────────────────────────────────────────────────────────────┐    │
-│  │ Object System │ Combat System │ World System │ AI System        │    │
-│  │ ────────────  │ ────────────  │ ────────────  │ ──────────       │    │
-│  │ - Object      │ - Spell       │ - Map         │ - Brain          │    │
-│  │ - Unit        │ - Aura        │ - Zone        │ - BehaviorTree   │    │
-│  │ - Player      │ - Damage      │ - Grid        │ - Pathfinding    │    │
-│  │ - Creature    │ - Threat      │ - Visibility  │ - Movement       │    │
-│  │ - GameObject  │ - Combat Log  │ - Terrain     │                  │    │
-│  └─────────────────────────────────────────────────────────────────┘    │
-├─────────────────────────────────────────────────────────────────────────┤
-│  Layer 4: CORE ECS LAYER                                                │
-│  ┌─────────────┐ ┌─────────────┐ ┌─────────────┐ ┌─────────────┐       │
-│  │   Entity    │ │  Component  │ │   System    │ │    World    │       │
-│  │   Manager   │ │   Storage   │ │   Runner    │ │   Manager   │       │
-│  │ ──────────  │ │ ──────────  │ │ ──────────  │ │ ──────────  │       │
-│  │ - Create    │ │ - SparseSet │ │ - Schedule  │ │ - Multiple  │       │
-│  │ - Destroy   │ │ - Archetype │ │ - Execute   │ │   Worlds    │       │
-│  │ - Query     │ │ - ComponentPool│ - Parallel │ │ - Transfer  │       │
-│  │ - Recycle   │ │             │ │             │ │             │       │
-│  └─────────────┘ └─────────────┘ └─────────────┘ └─────────────┘       │
-├─────────────────────────────────────────────────────────────────────────┤
-│  Layer 3: SERVICE LAYER                                                  │
-│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐      │
-│  │   Auth   │ │ Gateway  │ │   Game   │ │  Lobby   │ │ DBProxy  │      │
-│  │ Service  │ │ Service  │ │ Service  │ │ Service  │ │ Service  │      │
-│  │ ──────── │ │ ──────── │ │ ──────── │ │ ──────── │ │ ──────── │      │
-│  │ - Login  │ │ - Route  │ │ - World  │ │ - Match  │ │ - Pool   │      │
-│  │ - Token  │ │ - Balance│ │ - Tick   │ │ - Party  │ │ - Query  │      │
-│  │ - Session│ │ - Protocol│ │ - State │ │ - Chat   │ │ - Cache  │      │
-│  └──────────┘ └──────────┘ └──────────┘ └──────────┘ └──────────┘      │
-├─────────────────────────────────────────────────────────────────────────┤
-│  Layer 2: FOUNDATION ADAPTER LAYER                                      │
-│  ┌───────────────────────────────────────────────────────────────────┐  │
-│  │ GameLogger │ GameNetwork │ GameDatabase │ GameThread │ GameMonitor│  │
-│  │ ────────── │ ──────────  │ ────────────  │ ──────────  │ ──────── │  │
-│  │ Adapts     │ Adapts      │ Adapts        │ Adapts      │ Adapts   │  │
-│  │ logger_    │ network_    │ database_     │ thread_     │ monitor_ │  │
-│  │ system     │ system      │ system        │ system      │ system   │  │
-│  └───────────────────────────────────────────────────────────────────┘  │
-├─────────────────────────────────────────────────────────────────────────┤
-│  Layer 1: FOUNDATION LAYER (7 Systems)                                  │
-│  ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐           │
-│  │ common  │ │ thread  │ │ logger  │ │ network │ │database │           │
-│  │ _system │ │ _system │ │ _system │ │ _system │ │ _system │           │
-│  └─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘           │
-│  ┌─────────┐ ┌─────────┐                                                │
-│  │container│ │monitoring                                                │
-│  │ _system │ │ _system │                                                │
-│  └─────────┘ └─────────┘                                                │
-└─────────────────────────────────────────────────────────────────────────┘
++-------------------------------------------------------------------+
+|  Layer 6: PLUGIN LAYER                                             |
+|  ----------------------------------------------------------------- |
+|  MMORPG / Battle Royale / RTS / Custom plugins                     |
+|  Hot reload (dev), dependency resolution, event communication      |
++-------------------------------------------------------------------+
+|  Layer 5: GAME LOGIC LAYER                                         |
+|  ----------------------------------------------------------------- |
+|  Object · Combat · World · AI (BehaviorTree) · Quest · Inventory   |
++-------------------------------------------------------------------+
+|  Layer 4: CORE ECS LAYER                                           |
+|  ----------------------------------------------------------------- |
+|  EntityManager · ComponentPool (SparseSet) · SystemScheduler (DAG) |
+|  Query (compile-time concepts) · Parallel execution                |
++-------------------------------------------------------------------+
+|  Layer 3: SERVICE LAYER                                            |
+|  ----------------------------------------------------------------- |
+|  AuthServer · GatewayServer · GameServer · LobbyServer · DBProxy   |
+|  Shared service_runner template, YAML configuration                |
++-------------------------------------------------------------------+
+|  Layer 2: FOUNDATION ADAPTER LAYER                                 |
+|  ----------------------------------------------------------------- |
+|  IGameLogger · IGameNetwork · IGameDatabase · IGameThreadPool      |
+|  IGameMonitor · IGameContainer · IGameCommon                       |
+|  Result<T, E> error model, no exceptions across boundaries         |
++-------------------------------------------------------------------+
+|  Layer 1: KCENON FOUNDATION SYSTEMS                                |
+|  ----------------------------------------------------------------- |
+|  common_system (Tier 0) · thread_system · container_system         |
+|  logger_system · monitoring_system · database_system               |
+|  network_system                                                    |
++-------------------------------------------------------------------+
 ```
 
-### 2.2 Layer Responsibilities
-
-| Layer | Responsibility |
-|-------|---------------|
-| **L1: Foundation** | Core infrastructure (logging, network, DB) |
-| **L2: Adapter** | Game-specific wrappers for foundation |
-| **L3: Service** | Microservices for game operations |
-| **L4: Core ECS** | Entity-Component System runtime |
-| **L5: Game Logic** | Reusable game systems (combat, world) |
-| **L6: Plugin** | Game-specific implementations |
-
----
-
-## 3. Component Design
-
-### 3.1 Foundation Layer (Layer 1)
-
-Seven foundation systems providing core infrastructure:
-
-```cpp
-// All systems follow consistent patterns
-namespace foundation {
-
-// common_system - Base types, Result<T,E>, DI
-using Result = kcenon::common::Result<T, Error>;
-using ServiceContainer = kcenon::common::ServiceContainer;
+## Layer Responsibilities
 
-// thread_system - Job scheduling
-using ThreadPool = kcenon::thread::TypedThreadPool;
-using Job = kcenon::thread::Job;
-
-// logger_system - Structured logging
-using Logger = kcenon::logger::Logger;
-using LogLevel = kcenon::logger::LogLevel;
-
-// network_system - Network I/O
-using TcpServer = kcenon::network::TcpServer;
-using Session = kcenon::network::Session;
-
-// database_system - Database access
-using Database = kcenon::database::Database;
-using Connection = kcenon::database::Connection;
-
-// container_system - Serialization
-using Container = kcenon::container::Container;
-
-// monitoring_system - Metrics and tracing
-using Metrics = kcenon::monitoring::Metrics;
-using Tracer = kcenon::monitoring::Tracer;
-
-}
-```
-
-### 3.2 Foundation Adapter Layer (Layer 2)
-
-Adapters provide game-specific interfaces to foundation systems:
-
-```cpp
-namespace game::foundation {
-
-// GameLogger - Game-aware logging
-class GameLogger {
-public:
-    void log_player_action(PlayerId id, const std::string& action);
-    void log_combat_event(const CombatEvent& event);
-    void log_world_event(const WorldEvent& event);
-
-private:
-    kcenon::logger::Logger& logger_;
-};
-
-// GameNetwork - Game protocol handling
-class GameNetwork {
-public:
-    Result<void> send_to_player(PlayerId id, const Packet& packet);
-    Result<void> broadcast_to_zone(ZoneId id, const Packet& packet);
-    Result<void> multicast_to_players(const std::vector<PlayerId>& ids, const Packet& packet);
-
-private:
-    kcenon::network::TcpServer& server_;
-    SessionManager& sessions_;
-};
-
-// GameDatabase - Game data access
-class GameDatabase {
-public:
-    Result<Player> load_player(PlayerId id);
-    Result<void> save_player(const Player& player);
-    Result<std::vector<Item>> load_inventory(PlayerId id);
-
-private:
-    kcenon::database::Database& db_;
-};
-
-// GameThreadPool - Game job scheduling
-class GameThreadPool {
-public:
-    void schedule_world_tick(WorldId id, std::function<void()> tick);
-    void schedule_player_action(PlayerId id, std::function<void()> action);
-    void schedule_background_task(std::function<void()> task);
-
-private:
-    kcenon::thread::TypedThreadPool& pool_;
-};
-
-// GameMonitor - Game metrics
-class GameMonitor {
-public:
-    void record_player_count(int count);
-    void record_tick_duration(std::chrono::microseconds duration);
-    void record_message_processed();
-
-private:
-    kcenon::monitoring::Metrics& metrics_;
-};
-
-}
-```
-
-### 3.3 Service Layer (Layer 3)
-
-Microservices handling game operations:
-
-```cpp
-namespace game::services {
-
-// AuthService - Authentication and sessions
-class AuthService {
-public:
-    Result<SessionToken> login(const Credentials& creds);
-    Result<void> logout(SessionToken token);
-    Result<SessionInfo> validate_token(SessionToken token);
-    Result<void> refresh_token(SessionToken& token);
-};
-
-// GatewayService - Client routing and load balancing
-class GatewayService {
-public:
-    Result<void> route_message(SessionId session, const Message& msg);
-    Result<ServiceEndpoint> get_game_server(SessionId session);
-    void on_client_connected(SessionId session);
-    void on_client_disconnected(SessionId session);
-};
-
-// GameService - World simulation
-class GameService {
-public:
-    void start_world_loop();
-    void stop_world_loop();
-    Result<void> process_player_input(PlayerId id, const Input& input);
-    WorldState get_world_state();
-};
-
-// LobbyService - Matchmaking and social
-class LobbyService {
-public:
-    Result<void> join_queue(PlayerId id, const MatchCriteria& criteria);
-    Result<void> leave_queue(PlayerId id);
-    Result<MatchResult> create_match(const std::vector<PlayerId>& players);
-};
-
-// DBProxyService - Database connection pooling
-class DBProxyService {
-public:
-    Result<QueryResult> execute_query(const Query& query);
-    Result<void> execute_batch(const std::vector<Query>& queries);
-    ConnectionStats get_stats();
-};
-
-}
-```
-
-### 3.4 Core ECS Layer (Layer 4)
-
-Entity-Component System for game logic:
-
-```cpp
-namespace game::ecs {
-
-// Entity - Unique identifier
-using EntityId = uint32_t;
-constexpr EntityId INVALID_ENTITY = 0;
-
-// Component - Data storage (examples)
-struct TransformComponent {
-    Vector3 position;
-    Quaternion rotation;
-    Vector3 scale;
-};
-
-struct HealthComponent {
-    int32_t max_health;
-    int32_t current_health;
-    bool is_dead() const { return current_health <= 0; }
-};
-
-struct MovementComponent {
-    Vector3 velocity;
-    float speed;
-    bool is_moving;
-};
-
-// System - Logic processing
-class System {
-public:
-    virtual ~System() = default;
-    virtual void update(World& world, float delta_time) = 0;
-    virtual std::string_view name() const = 0;
-};
-
-// World - Entity container
-class World {
-public:
-    EntityId create_entity();
-    void destroy_entity(EntityId id);
-    bool is_valid(EntityId id) const;
-
-    template<typename T>
-    T& add_component(EntityId id);
-
-    template<typename T>
-    T& get_component(EntityId id);
-
-    template<typename T>
-    bool has_component(EntityId id) const;
-
-    template<typename... Components>
-    auto view() -> View<Components...>;
-};
-
-// SystemRunner - Executes systems
-class SystemRunner {
-public:
-    void add_system(std::unique_ptr<System> system);
-    void remove_system(std::string_view name);
-    void update(World& world, float delta_time);
-    void set_parallel_execution(bool enabled);
-};
-
-}
-```
-
-### 3.5 Game Logic Layer (Layer 5)
-
-Reusable game systems ported from game_server:
-
-```cpp
-namespace game::logic {
-
-// Object System Components
-struct ObjectComponent {
-    ObjectGUID guid;
-    ObjectType type;
-    std::string name;
-};
-
-struct UnitComponent {
-    UnitStats stats;
-    Faction faction;
-    UnitFlags flags;
-};
-
-struct PlayerComponent {
-    AccountId account_id;
-    CharacterId character_id;
-    PlayerFlags flags;
-};
-
-struct CreatureComponent {
-    CreatureTemplate template_id;
-    AIBrain brain;
-    SpawnInfo spawn;
-};
-
-// Combat System Components
-struct CombatComponent {
-    bool in_combat;
-    EntityId target;
-    ThreatList threat_list;
-};
-
-struct SpellCastComponent {
-    SpellId spell_id;
-    EntityId target;
-    CastState state;
-    float cast_time_remaining;
-};
-
-struct AuraComponent {
-    std::vector<Aura> active_auras;
-};
-
-// World System Components
-struct PositionComponent {
-    MapId map_id;
-    ZoneId zone_id;
-    GridCoord grid;
-    Vector3 position;
-    float orientation;
-};
-
-struct VisibilityComponent {
-    std::set<EntityId> visible_entities;
-    float visibility_range;
-};
-
-// Game Systems (ECS Systems)
-class MovementSystem : public ecs::System {
-    void update(ecs::World& world, float delta_time) override;
-};
-
-class CombatSystem : public ecs::System {
-    void update(ecs::World& world, float delta_time) override;
-};
-
-class SpellSystem : public ecs::System {
-    void update(ecs::World& world, float delta_time) override;
-};
-
-class AISystem : public ecs::System {
-    void update(ecs::World& world, float delta_time) override;
-};
-
-class VisibilitySystem : public ecs::System {
-    void update(ecs::World& world, float delta_time) override;
-};
-
-}
-```
-
-### 3.6 Plugin Layer (Layer 6)
-
-Game-specific implementations:
-
-```cpp
-namespace game::plugins {
-
-// Plugin Interface
-class GamePlugin {
-public:
-    virtual ~GamePlugin() = default;
-
-    // Lifecycle
-    virtual Result<void> on_load() = 0;
-    virtual Result<void> on_init(ecs::World& world) = 0;
-    virtual void on_update(ecs::World& world, float delta_time) = 0;
-    virtual void on_shutdown() = 0;
-
-    // Metadata
-    virtual std::string_view name() const = 0;
-    virtual std::string_view version() const = 0;
-    virtual std::vector<std::string_view> dependencies() const = 0;
-};
-
-// Plugin Manager
-class PluginManager {
-public:
-    Result<void> load_plugin(const std::filesystem::path& path);
-    Result<void> unload_plugin(std::string_view name);
-    GamePlugin* get_plugin(std::string_view name);
-    std::vector<GamePlugin*> get_all_plugins();
-};
-
-// MMORPG Plugin Example
-class MMORPGPlugin : public GamePlugin {
-public:
-    Result<void> on_load() override {
-        // Register components
-        register_component<CharacterComponent>();
-        register_component<InventoryComponent>();
-        register_component<QuestLogComponent>();
-        register_component<GuildMemberComponent>();
-        return Result<void>::ok();
-    }
-
-    Result<void> on_init(ecs::World& world) override {
-        // Register systems
-        world.add_system<CharacterSystem>();
-        world.add_system<InventorySystem>();
-        world.add_system<QuestSystem>();
-        world.add_system<GuildSystem>();
-        return Result<void>::ok();
-    }
-
-    std::string_view name() const override { return "mmorpg"; }
-    std::string_view version() const override { return "1.0.0"; }
-};
-
-}
-```
-
----
-
-## 4. Data Flow
-
-### 4.1 Client Message Flow
+### Layer 1 — kcenon Foundation Systems
+
+External dependencies fetched via FetchContent or vcpkg. `common_game_server`
+pins to release tags (currently v0.2.0+). See [`../DEPENDENCY_MATRIX.md`](../DEPENDENCY_MATRIX.md).
+
+**Key principle**: `common_game_server` does not modify or fork the foundation
+systems. All ecosystem improvements are upstreamed to the respective repos.
+
+### Layer 2 — Foundation Adapter Layer
+
+Thin wrappers translating kcenon APIs into game-server-friendly interfaces.
+
+**Why a wrapper layer?**
+1. Game-specific naming (`IGameLogger` vs. `kcenon::logger::ILogger`)
+2. Consistent error model (`cgs::core::Result<T, E>` everywhere)
+3. Test mocking — adapters can be replaced for unit tests
+4. Insulation from upstream API changes
+
+Headers: [`include/cgs/foundation/`](../include/cgs/foundation/)
+Implementation: [`src/foundation/`](../src/foundation/)
+Detail: [`advanced/FOUNDATION_ADAPTERS.md`](advanced/FOUNDATION_ADAPTERS.md)
+
+### Layer 3 — Service Layer
+
+Five microservices, each a standalone executable:
+
+| Service | Role |
+|---------|------|
+| AuthServer | Authentication, JWT issuance, session store |
+| GatewayServer | Client routing, load balancing, rate limiting |
+| GameServer | World simulation, game tick loop |
+| LobbyServer | Matchmaking, party management |
+| DBProxy | Connection pooling, prepared statements |
+
+All services share the `service_runner` template ([`src/services/shared/`](../src/services/shared/)),
+which handles:
+- YAML config loading
+- Foundation adapter wiring
+- Signal handling (SIGINT, SIGTERM)
+- Graceful shutdown
+- Health/readiness probe endpoints
+
+Implementation: [`src/services/`](../src/services/)
+Detail: [`adr/ADR-004-microservice-decomposition.md`](adr/ADR-004-microservice-decomposition.md)
+
+### Layer 4 — Core ECS Layer
+
+Data-oriented Entity-Component System.
+
+**Key types**:
+- `EntityManager` — entity creation/destruction, version recycling
+- `ComponentPool<T>` — sparse-set storage for component type T
+- `SystemScheduler` — DAG-based system ordering with parallel execution
+- `Query<Components...>` — compile-time-checked component iteration
+
+**Performance characteristics**:
+- Cache-friendly SoA component layout
+- O(1) entity lookup, O(1) component add/remove
+- 10,000 entities processed in <5 ms (single tick)
+
+Headers: [`include/cgs/ecs/`](../include/cgs/ecs/)
+Implementation: [`src/ecs/`](../src/ecs/)
+Detail: [`advanced/ECS_DEEP_DIVE.md`](advanced/ECS_DEEP_DIVE.md) ·
+[`adr/ADR-002-entity-component-system.md`](adr/ADR-002-entity-component-system.md)
+
+### Layer 5 — Game Logic Layer
+
+Concrete ECS systems implementing canonical game-server features:
+
+| System | Components | Purpose |
+|--------|-----------|---------|
+| ObjectSystem | Position, Velocity, Rotation | Entity transforms |
+| CombatSystem | Health, Attack, Defense | Damage resolution |
+| WorldSystem | MapInstance, Region | World state and zones |
+| AISystem | BehaviorTree, AIState | NPC decision making |
+| QuestSystem | QuestProgress, QuestObjective | Quest tracking |
+| InventorySystem | Inventory, ItemSlot | Player inventory |
+
+These are reference implementations — plugins can replace or extend them.
+
+Headers: [`include/cgs/game/`](../include/cgs/game/)
+Implementation: [`src/game/`](../src/game/)
+
+### Layer 6 — Plugin Layer
+
+User-authored game logic, dynamically loaded.
+
+**Lifecycle**:
+1. `PluginManager::load(path)` — opens shared library, calls `cgs_create_plugin()`
+2. `GamePlugin::on_load(ctx)` — plugin initialization
+3. `GamePlugin::on_tick(dt)` — called every world tick (50 ms)
+4. `GamePlugin::on_unload()` — cleanup before shared library close
+
+**Hot reload** (`CGS_HOT_RELOAD=ON`, dev only):
+- File watcher monitors `plugins/` directory
+- On change: gracefully unloads old version, loads new
+- State migration via plugin-defined `serialize`/`deserialize` hooks
+
+**Sample plugin**: `src/plugins/mmorpg/` — full MMORPG game loop reference.
+
+Headers: [`include/cgs/plugin/`](../include/cgs/plugin/)
+Implementation: [`src/plugins/`](../src/plugins/)
+Detail: [`adr/ADR-003-plugin-hot-reload.md`](adr/ADR-003-plugin-hot-reload.md)
+
+## Cross-Cutting Concerns
+
+### Error Handling
+
+Every fallible operation returns `cgs::core::Result<T, E>`. Exceptions are
+forbidden across layer boundaries. The error type `E` is typically
+`cgs::core::error_code` or a domain-specific enum.
+
+Why no exceptions?
+- Predictable performance (no stack unwinding cost on hot paths)
+- Plugin ABI safety (exceptions don't cross shared library boundaries reliably)
+- Consistent with the kcenon ecosystem (`common_system::Result<T>`)
+
+### Logging
+
+All logging flows through `IGameLogger`. Logs are emitted as structured JSON
+with mandatory fields: `timestamp`, `level`, `service`, `correlation_id`,
+`message`. Correlation IDs are generated at the gateway and propagated through
+every service hop and ECS system invocation.
+
+### Metrics
+
+All services expose Prometheus metrics on port 9090 (`/metrics`). Standard
+metrics: request count, request duration histograms, error count, active
+connections, world tick duration.
+
+### Configuration
+
+Each service loads a YAML config file. Schemas are documented in
+[`guides/CONFIGURATION_GUIDE.md`](guides/CONFIGURATION_GUIDE.md). Hot reload
+of config is supported via SIGHUP.
+
+## Deployment Topology
 
 ```
-┌────────┐     ┌─────────┐     ┌────────┐     ┌──────────┐     ┌─────────┐
-│ Client │────>│ Gateway │────>│  Auth  │────>│   Game   │────>│   ECS   │
-│        │     │ Service │     │ Service│     │  Service │     │  World  │
-└────────┘     └─────────┘     └────────┘     └──────────┘     └─────────┘
-    │               │               │               │               │
-    │  1. Connect   │               │               │               │
-    │──────────────>│               │               │               │
-    │               │ 2. Validate   │               │               │
-    │               │──────────────>│               │               │
-    │               │   Session     │               │               │
-    │               │<──────────────│               │               │
-    │               │               │               │               │
-    │  3. Input     │               │               │               │
-    │──────────────>│ 4. Route      │               │               │
-    │               │──────────────────────────────>│               │
-    │               │               │               │ 5. Process    │
-    │               │               │               │──────────────>│
-    │               │               │               │               │
-    │               │               │               │<──────────────│
-    │               │               │               │ 6. State      │
-    │<──────────────────────────────────────────────│               │
-    │  7. Update    │               │               │               │
+                    ┌─────────────────┐
+                    │  Game Clients   │
+                    └────────┬────────┘
+                             │ TLS 1.3
+                    ┌────────▼────────┐
+                    │ GatewayServer   │ (n replicas, HPA)
+                    └────────┬────────┘
+                             │
+                    ┌────────┼────────────────┬────────┐
+                    │        │                │        │
+            ┌───────▼───┐ ┌──▼────┐ ┌───▼──┐ ┌──▼─────┐
+            │ AuthServer│ │ Game  │ │ Lobby│ │DBProxy │
+            │           │ │Server │ │Server│ │        │
+            └───────────┘ └───┬───┘ └──────┘ └────┬───┘
+                              │                    │
+                              │              ┌─────▼─────┐
+                              │              │PostgreSQL │
+                              │              └───────────┘
+                              │
+                       ┌──────▼──────┐
+                       │  Plugins    │
+                       │ (MMORPG,    │
+                       │  custom)    │
+                       └─────────────┘
 ```
 
-### 4.2 World Tick Flow
+Each service is horizontally scalable via Kubernetes HPA. The DBProxy uses
+StatefulSet to maintain connection affinity. PDBs ensure availability during
+rolling updates.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                       WORLD TICK (50ms)                          │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  ┌─────────────┐                                                │
-│  │ Input Phase │ ← Process queued player inputs                 │
-│  └──────┬──────┘                                                │
-│         │                                                        │
-│         v                                                        │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │              System Update Phase (Parallel)              │    │
-│  │  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐   │    │
-│  │  │ Movement │ │   AI     │ │  Spell   │ │  Aura    │   │    │
-│  │  │  System  │ │  System  │ │  System  │ │  System  │   │    │
-│  │  └──────────┘ └──────────┘ └──────────┘ └──────────┘   │    │
-│  └─────────────────────────────────────────────────────────┘    │
-│         │                                                        │
-│         v                                                        │
-│  ┌─────────────┐                                                │
-│  │Combat Phase │ ← Resolve combat, apply damage                 │
-│  └──────┬──────┘                                                │
-│         │                                                        │
-│         v                                                        │
-│  ┌─────────────┐                                                │
-│  │Visibility   │ ← Update what each player can see             │
-│  │Phase        │                                                │
-│  └──────┬──────┘                                                │
-│         │                                                        │
-│         v                                                        │
-│  ┌─────────────┐                                                │
-│  │Output Phase │ ← Send state updates to clients                │
-│  └─────────────┘                                                │
-│                                                                  │
-└─────────────────────────────────────────────────────────────────┘
-```
+Manifests: [`deploy/k8s/`](../deploy/k8s/)
+Production guide: [`guides/DEPLOYMENT_GUIDE.md`](guides/DEPLOYMENT_GUIDE.md)
 
----
+## Design Principles
 
-## 5. Deployment Architecture
+1. **Layer separation** — strict downward dependencies, no upward calls
+2. **Result<T, E> everywhere** — no exceptions across layer boundaries
+3. **Adapter pattern** — wrap third-party APIs into project-owned interfaces
+4. **Data-oriented design** — SoA component layout, cache-friendly iteration
+5. **Composition over inheritance** — ECS components, not OOP hierarchies
+6. **Plugin first** — game-specific logic lives in plugins, not the framework
+7. **Observable by default** — logging, metrics, tracing built into every layer
+8. **Cloud-native by default** — Kubernetes manifests are first-class
 
-### 5.1 Kubernetes Deployment
+## See Also
 
-```yaml
-┌─────────────────────────────────────────────────────────────────┐
-│                     Kubernetes Cluster                           │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                  │
-│  ┌─────────────────────────────────────────────────────────┐    │
-│  │ Ingress Controller (nginx/traefik)                       │    │
-│  │ - TLS termination                                        │    │
-│  │ - WebSocket support                                      │    │
-│  │ - Rate limiting                                          │    │
-│  └────────────────────────┬────────────────────────────────┘    │
-│                           │                                      │
-│           ┌───────────────┼───────────────┐                     │
-│           │               │               │                     │
-│           v               v               v                     │
-│  ┌────────────┐  ┌────────────┐  ┌────────────┐                │
-│  │  Gateway   │  │  Gateway   │  │  Gateway   │  ← HPA         │
-│  │  Pod (1)   │  │  Pod (2)   │  │  Pod (3)   │    (2-10)      │
-│  └─────┬──────┘  └─────┬──────┘  └─────┬──────┘                │
-│        └───────────────┼───────────────┘                        │
-│                        │                                        │
-│           ┌────────────┴────────────┐                          │
-│           │                         │                          │
-│           v                         v                          │
-│  ┌─────────────────┐       ┌─────────────────┐                │
-│  │   Auth Service  │       │  Lobby Service  │                │
-│  │   Deployment    │       │   Deployment    │                │
-│  │   (2 replicas)  │       │   (2 replicas)  │                │
-│  └─────────────────┘       └─────────────────┘                │
-│                                                                │
-│  ┌────────────────────────────────────────────────────────┐   │
-│  │ Game Server StatefulSet (game-server-0, 1, 2...)       │   │
-│  │ - Persistent world state                                │   │
-│  │ - Sticky sessions                                       │   │
-│  │ - Graceful shutdown                                     │   │
-│  └────────────────────────────────────────────────────────┘   │
-│                                                                │
-│  ┌─────────────────┐       ┌─────────────────┐                │
-│  │ DBProxy Service │       │   PostgreSQL    │                │
-│  │  (3 replicas)   │       │  StatefulSet    │                │
-│  └─────────────────┘       └─────────────────┘                │
-│                                                                │
-│  ┌────────────────────────────────────────────────────────┐   │
-│  │ Monitoring Stack                                        │   │
-│  │ - Prometheus (metrics collection)                       │   │
-│  │ - Grafana (dashboards)                                  │   │
-│  │ - Jaeger (distributed tracing)                          │   │
-│  └────────────────────────────────────────────────────────┘   │
-│                                                                │
-└─────────────────────────────────────────────────────────────────┘
-```
-
-### 5.2 Service Communication
-
-| From | To | Protocol | Purpose |
-|------|-----|----------|---------|
-| Client | Gateway | WebSocket/TCP | Game traffic |
-| Gateway | Auth | gRPC | Session validation |
-| Gateway | Game | TCP | Player commands |
-| Gateway | Lobby | gRPC | Matchmaking |
-| Game | DBProxy | TCP | Database queries |
-| All | Prometheus | HTTP | Metrics export |
-
----
-
-## 6. Security Architecture
-
-### 6.1 Authentication Flow
-
-```
-┌────────┐                ┌────────┐                ┌────────┐
-│ Client │                │  Auth  │                │   DB   │
-│        │                │ Service│                │ Proxy  │
-└───┬────┘                └───┬────┘                └───┬────┘
-    │                         │                         │
-    │  1. Login(user, pass)   │                         │
-    │────────────────────────>│                         │
-    │                         │  2. Verify credentials  │
-    │                         │────────────────────────>│
-    │                         │<────────────────────────│
-    │                         │  3. Account data        │
-    │                         │                         │
-    │  4. JWT + Refresh Token │                         │
-    │<────────────────────────│                         │
-    │                         │                         │
-    │  5. Game Request + JWT  │                         │
-    │────────────────────────>│                         │
-    │                         │  6. Validate JWT        │
-    │                         │  (no DB lookup)         │
-    │                         │                         │
-    │  7. Request processed   │                         │
-    │<────────────────────────│                         │
-```
-
-### 6.2 Security Measures
-
-| Layer | Measure | Implementation |
-|-------|---------|----------------|
-| Transport | TLS 1.3 | All service communication |
-| Authentication | JWT | RS256 signed tokens |
-| Authorization | RBAC | Per-endpoint permissions |
-| Input | Validation | All client inputs sanitized |
-| Rate Limiting | Token bucket | Per-IP and per-account |
-| Audit | Logging | All security events logged |
-
----
-
-## 7. Performance Considerations
-
-### 7.1 ECS Performance
-
-```cpp
-// Cache-friendly component storage using SparseSet
-// Components stored contiguously in memory
-
-// Bad: Object-oriented approach (cache misses)
-for (auto* entity : entities) {
-    entity->transform.update();  // Cache miss
-    entity->health.update();     // Cache miss
-}
-
-// Good: ECS approach (cache friendly)
-for (auto& transform : transforms) {
-    transform.update();  // Sequential memory access
-}
-for (auto& health : healths) {
-    health.update();     // Sequential memory access
-}
-```
-
-### 7.2 Performance Targets
-
-| Metric | Target | Achieved By |
-|--------|--------|-------------|
-| Tick Rate | 20 Hz | ECS batch processing |
-| Entity Update | <5ms for 10K | Sparse set storage |
-| Message Latency | <10ms | Zero-copy networking |
-| Memory/Player | <100KB | Component pooling |
-
----
-
-## 8. Error Handling
-
-### 8.1 Result<T, E> Pattern
-
-```cpp
-// All operations return Result instead of throwing
-Result<Player> load_player(PlayerId id) {
-    auto conn = db_.get_connection();
-    if (!conn) {
-        return Result<Player>::error(
-            Error::DatabaseConnection,
-            "Failed to get database connection"
-        );
-    }
-
-    auto query_result = conn->execute(
-        "SELECT * FROM players WHERE id = ?", id
-    );
-
-    if (!query_result) {
-        return Result<Player>::error(
-            Error::QueryFailed,
-            "Player query failed"
-        );
-    }
-
-    if (query_result->empty()) {
-        return Result<Player>::error(
-            Error::NotFound,
-            fmt::format("Player {} not found", id)
-        );
-    }
-
-    return Result<Player>::ok(Player::from_row(query_result->front()));
-}
-
-// Usage
-auto result = load_player(player_id);
-if (!result) {
-    logger.error("Failed to load player: {}", result.error().message);
-    return;
-}
-Player& player = result.value();
-```
-
-### 8.2 Error Categories
-
-| Category | Range | Example |
-|----------|-------|---------|
-| Common | 0x0001-0x0FFF | InvalidInput, NotFound |
-| Network | 0x1000-0x1FFF | ConnectionFailed, Timeout |
-| Database | 0x2000-0x2FFF | QueryFailed, DeadlockDetected |
-| Game | 0x3000-0x3FFF | InvalidAction, InsufficientResources |
-| Auth | 0x4000-0x4FFF | InvalidToken, PermissionDenied |
-
----
-
-## 9. Appendices
-
-### 9.1 C++20 Features Used
-
-| Feature | Usage |
-|---------|-------|
-| Concepts | Type constraints for ECS |
-| Coroutines | Async database operations |
-| Ranges | Entity queries |
-| std::span | Zero-copy buffers |
-| std::format | String formatting |
-
-### 9.2 Related Documents
-
-- [PRD.md](./PRD.md) - Product requirements
-- [INTEGRATION_STRATEGY.md](./INTEGRATION_STRATEGY.md) - Integration approach
-- [reference/ECS_DESIGN.md](./reference/ECS_DESIGN.md) - ECS details
-- [reference/PLUGIN_SYSTEM.md](./reference/PLUGIN_SYSTEM.md) - Plugin architecture
-
----
-
-*Architecture Version*: 1.0.0
-*Review Status*: Draft
+- [`FEATURES.md`](FEATURES.md) — what each layer provides
+- [`API_REFERENCE.md`](API_REFERENCE.md) — public APIs per layer
+- [`PROJECT_STRUCTURE.md`](PROJECT_STRUCTURE.md) — directory layout
+- [`adr/`](adr/) — architectural decisions and rationale
+- [`advanced/`](advanced/) — deep dives into specific subsystems

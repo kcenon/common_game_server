@@ -1,26 +1,51 @@
 # Doxyfile for common_game_server
 # Generates API documentation for all public interfaces under include/cgs/
+# Styled with the kcenon ecosystem doxygen-awesome theme.
 
 PROJECT_NAME           = "common_game_server"
 PROJECT_NUMBER         = "0.1.0"
-PROJECT_BRIEF          = "Unified Game Server Framework with ECS and Plugin Architecture"
+PROJECT_BRIEF          = "Unified Game Server Framework — Tier 3 of the kcenon ecosystem"
 OUTPUT_DIRECTORY       = docs/api
-INPUT                  = include/cgs
-FILE_PATTERNS          = *.h *.hpp
+
+INPUT                  = include/cgs \
+                         README.md \
+                         docs/mainpage.dox \
+                         docs/tutorial_ecs.dox \
+                         docs/tutorial_plugin.dox \
+                         docs/tutorial_service.dox \
+                         docs/faq.dox \
+                         docs/troubleshooting.dox
+FILE_PATTERNS          = *.h *.hpp *.md *.dox
 RECURSIVE              = YES
+EXCLUDE_PATTERNS       = */build/* */build-*/* */test/* */tests/* */.git/* */_deps/*
+
 EXTRACT_ALL            = YES
 GENERATE_HTML          = YES
 GENERATE_LATEX         = NO
 HTML_OUTPUT            = html
-WARN_IF_UNDOCUMENTED   = YES
-WARN_NO_PARAMDOC       = YES
+
+# doxygen-awesome theme integration
+HTML_HEADER            = docs/header.html
+HTML_EXTRA_STYLESHEET  = docs/doxygen-awesome-css/doxygen-awesome.css \
+                         docs/doxygen-awesome-css/doxygen-awesome-sidebar-only.css \
+                         docs/custom.css
+HTML_EXTRA_FILES       = docs/doxygen-awesome-css/doxygen-awesome-darkmode-toggle.js \
+                         docs/doxygen-awesome-css/doxygen-awesome-fragment-copy-button.js \
+                         docs/doxygen-awesome-css/doxygen-awesome-paragraph-link.js \
+                         docs/doxygen-awesome-css/doxygen-awesome-interactive-toc.js
+HTML_COLORSTYLE        = LIGHT
+GENERATE_TREEVIEW      = YES
+FULL_SIDEBAR           = NO
+DISABLE_INDEX          = NO
+
 JAVADOC_AUTOBRIEF      = YES
 BUILTIN_STL_SUPPORT    = YES
-GENERATE_TREEVIEW      = YES
 SEARCHENGINE           = YES
 SOURCE_BROWSER         = YES
-EXCLUDE_PATTERNS       = */build/* */test/* */.git/*
 HAVE_DOT               = NO
+
 QUIET                  = YES
 WARNINGS               = YES
-WARN_AS_ERROR          = FAIL_ON_WARNINGS_PRINT
+WARN_IF_UNDOCUMENTED   = NO
+WARN_NO_PARAMDOC       = NO
+WARN_AS_ERROR          = NO

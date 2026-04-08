@@ -1,0 +1,107 @@
+/**
+ * @page faq Frequently Asked Questions
+ *
+ * @tableofcontents
+ *
+ * @section faq_general General
+ *
+ * @subsection faq_what_is What is common_game_server?
+ *
+ * It is a unified C++20 game server framework that combines an Entity-Component
+ * System (ECS), a hot-reloadable plugin architecture, and 5 horizontally scalable
+ * microservices. It is built on top of the kcenon ecosystem (Tier 3 application
+ * layer).
+ *
+ * @subsection faq_who_for Who is it for?
+ *
+ * Game studios building multiplayer game servers in C++20 who want a
+ * production-ready foundation with cloud-native deployment, observability,
+ * and a clear extension model via plugins.
+ *
+ * @subsection faq_license What license is it under?
+ *
+ * BSD 3-Clause License. You can use it commercially without royalty obligations.
+ * See LICENSE in the project root.
+ *
+ * @section faq_build Build & Setup
+ *
+ * @subsection faq_compiler Which compilers are supported?
+ *
+ * GCC 11+, Clang 14+, Apple Clang 14+, MSVC 2022+. C++20 is required.
+ * See COMPATIBILITY.md for the full matrix.
+ *
+ * @subsection faq_conan_or_vcpkg Conan or vcpkg?
+ *
+ * Conan 2 is the primary package manager. vcpkg is supported via the
+ * `conan-release` and `vcpkg` CMake presets. Pick whichever fits your
+ * existing toolchain.
+ *
+ * @subsection faq_hot_reload How do I enable plugin hot reload?
+ *
+ * Configure with `-DCGS_HOT_RELOAD=ON`. **This is development-only** —
+ * production builds must leave it OFF for security and stability. See
+ * ADR-003 for the rationale.
+ *
+ * @section faq_ecs Entity-Component System
+ *
+ * @subsection faq_why_ecs Why ECS instead of OOP hierarchies?
+ *
+ * Performance, composition flexibility, and parallelism. ECS gives us
+ * cache-friendly data layout, O(1) component add/remove, and DAG-based
+ * parallel system execution. See ADR-002 for the full reasoning.
+ *
+ * @subsection faq_max_entities What is the maximum entity count?
+ *
+ * The framework targets 10,000 entities processed in < 5 ms per tick (20 Hz).
+ * Higher counts work but require profiling. The hard limit is the entity
+ * version recycling space (currently 64 bits, effectively unlimited).
+ *
+ * @section faq_plugins Plugins
+ *
+ * @subsection faq_plugin_lang Can I write plugins in languages other than C++?
+ *
+ * Currently, plugins must export a C++ ABI (`cgs_create_plugin()` returning
+ * a `cgs::plugin::GamePlugin*`). Bindings to scripting languages (Lua,
+ * Python) are out of scope for v0.x and may be considered post-1.0.
+ *
+ * @subsection faq_plugin_state How does plugin state survive a hot reload?
+ *
+ * Plugins implement `serialize`/`deserialize` hooks that snapshot their
+ * state to a flat byte buffer before unload, then restore it after the
+ * new version is loaded. State is held in framework-managed memory during
+ * the swap.
+ *
+ * @section faq_services Microservices
+ *
+ * @subsection faq_why_5 Why exactly 5 services?
+ *
+ * Each service represents a distinct scaling profile and failure domain
+ * (Auth, Gateway, Game, Lobby, DBProxy). Splitting further would add
+ * inter-service overhead without benefit; merging would prevent
+ * independent scaling. See ADR-004.
+ *
+ * @subsection faq_inter_service How do services communicate?
+ *
+ * gRPC over TLS for production; UNIX domain sockets in local development.
+ * Correlation IDs flow through every hop for distributed tracing.
+ *
+ * @section faq_kcenon kcenon Ecosystem
+ *
+ * @subsection faq_why_kcenon Why depend on kcenon ecosystem instead of bundled libraries?
+ *
+ * Each kcenon foundation system is independently versioned, benchmarked,
+ * and stress-tested. Ecosystem improvements (logging, network, etc.) are
+ * inherited automatically without re-implementing them in this project.
+ * See ECOSYSTEM.md.
+ *
+ * @subsection faq_pin_versions Should I pin the kcenon dependency versions?
+ *
+ * Yes. The project pins to release tags via `cmake/kcenon_deps.cmake`.
+ * See DEPENDENCY_MATRIX.md for the current required versions.
+ *
+ * @section faq_more More Help
+ *
+ * - troubleshooting.dox — Common build/runtime issues
+ * - guides/FAQ.md — Additional FAQs
+ * - GitHub Discussions: https://github.com/kcenon/common_game_server/discussions
+ */

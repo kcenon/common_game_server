@@ -1,0 +1,77 @@
+var namespacecgs_1_1plugin =
+[
+    [ "detail", "namespacecgs_1_1plugin_1_1detail.html", "namespacecgs_1_1plugin_1_1detail" ],
+    [ "CharacterData", "structcgs_1_1plugin_1_1CharacterData.html", "structcgs_1_1plugin_1_1CharacterData" ],
+    [ "ChatMessage", "structcgs_1_1plugin_1_1ChatMessage.html", "structcgs_1_1plugin_1_1ChatMessage" ],
+    [ "ClassTemplate", "structcgs_1_1plugin_1_1ClassTemplate.html", "structcgs_1_1plugin_1_1ClassTemplate" ],
+    [ "DependencySpec", "structcgs_1_1plugin_1_1DependencySpec.html", "structcgs_1_1plugin_1_1DependencySpec" ],
+    [ "EventBus", "classcgs_1_1plugin_1_1EventBus.html", "classcgs_1_1plugin_1_1EventBus" ],
+    [ "FileWatcher", "classcgs_1_1plugin_1_1FileWatcher.html", "classcgs_1_1plugin_1_1FileWatcher" ],
+    [ "GuildData", "structcgs_1_1plugin_1_1GuildData.html", "structcgs_1_1plugin_1_1GuildData" ],
+    [ "GuildMember", "structcgs_1_1plugin_1_1GuildMember.html", "structcgs_1_1plugin_1_1GuildMember" ],
+    [ "HotReloadManager", "classcgs_1_1plugin_1_1HotReloadManager.html", "classcgs_1_1plugin_1_1HotReloadManager" ],
+    [ "IHotReloadable", "classcgs_1_1plugin_1_1IHotReloadable.html", "classcgs_1_1plugin_1_1IHotReloadable" ],
+    [ "IPlugin", "classcgs_1_1plugin_1_1IPlugin.html", "classcgs_1_1plugin_1_1IPlugin" ],
+    [ "MMORPGPlugin", "classcgs_1_1plugin_1_1MMORPGPlugin.html", "classcgs_1_1plugin_1_1MMORPGPlugin" ],
+    [ "PluginActivatedEvent", "structcgs_1_1plugin_1_1PluginActivatedEvent.html", "structcgs_1_1plugin_1_1PluginActivatedEvent" ],
+    [ "PluginContext", "structcgs_1_1plugin_1_1PluginContext.html", "structcgs_1_1plugin_1_1PluginContext" ],
+    [ "PluginErrorEvent", "structcgs_1_1plugin_1_1PluginErrorEvent.html", "structcgs_1_1plugin_1_1PluginErrorEvent" ],
+    [ "PluginInfo", "structcgs_1_1plugin_1_1PluginInfo.html", "structcgs_1_1plugin_1_1PluginInfo" ],
+    [ "PluginInitializedEvent", "structcgs_1_1plugin_1_1PluginInitializedEvent.html", "structcgs_1_1plugin_1_1PluginInitializedEvent" ],
+    [ "PluginLoadedEvent", "structcgs_1_1plugin_1_1PluginLoadedEvent.html", "structcgs_1_1plugin_1_1PluginLoadedEvent" ],
+    [ "PluginManager", "classcgs_1_1plugin_1_1PluginManager.html", "classcgs_1_1plugin_1_1PluginManager" ],
+    [ "PluginShutdownEvent", "structcgs_1_1plugin_1_1PluginShutdownEvent.html", "structcgs_1_1plugin_1_1PluginShutdownEvent" ],
+    [ "PluginStateSnapshot", "structcgs_1_1plugin_1_1PluginStateSnapshot.html", "structcgs_1_1plugin_1_1PluginStateSnapshot" ],
+    [ "StaticPluginEntry", "structcgs_1_1plugin_1_1StaticPluginEntry.html", "structcgs_1_1plugin_1_1StaticPluginEntry" ],
+    [ "Version", "structcgs_1_1plugin_1_1Version.html", "structcgs_1_1plugin_1_1Version" ],
+    [ "VersionConstraint", "structcgs_1_1plugin_1_1VersionConstraint.html", "structcgs_1_1plugin_1_1VersionConstraint" ],
+    [ "FileChangeCallback", "namespacecgs_1_1plugin.html#a73fe829baff51da765688c2231c35d3c", null ],
+    [ "PluginFactory", "namespacecgs_1_1plugin.html#af2396b446cefab265c8b8b37cc20eb9f", null ],
+    [ "SubscriptionId", "namespacecgs_1_1plugin.html#a5426887911f3f2c2b6d192824f578400", null ],
+    [ "CharacterClass", "namespacecgs_1_1plugin.html#a32f1f88e4e1441d53787c0782be418a7", [
+      [ "Warrior", "namespacecgs_1_1plugin.html#a32f1f88e4e1441d53787c0782be418a7a7ee7fa010d64b90a36803a8445f2e943", null ],
+      [ "Mage", "namespacecgs_1_1plugin.html#a32f1f88e4e1441d53787c0782be418a7a8eb9bca606e30006ccd71ab236760ce8", null ],
+      [ "Priest", "namespacecgs_1_1plugin.html#a32f1f88e4e1441d53787c0782be418a7ae5ea56a64dedf72d7bfffbd4251d52bc", null ],
+      [ "Rogue", "namespacecgs_1_1plugin.html#a32f1f88e4e1441d53787c0782be418a7aae412534db3879501923fa67e0ea0174", null ],
+      [ "Ranger", "namespacecgs_1_1plugin.html#a32f1f88e4e1441d53787c0782be418a7ab23f665210a1914cab61bc8eba4c9ae0", null ],
+      [ "Warlock", "namespacecgs_1_1plugin.html#a32f1f88e4e1441d53787c0782be418a7a21305b754e03843876abc27387a0e57e", null ],
+      [ "COUNT", "namespacecgs_1_1plugin.html#a32f1f88e4e1441d53787c0782be418a7a4905ac9d6a22bdfc1ae096094ce6248d", null ]
+    ] ],
+    [ "ChatChannel", "namespacecgs_1_1plugin.html#a4afe3d965d76ada628c781531f55cb1a", [
+      [ "System", "namespacecgs_1_1plugin.html#a4afe3d965d76ada628c781531f55cb1aaa45da96d0bf6575970f2d27af22be28a", null ],
+      [ "Global", "namespacecgs_1_1plugin.html#a4afe3d965d76ada628c781531f55cb1aa4cc6684df7b4a92b1dec6fce3264fac8", null ],
+      [ "Party", "namespacecgs_1_1plugin.html#a4afe3d965d76ada628c781531f55cb1aa094a173d3b32f44f5b5c996e8710ae28", null ],
+      [ "Guild", "namespacecgs_1_1plugin.html#a4afe3d965d76ada628c781531f55cb1aa3352be9c843db7e6d2cb865da8f1fbf0", null ],
+      [ "Whisper", "namespacecgs_1_1plugin.html#a4afe3d965d76ada628c781531f55cb1aaefbe17fee974562b0f9fcb3eba0a4652", null ],
+      [ "Trade", "namespacecgs_1_1plugin.html#a4afe3d965d76ada628c781531f55cb1aa5f390d80b20daad8f5d2f483fb0ae9d8", null ],
+      [ "COUNT", "namespacecgs_1_1plugin.html#a4afe3d965d76ada628c781531f55cb1aa4905ac9d6a22bdfc1ae096094ce6248d", null ]
+    ] ],
+    [ "ConstraintOp", "namespacecgs_1_1plugin.html#ae11d4536e23148c54aa549357cf242aa", [
+      [ "GreaterEqual", "namespacecgs_1_1plugin.html#ae11d4536e23148c54aa549357cf242aaa758b05d899def79c9eb864ad4f96be1f", null ],
+      [ "GreaterThan", "namespacecgs_1_1plugin.html#ae11d4536e23148c54aa549357cf242aaaf6d044fe1f01fb0c956b80099e2a3072", null ],
+      [ "LessEqual", "namespacecgs_1_1plugin.html#ae11d4536e23148c54aa549357cf242aaad3e6fdac55bb7b0edd7834c968ba1f38", null ],
+      [ "LessThan", "namespacecgs_1_1plugin.html#ae11d4536e23148c54aa549357cf242aaac6d9d7bb9939f62f01c80f8b1251501c", null ],
+      [ "Equal", "namespacecgs_1_1plugin.html#ae11d4536e23148c54aa549357cf242aaaf5f286e73bda105e538310b3190f75c5", null ],
+      [ "CompatibleRelease", "namespacecgs_1_1plugin.html#ae11d4536e23148c54aa549357cf242aaa54378b5cae32a87264ccffdf0a293b1e", null ]
+    ] ],
+    [ "GuildRank", "namespacecgs_1_1plugin.html#ac1cd38d6baaa60bf0633976842d497fe", [
+      [ "Leader", "namespacecgs_1_1plugin.html#ac1cd38d6baaa60bf0633976842d497fea5158a250e30f1fb4415d86ded2c8e0c5", null ],
+      [ "Officer", "namespacecgs_1_1plugin.html#ac1cd38d6baaa60bf0633976842d497fea52c375813696b3de9433c236b3ba0253", null ],
+      [ "Member", "namespacecgs_1_1plugin.html#ac1cd38d6baaa60bf0633976842d497fea858ba4765e53c712ef672a9570474b1d", null ]
+    ] ],
+    [ "PluginState", "namespacecgs_1_1plugin.html#aac00db2a87101e9c28093b0abac802ab", [
+      [ "Unloaded", "namespacecgs_1_1plugin.html#aac00db2a87101e9c28093b0abac802abaa5ae20aa7fda5bd38bf0dce98e65bd2d", null ],
+      [ "Loaded", "namespacecgs_1_1plugin.html#aac00db2a87101e9c28093b0abac802aba7381d487d18845b379422325c0a768d6", null ],
+      [ "Initialized", "namespacecgs_1_1plugin.html#aac00db2a87101e9c28093b0abac802aba59d87a4758a9d35fbaf6b204341bb399", null ],
+      [ "Active", "namespacecgs_1_1plugin.html#aac00db2a87101e9c28093b0abac802aba4d3d769b812b6faa6b76e1a8abaece2d", null ],
+      [ "ShuttingDown", "namespacecgs_1_1plugin.html#aac00db2a87101e9c28093b0abac802aba075d9c9ae8c8f1c79c1a1965cd8c5a42", null ],
+      [ "Error", "namespacecgs_1_1plugin.html#aac00db2a87101e9c28093b0abac802aba902b0d55fddef6f8d651fe1035b7d4bd", null ]
+    ] ],
+    [ "ParseVersion", "namespacecgs_1_1plugin.html#a2c1474bc0c5aeceec7b3a94a8382ae91", null ],
+    [ "StaticPluginRegistry", "namespacecgs_1_1plugin.html#af1c98c2f4b8f2ff73c10c35076ccc6ab", null ],
+    [ "kCharacterClassCount", "namespacecgs_1_1plugin.html#a851e9424a5e0c4912fdd6ff71be9682f", null ],
+    [ "kChatChannelCount", "namespacecgs_1_1plugin.html#a7e7f2efd338a0458c15f6b8859411be0", null ],
+    [ "kDefaultMaxGuildMembers", "namespacecgs_1_1plugin.html#aa324dc405d4aa3cfec8930a2757d72a6", null ],
+    [ "kMaxChatHistoryPerChannel", "namespacecgs_1_1plugin.html#a6e7a77c624e0a1a074f545663bd8812c", null ],
+    [ "kPluginApiVersion", "namespacecgs_1_1plugin.html#a5acdea4eeee17455f419998f67568ce3", null ]
+];

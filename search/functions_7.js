@@ -1,0 +1,28 @@
+var searchData=
+[
+  ['halfopensuccesscount_0',['halfOpenSuccessCount',['../classcgs_1_1service_1_1ServiceCircuitBreaker.html#a05146815a54fabf771e78bf4b0f27bb6',1,'cgs::service::ServiceCircuitBreaker']]],
+  ['handleconnect_1',['handleConnect',['../classcgs_1_1service_1_1GatewayServer.html#a034ed34dbc90e9a9bb3b8811a9749d64',1,'cgs::service::GatewayServer']]],
+  ['handledisconnect_2',['handleDisconnect',['../classcgs_1_1service_1_1GatewayServer.html#a669e66d7fc51250fbf8a115b2b91af56',1,'cgs::service::GatewayServer']]],
+  ['handlemessage_3',['handleMessage',['../classcgs_1_1service_1_1GatewayServer.html#a48b771e662fd47b18708359845ea6bcf',1,'cgs::service::GatewayServer']]],
+  ['handlercount_4',['HandlerCount',['../classcgs_1_1plugin_1_1EventBus.html#a43646e96c47833a6c6d704f7d10564dd',1,'cgs::plugin::EventBus']]],
+  ['handlercountfor_5',['HandlerCountFor',['../classcgs_1_1plugin_1_1EventBus.html#af833bc01ef673ca25df2e806e181cd78',1,'cgs::plugin::EventBus']]],
+  ['has_6',['Has',['../classcgs_1_1ecs_1_1IComponentStorage.html#ae3feb6c5a31dcee89a86dae17e720250',1,'cgs::ecs::IComponentStorage::Has()'],['../classcgs_1_1ecs_1_1ComponentStorage.html#a58ffa115a572638c6aeebc04bf96bbd1',1,'cgs::ecs::ComponentStorage::Has()'],['../classcgs_1_1game_1_1Blackboard.html#a60f164194c358512fd83ef2ef41c44b8',1,'cgs::game::Blackboard::Has()']]],
+  ['has_7',['has',['../classcgs_1_1foundation_1_1ServiceLocator.html#aa54fe7f932f9e8d803da38f0cd6f3bd3',1,'cgs::foundation::ServiceLocator']]],
+  ['hasaura_8',['HasAura',['../structcgs_1_1game_1_1AuraHolder.html#a717e4237fa860743e0d0998b10512043',1,'cgs::game::AuraHolder']]],
+  ['haschanged_9',['HasChanged',['../classcgs_1_1ecs_1_1ComponentStorage.html#ae003d41b891ed4109795b72bd054011d',1,'cgs::ecs::ComponentStorage']]],
+  ['hascontext_10',['hasContext',['../classcgs_1_1foundation_1_1GameError.html#a2a6c619d99663176efe8f9a33f207f83',1,'cgs::foundation::GameError']]],
+  ['haserror_11',['hasError',['../classcgs_1_1Result.html#a30a52ad7c83a6fdd25efc757207b94e8',1,'cgs::Result::hasError()'],['../classcgs_1_1Result_3_01void_00_01E_01_4.html#aaae4402baf1902f11a425cc4da2a92f1',1,'cgs::Result&lt; void, E &gt;::hasError()']]],
+  ['hasflag_12',['HasFlag',['../namespacecgs_1_1game.html#a348ff992c093834d5956b8bf22785e94',1,'cgs::game']]],
+  ['hash_13',['hash',['../classcgs_1_1service_1_1PasswordHasher.html#a5934f744db436acec46d02e7556adf4e',1,'cgs::service::PasswordHasher']]],
+  ['hashwithsalt_14',['hashWithSalt',['../classcgs_1_1service_1_1PasswordHasher.html#a5fc4b196b501cb2032d4b6aa5c6d1b13',1,'cgs::service::PasswordHasher']]],
+  ['haskey_15',['hasKey',['../classcgs_1_1foundation_1_1ConfigManager.html#a8f479a2e570c1991859c8af90f862213',1,'cgs::foundation::ConfigManager']]],
+  ['hasquest_16',['HasQuest',['../structcgs_1_1game_1_1QuestLog.html#aac108109ef02a6c58ba484311987ce91',1,'cgs::game::QuestLog']]],
+  ['hasquestflag_17',['HasQuestFlag',['../namespacecgs_1_1game.html#aa3c7e2baf7974dcca5063c5bf9fc00f3',1,'cgs::game']]],
+  ['hasvalue_18',['hasValue',['../classcgs_1_1Result.html#acdb46a2f261edbd3c6cb1a51ebec6be9',1,'cgs::Result::hasValue()'],['../classcgs_1_1Result_3_01void_00_01E_01_4.html#a0f0307e3f7f413ad8e2246942842d4ab',1,'cgs::Result&lt; void, E &gt;::hasValue()']]],
+  ['healthcheck_19',['healthCheck',['../classcgs_1_1foundation_1_1GameMetrics.html#ad776d95e5e8b8be4a42543864faa5f19',1,'cgs::foundation::GameMetrics']]],
+  ['healthserver_20',['HealthServer',['../classcgs_1_1service_1_1HealthServer.html#a90c333a647a1751a700b1622bbe90a4e',1,'cgs::service::HealthServer::HealthServer(HealthServerConfig config, cgs::foundation::GameMetrics &amp;metrics)'],['../classcgs_1_1service_1_1HealthServer.html#a25fbd08dcae6e5e9147fdccd31cf8aee',1,'cgs::service::HealthServer::HealthServer(const HealthServer &amp;)=delete']]],
+  ['hitcount_21',['hitCount',['../classcgs_1_1service_1_1QueryCache.html#ac372c293dd34586fd170856182a66528',1,'cgs::service::QueryCache']]],
+  ['hitrate_22',['hitRate',['../classcgs_1_1service_1_1QueryCache.html#aaa4c3243a14a64823840d90e9f7d3a1c',1,'cgs::service::QueryCache']]],
+  ['hookcount_23',['hookCount',['../classcgs_1_1service_1_1GracefulShutdown.html#abf1681804b479fe64553127fe299baf0',1,'cgs::service::GracefulShutdown']]],
+  ['hotreloadmanager_24',['HotReloadManager',['../classcgs_1_1plugin_1_1HotReloadManager.html#a0bf8a32984a05c22c5fb61824ce73e49',1,'cgs::plugin::HotReloadManager::HotReloadManager(PluginManager &amp;pluginManager)'],['../classcgs_1_1plugin_1_1HotReloadManager.html#a7e4b74224aa10ff7ced8ee6ab57b2bf5',1,'cgs::plugin::HotReloadManager::HotReloadManager(const HotReloadManager &amp;)=delete'],['../classcgs_1_1plugin_1_1HotReloadManager.html#a551ca3cdcf4dd2d76d35942e05136d9e',1,'cgs::plugin::HotReloadManager::HotReloadManager(HotReloadManager &amp;&amp;)=delete']]]
+];

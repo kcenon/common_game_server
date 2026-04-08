@@ -1,0 +1,25 @@
+var searchData=
+[
+  ['accessexpiresin_0',['accessExpiresIn',['../structcgs_1_1service_1_1TokenPair.html#af071ff6bb787fc27199a90c9e7df4676',1,'cgs::service::TokenPair']]],
+  ['accesstoken_1',['accessToken',['../structcgs_1_1service_1_1TokenPair.html#a8add4f17d23ca80480931a1ea1756c3a',1,'cgs::service::TokenPair']]],
+  ['accesstokenexpiry_2',['accessTokenExpiry',['../structcgs_1_1service_1_1AuthConfig.html#a3eda7a546e29fe39100daa03348d3d97',1,'cgs::service::AuthConfig']]],
+  ['activeinstances_3',['activeInstances',['../structcgs_1_1service_1_1GameServerStats.html#a4a5ea386fe328b7590842f90728d3e9b',1,'cgs::service::GameServerStats']]],
+  ['activeparties_4',['activeParties',['../structcgs_1_1service_1_1LobbyStats.html#acb83701819a1c5d253464ddb6a15238c',1,'cgs::service::LobbyStats']]],
+  ['activequests_5',['activeQuests',['../structcgs_1_1game_1_1QuestLog.html#afc4a5c778a1baa6673ed22dc6e7b0cf3',1,'cgs::game::QuestLog']]],
+  ['aitickinterval_6',['aiTickInterval',['../structcgs_1_1service_1_1GameServerConfig.html#a8f8590eaac56920c4275fcf7728a0e47',1,'cgs::service::GameServerConfig']]],
+  ['amount_7',['amount',['../structcgs_1_1game_1_1DurabilityEvent.html#a6b17f8b05d7723dc0ace39587ee0674d',1,'cgs::game::DurabilityEvent']]],
+  ['apiversion_8',['apiVersion',['../structcgs_1_1plugin_1_1PluginInfo.html#a2f4ae206154bd98b3317342d7bb0ee05',1,'cgs::plugin::PluginInfo']]],
+  ['armor_9',['armor',['../structcgs_1_1game_1_1DamageCalcParams.html#a9b459d359b12923a17b89498fe9ec186',1,'cgs::game::DamageCalcParams::armor'],['../structcgs_1_1game_1_1StatBonuses.html#a54620d1284466b9d80ecc85670f236b9',1,'cgs::game::StatBonuses::armor']]],
+  ['attacker_10',['attacker',['../structcgs_1_1game_1_1DamageEvent.html#ac96dc6a05b8897e08b0c4d5842800de8',1,'cgs::game::DamageEvent']]],
+  ['attackspeed_11',['attackSpeed',['../structcgs_1_1game_1_1StatBonuses.html#adc3d63c93f4d02eb615f42e7c654174b',1,'cgs::game::StatBonuses']]],
+  ['attributes_12',['attributes',['../structcgs_1_1game_1_1Stats.html#af01ee8b2727e3c4e06f34cfaa2f46b98',1,'cgs::game::Stats::attributes'],['../structcgs_1_1game_1_1StatBonuses.html#ae3ea4e7440b5b98b8bcd6253fb1790b6',1,'cgs::game::StatBonuses::attributes']]],
+  ['auraid_13',['auraId',['../structcgs_1_1game_1_1AuraInstance.html#ae233e977faac85cc3d8d02af2f78ad5c',1,'cgs::game::AuraInstance']]],
+  ['auras_14',['auras',['../structcgs_1_1game_1_1AuraHolder.html#a5ac659c85a7c84eac057fe3e8a5e77ba',1,'cgs::game::AuraHolder']]],
+  ['authenticate_15',['Authenticate',['../namespacecgs_1_1service_1_1GatewayOpcode.html#a6dd2b32940481df283c23b2fe00fe9b4',1,'cgs::service::GatewayOpcode']]],
+  ['authenticatedconnections_16',['authenticatedConnections',['../structcgs_1_1service_1_1GatewayStats.html#ab36a70efcc71682c58dc2a09ecd55c08',1,'cgs::service::GatewayStats']]],
+  ['authfailurecount_17',['authFailureCount',['../structcgs_1_1service_1_1GatewayStats.html#acf425f72c62ff26d32a30d06aaea1a6b',1,'cgs::service::GatewayStats']]],
+  ['authresult_18',['AuthResult',['../namespacecgs_1_1service_1_1GatewayOpcode.html#a5d27442db6c12e15e0741d2caf39aea0',1,'cgs::service::GatewayOpcode']]],
+  ['authsuccesscount_19',['authSuccessCount',['../structcgs_1_1service_1_1GatewayStats.html#a1b6cf4d5cabf2271fd57e1cce5510740',1,'cgs::service::GatewayStats']]],
+  ['authtimeout_20',['authTimeout',['../structcgs_1_1service_1_1GatewayConfig.html#a51fad281646e1e8c72601af3248e98cc',1,'cgs::service::GatewayConfig']]],
+  ['averagerating_21',['averageRating',['../structcgs_1_1service_1_1MatchResult.html#ab5e8e3efa97394f06859a55ca46aafec',1,'cgs::service::MatchResult']]]
+];

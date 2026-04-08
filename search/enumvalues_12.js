@@ -1,0 +1,24 @@
+var searchData=
+[
+  ['safe_0',['Safe',['../namespacecgs_1_1game.html#a39d3be65755d77a538bb4cd33342d41dac6eea0560cd6f377e78dff2c85cc9122',1,'cgs::game']]],
+  ['sanctuary_1',['Sanctuary',['../namespacecgs_1_1game.html#aa5d769ee3b2d84b598001f2d9b01231aa4ce63397e604a28981bc57783bfdddd9',1,'cgs::game']]],
+  ['sendfailed_2',['SendFailed',['../namespacecgs_1_1foundation.html#a49a83ec4d16c9cc818ce9de8d6bacd22a0c17cd2d71728d61693ae3bbedbd202d',1,'cgs::foundation']]],
+  ['serializationerror_3',['SerializationError',['../namespacecgs_1_1foundation.html#a49a83ec4d16c9cc818ce9de8d6bacd22a64353c9071b50ec2fe6b90ed122471a8',1,'cgs::foundation']]],
+  ['sessionnotfound_4',['SessionNotFound',['../namespacecgs_1_1foundation.html#a49a83ec4d16c9cc818ce9de8d6bacd22a999a3e96785a44f4829c7e95f5497432',1,'cgs::foundation']]],
+  ['shadow_5',['Shadow',['../namespacecgs_1_1game.html#a9de950a19aece90c0ceb39f42b0e3a9da3f39588bb19e28051d9aedfbb170025c',1,'cgs::game']]],
+  ['shareable_6',['Shareable',['../namespacecgs_1_1game.html#ad4aa0a1307156d773af9d0cff1566653a327f14beca70d9f3a66f2dbedf0091bd',1,'cgs::game']]],
+  ['shoulders_7',['Shoulders',['../namespacecgs_1_1game.html#a69b3d6c95b2dcecaf73f82431a46a867a538f750b2882bfd1fe20c3fd667c1574',1,'cgs::game']]],
+  ['shuttingdown_8',['ShuttingDown',['../namespacecgs_1_1plugin.html#aac00db2a87101e9c28093b0abac802aba075d9c9ae8c8f1c79c1a1965cd8c5a42',1,'cgs::plugin::ShuttingDown'],['../namespacecgs_1_1service.html#a683220512d6da0cfa4a6fbc2da4c70a2a075d9c9ae8c8f1c79c1a1965cd8c5a42',1,'cgs::service::ShuttingDown']]],
+  ['snapshotcorrupted_9',['SnapshotCorrupted',['../namespacecgs_1_1foundation.html#a49a83ec4d16c9cc818ce9de8d6bacd22a2f01036363796460c17cb7d80df5b964',1,'cgs::foundation']]],
+  ['snapshotreadfailed_10',['SnapshotReadFailed',['../namespacecgs_1_1foundation.html#a49a83ec4d16c9cc818ce9de8d6bacd22ad6447f11b7612d229d48b6332c7ce3a8',1,'cgs::foundation']]],
+  ['snapshotwritefailed_11',['SnapshotWriteFailed',['../namespacecgs_1_1foundation.html#a49a83ec4d16c9cc818ce9de8d6bacd22a29dce787d1a334d83968c19b8f6f50a3',1,'cgs::foundation']]],
+  ['sqlite_12',['SQLite',['../namespacecgs_1_1foundation.html#a04cf8cc6cd3da84b765854107b601f61a497757a9c5b2ec17ded656170b51c788',1,'cgs::foundation']]],
+  ['statedeserializationfailed_13',['StateDeserializationFailed',['../namespacecgs_1_1foundation.html#a49a83ec4d16c9cc818ce9de8d6bacd22a63d376abaae3dbcc2ec62b5471888191',1,'cgs::foundation']]],
+  ['stateserializationfailed_14',['StateSerializationFailed',['../namespacecgs_1_1foundation.html#a49a83ec4d16c9cc818ce9de8d6bacd22aef74b43692e4f958a5bde3613f3fa9d9',1,'cgs::foundation']]],
+  ['stateupdate_15',['StateUpdate',['../namespacecgs_1_1service.html#ae17d1ca5281f0078db55966585891f2bafa6de437bd00200bf3178386cf7d7f1a',1,'cgs::service']]],
+  ['success_16',['Success',['../namespacecgs_1_1foundation.html#a49a83ec4d16c9cc818ce9de8d6bacd22a505a83f220c02df2f85c3810cd9ceb38',1,'cgs::foundation::Success'],['../namespacecgs_1_1game.html#a2c73ac796e3da0963ff9c828133c74bea505a83f220c02df2f85c3810cd9ceb38',1,'cgs::game::Success'],['../namespacecgs_1_1game.html#a4a9f5fb2fe431f9b614bbc660bb24527a505a83f220c02df2f85c3810cd9ceb38',1,'cgs::game::Success']]],
+  ['suspended_17',['Suspended',['../namespacecgs_1_1service.html#a49cef32bc2c89b51701dc61d98f237a4a8bf906833cc7aea8084f552217ed9c1d',1,'cgs::service']]],
+  ['system_18',['System',['../namespacecgs_1_1plugin.html#a4afe3d965d76ada628c781531f55cb1aaa45da96d0bf6575970f2d27af22be28a',1,'cgs::plugin']]],
+  ['systemerror_19',['SystemError',['../namespacecgs_1_1foundation.html#a49a83ec4d16c9cc818ce9de8d6bacd22ab932b91f686c2aa588adfd9a407155ca',1,'cgs::foundation']]],
+  ['systemschedulerbuildfailed_20',['SystemSchedulerBuildFailed',['../namespacecgs_1_1foundation.html#a49a83ec4d16c9cc818ce9de8d6bacd22a44966a266742ac52c0f96cef0307d896',1,'cgs::foundation']]]
+];

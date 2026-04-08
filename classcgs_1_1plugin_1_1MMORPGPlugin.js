@@ -1,0 +1,28 @@
+var classcgs_1_1plugin_1_1MMORPGPlugin =
+[
+    [ "MMORPGPlugin", "classcgs_1_1plugin_1_1MMORPGPlugin.html#aa2eb9c172e0358eb529805916bd77ee2", null ],
+    [ "~MMORPGPlugin", "classcgs_1_1plugin_1_1MMORPGPlugin.html#a9ba53212e609a0483ea4b32df45d473f", null ],
+    [ "CreateCharacter", "classcgs_1_1plugin_1_1MMORPGPlugin.html#ab8f8099510d717384927ab3c57404cb7", null ],
+    [ "CreateGuild", "classcgs_1_1plugin_1_1MMORPGPlugin.html#a50fdf322b9d9f8b01cadfb8bfe43de90", null ],
+    [ "CreateMapInstance", "classcgs_1_1plugin_1_1MMORPGPlugin.html#a96d4616d9cbe8c56a681e747bc45603a", null ],
+    [ "DisbandGuild", "classcgs_1_1plugin_1_1MMORPGPlugin.html#a0527cd720ba4fc5df9275805d4573387", null ],
+    [ "GetCharacterData", "classcgs_1_1plugin_1_1MMORPGPlugin.html#a131bbb200b32c4a81841cfa9d1198b71", null ],
+    [ "GetChatHistory", "classcgs_1_1plugin_1_1MMORPGPlugin.html#abe2bb8b3f6bb5f0637175cc1cd426a86", null ],
+    [ "GetEntityManager", "classcgs_1_1plugin_1_1MMORPGPlugin.html#a71a368277e778b0b15b290d1bb8ce458", null ],
+    [ "GetGuild", "classcgs_1_1plugin_1_1MMORPGPlugin.html#aed88b99a9e2b52a93fd936ffa12c45ed", null ],
+    [ "GetInfo", "classcgs_1_1plugin_1_1MMORPGPlugin.html#ad2ab0072323c6e6970a4b7e32e3b2fad", null ],
+    [ "GetScheduler", "classcgs_1_1plugin_1_1MMORPGPlugin.html#abd2a8808f967160a9351f66e8e66f066", null ],
+    [ "GuildCount", "classcgs_1_1plugin_1_1MMORPGPlugin.html#a5083ca83eae9089d79803bdb083f367e", null ],
+    [ "JoinGuild", "classcgs_1_1plugin_1_1MMORPGPlugin.html#af242c257c452c452d4d75cafc6f5c3e3", null ],
+    [ "LeaveGuild", "classcgs_1_1plugin_1_1MMORPGPlugin.html#ac3544dbb07cbf794b3dacb82ff41d581", null ],
+    [ "OnInit", "classcgs_1_1plugin_1_1MMORPGPlugin.html#a753279d542756ab7f8699d51acbe4733", null ],
+    [ "OnLoad", "classcgs_1_1plugin_1_1MMORPGPlugin.html#addbff7abcabf5a1c3cc6a31e81c6247a", null ],
+    [ "OnShutdown", "classcgs_1_1plugin_1_1MMORPGPlugin.html#aaf891080d19d6291ad87ac6dcd79df32", null ],
+    [ "OnUnload", "classcgs_1_1plugin_1_1MMORPGPlugin.html#a17ff2d0f8791c0d3b30182ce952e726e", null ],
+    [ "OnUpdate", "classcgs_1_1plugin_1_1MMORPGPlugin.html#a1c0ec900ab3cab22d3b8e1973bf9d768", null ],
+    [ "PlayerCount", "classcgs_1_1plugin_1_1MMORPGPlugin.html#a9c26bfa34f70934874fa039184f64708", null ],
+    [ "RemoveCharacter", "classcgs_1_1plugin_1_1MMORPGPlugin.html#a62b47e2c7c033c36b2708c8dc2659cbb", null ],
+    [ "RemoveCreature", "classcgs_1_1plugin_1_1MMORPGPlugin.html#a806e556d19914b893a9542552d59ca5b", null ],
+    [ "SendChat", "classcgs_1_1plugin_1_1MMORPGPlugin.html#a1d467a93b50eb73a25b3c7df4e06ac48", null ],
+    [ "SpawnCreature", "classcgs_1_1plugin_1_1MMORPGPlugin.html#a8ff463e30ee30992ff9dedc652512a94", null ]
+];

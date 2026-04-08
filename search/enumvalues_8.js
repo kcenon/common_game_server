@@ -1,0 +1,23 @@
+var searchData=
+[
+  ['idle_0',['Idle',['../namespacecgs_1_1game.html#abae909aa735b27658e2488cd94e7c57aae599161956d626eda4cb0a5ffb85271c',1,'cgs::game::Idle'],['../namespacecgs_1_1game.html#ab520b28835b73ebaa23e383944436dd4ae599161956d626eda4cb0a5ffb85271c',1,'cgs::game::Idle'],['../namespacecgs_1_1game.html#afb67d3d1869659307653da590d78d1d1ae599161956d626eda4cb0a5ffb85271c',1,'cgs::game::Idle']]],
+  ['indoor_1',['Indoor',['../namespacecgs_1_1game.html#aa5d769ee3b2d84b598001f2d9b01231aa68fef174f6def745077ea7e806dc7cfe',1,'cgs::game']]],
+  ['info_2',['Info',['../namespacecgs_1_1foundation.html#a92b3942624833a234fc4fd5ac0196250a4059b0251f66a18cb56f544728796875',1,'cgs::foundation']]],
+  ['initialized_3',['Initialized',['../namespacecgs_1_1plugin.html#aac00db2a87101e9c28093b0abac802aba59d87a4758a9d35fbaf6b204341bb399',1,'cgs::plugin']]],
+  ['instancefull_4',['InstanceFull',['../namespacecgs_1_1foundation.html#a49a83ec4d16c9cc818ce9de8d6bacd22aad7ee54073f4fae23288139df016e714',1,'cgs::foundation']]],
+  ['interact_5',['Interact',['../namespacecgs_1_1game.html#a81f07b6f5fdf6d473e24d6c7ac0f3a3faefbc873e4634f3db63d62377d36e5f56',1,'cgs::game::Interact'],['../namespacecgs_1_1game.html#aae546a4b2abc6f78aaf906e549b67ddeaefbc873e4634f3db63d62377d36e5f56',1,'cgs::game::Interact']]],
+  ['interrupted_6',['Interrupted',['../namespacecgs_1_1game.html#ab520b28835b73ebaa23e383944436dd4a12c37c4278b8c0db6c2f65052569cd80',1,'cgs::game']]],
+  ['invalidargument_7',['InvalidArgument',['../namespacecgs_1_1foundation.html#a49a83ec4d16c9cc818ce9de8d6bacd22a253ca7dd096ee0956cccee4d376cab8b',1,'cgs::foundation']]],
+  ['invalidbinarydata_8',['InvalidBinaryData',['../namespacecgs_1_1foundation.html#a49a83ec4d16c9cc818ce9de8d6bacd22ab4dc612f5120fc12bf716ba11a1c8c12',1,'cgs::foundation']]],
+  ['invalidcredentials_9',['InvalidCredentials',['../namespacecgs_1_1foundation.html#a49a83ec4d16c9cc818ce9de8d6bacd22a3121e825c13ba377fb5adb741201c401',1,'cgs::foundation']]],
+  ['invalidemail_10',['InvalidEmail',['../namespacecgs_1_1foundation.html#a49a83ec4d16c9cc818ce9de8d6bacd22a45d3c76b79a4795dae38fb5d5b48ad45',1,'cgs::foundation']]],
+  ['invalidjsondata_11',['InvalidJsonData',['../namespacecgs_1_1foundation.html#a49a83ec4d16c9cc818ce9de8d6bacd22a8558f0618fab878e721c6a74b21eb380',1,'cgs::foundation']]],
+  ['invalidmap_12',['InvalidMap',['../namespacecgs_1_1game.html#a4a9f5fb2fe431f9b614bbc660bb24527a8cb22e26f2ffe739b708d5693ce4ddda',1,'cgs::game']]],
+  ['invalidmessage_13',['InvalidMessage',['../namespacecgs_1_1foundation.html#a49a83ec4d16c9cc818ce9de8d6bacd22ad5e88abe375e264803a6f6b436e769e6',1,'cgs::foundation']]],
+  ['invalidmetrictype_14',['InvalidMetricType',['../namespacecgs_1_1foundation.html#a49a83ec4d16c9cc818ce9de8d6bacd22ad5001e4490b9f3b44ccdc146e00e2430',1,'cgs::foundation']]],
+  ['invalidrating_15',['InvalidRating',['../namespacecgs_1_1foundation.html#a49a83ec4d16c9cc818ce9de8d6bacd22ab8890ed2b09c413ccd01d011a01e1fee',1,'cgs::foundation']]],
+  ['invalidtoken_16',['InvalidToken',['../namespacecgs_1_1foundation.html#a49a83ec4d16c9cc818ce9de8d6bacd22aa38d51bc6a4d9fa4367feb57841868f3',1,'cgs::foundation']]],
+  ['invalidusername_17',['InvalidUsername',['../namespacecgs_1_1foundation.html#a49a83ec4d16c9cc818ce9de8d6bacd22ac1fc3acee6b2b7eda57503e0d777d7f1',1,'cgs::foundation']]],
+  ['invalidzone_18',['InvalidZone',['../namespacecgs_1_1game.html#a4a9f5fb2fe431f9b614bbc660bb24527ad74aac960018a64cf3e8102d1133f9b5',1,'cgs::game']]],
+  ['inventorychange_19',['InventoryChange',['../namespacecgs_1_1service.html#ae17d1ca5281f0078db55966585891f2ba6752633173d28e90654f4112fe531d15',1,'cgs::service']]]
+];

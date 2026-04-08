@@ -1,0 +1,27 @@
+var classcgs_1_1service_1_1LobbyServer =
+[
+    [ "LobbyServer", "classcgs_1_1service_1_1LobbyServer.html#ad41aea377bfd50db1fb9ef31a270d4b0", null ],
+    [ "~LobbyServer", "classcgs_1_1service_1_1LobbyServer.html#a866b139c31d20d23ea71c9bfbd626044", null ],
+    [ "LobbyServer", "classcgs_1_1service_1_1LobbyServer.html#ae67db14be996f1ebec8d086e1e0a4588", null ],
+    [ "LobbyServer", "classcgs_1_1service_1_1LobbyServer.html#a48827f6a970f9697eed4adb8fe8be1bf", null ],
+    [ "addPartyMember", "classcgs_1_1service_1_1LobbyServer.html#a4a652c40b873530eb4501f19f24b7726", null ],
+    [ "config", "classcgs_1_1service_1_1LobbyServer.html#a9ce9a1f356e0a2ead4829b1f88c479b6", null ],
+    [ "createParty", "classcgs_1_1service_1_1LobbyServer.html#ad476d2302174a446fe80eb96a3ce9465", null ],
+    [ "dequeueParty", "classcgs_1_1service_1_1LobbyServer.html#a186f3652f6a3e9c0d64f5d1b0e076c81", null ],
+    [ "dequeuePlayer", "classcgs_1_1service_1_1LobbyServer.html#a6d84040f24c72b5cb4970ffbd3bf1f55", null ],
+    [ "disbandParty", "classcgs_1_1service_1_1LobbyServer.html#a4582edb5307cab90862b2c33700be977", null ],
+    [ "enqueueParty", "classcgs_1_1service_1_1LobbyServer.html#a8c7bf15a97b5987071659b45b2c4b2f8", null ],
+    [ "enqueuePlayer", "classcgs_1_1service_1_1LobbyServer.html#affa198d7025b48c245c6c56d24fc0969", null ],
+    [ "getParty", "classcgs_1_1service_1_1LobbyServer.html#a00e817803a248e9b515944f6645e8c29", null ],
+    [ "getPlayerParty", "classcgs_1_1service_1_1LobbyServer.html#afb27acaae64de25b3e18b470e70fc034", null ],
+    [ "isPlayerQueued", "classcgs_1_1service_1_1LobbyServer.html#ac7993b066f441442f192a23b7ce69a6d", null ],
+    [ "isRunning", "classcgs_1_1service_1_1LobbyServer.html#a7bca763d2a753686f22ef6f529b79922", null ],
+    [ "operator=", "classcgs_1_1service_1_1LobbyServer.html#abfda4521d24c1def527bd7c47b237c10", null ],
+    [ "operator=", "classcgs_1_1service_1_1LobbyServer.html#a559a64d2fd036f5a642b6bdcbf763cfc", null ],
+    [ "processMatchmaking", "classcgs_1_1service_1_1LobbyServer.html#ab4a6afc2badba22d98258b34976eb0c8", null ],
+    [ "promotePartyLeader", "classcgs_1_1service_1_1LobbyServer.html#ab8cad4a24c3c752dd2cc0d8af45e8865", null ],
+    [ "removePartyMember", "classcgs_1_1service_1_1LobbyServer.html#a1c78e7317748786d6d91e7e7f5f882ef", null ],
+    [ "start", "classcgs_1_1service_1_1LobbyServer.html#adc7aceb92e78d03c1be9e5c821709957", null ],
+    [ "stats", "classcgs_1_1service_1_1LobbyServer.html#ae669bf3566a7237a55c4b47129d513fb", null ],
+    [ "stop", "classcgs_1_1service_1_1LobbyServer.html#aa174041e8e34fefefbb336d5a36c9d71", null ]
+];

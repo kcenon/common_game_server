@@ -1,0 +1,336 @@
+/**
+ * @page tutorial_inventory Tutorial: Inventory and Equipment Slots
+ *
+ * @tableofcontents
+ *
+ * Every MMO character needs an inventory — bag slots for carrying
+ * items, equipment slots for wearing gear, stackable consumables,
+ * durability, enchantments, and a catalog of static item templates.
+ * `common_game_server` provides this through the `Inventory` and
+ * `Equipment` components plus the `ItemTemplate` static data class.
+ * This tutorial walks through building an item catalog, spawning a
+ * character with an inventory, managing stacks, equipping gear, and
+ * calculating equipped stat bonuses.
+ *
+ * **Compilable version**: `examples/07_inventory.cpp`
+ *
+ * @section tut_inv_setup Setup
+ *
+ * Include the inventory components and types:
+ *
+ * @code{.cpp}
+ * #include "cgs/ecs/component_storage.hpp"
+ * #include "cgs/ecs/entity_manager.hpp"
+ * #include "cgs/game/inventory_components.hpp"
+ * #include "cgs/game/inventory_types.hpp"
+ *
+ * using namespace cgs::game;
+ * @endcode
+ *
+ * Link against `cgs::game_inventory_system`.
+ *
+ * @section tut_inv_types Item Types and Qualities
+ *
+ * `inventory_types.hpp` declares three enums:
+ *
+ * @code{.cpp}
+ * enum class ItemType : uint8_t {
+ *     Consumable, Weapon, Armor, Accessory, Material,
+ *     Quest, Container, Reagent, Miscellaneous
+ * };
+ *
+ * enum class ItemQuality : uint8_t {
+ *     Poor, Common, Uncommon, Rare, Epic, Legendary
+ * };
+ *
+ * enum class EquipSlot : uint8_t {
+ *     Head, Neck, Shoulders, Chest, Waist, Legs, Feet, Wrists,
+ *     Hands, Finger1, Finger2, Trinket1, Trinket2,
+ *     MainHand, OffHand, Ranged, Tabard,
+ *     COUNT   // sentinel, total = 17
+ * };
+ *
+ * constexpr std::size_t kEquipSlotCount = static_cast<std::size_t>(EquipSlot::COUNT);
+ * constexpr uint32_t kDefaultInventoryCapacity = 40;
+ * constexpr int32_t kIndestructible = -1;
+ * @endcode
+ *
+ * `EquipSlot::COUNT` is the sentinel that `kEquipSlotCount` uses for
+ * fixed-size array sizing. `kIndestructible = -1` is the durability
+ * sentinel for items that never break.
+ *
+ * @section tut_inv_item_template Static Item Catalog
+ *
+ * `ItemTemplate` holds the shared, immutable definition of an item:
+ *
+ * @code{.cpp}
+ * struct ItemTemplate {
+ *     uint32_t id = 0;
+ *     std::string name;
+ *     ItemType type = ItemType::Miscellaneous;
+ *     ItemQuality quality = ItemQuality::Common;
+ *     uint32_t maxStackSize = 1;            // 1 = non-stackable
+ *     int32_t maxDurability = kIndestructible;
+ *     EquipSlot equipSlot = EquipSlot::COUNT;  // COUNT = not equippable
+ *     StatBonuses statBonuses;
+ *     uint32_t requiredLevel = 0;
+ *     uint32_t vendorPrice = 0;
+ *
+ *     bool IsStackable() const noexcept;
+ *     bool IsEquippable() const noexcept;
+ * };
+ * @endcode
+ *
+ * Template data is **static** — you load it once at server startup
+ * from YAML/JSON/DB and reuse the same `ItemTemplate` across every
+ * stack of that item. The inventory component stores only item IDs
+ * and counts, not the whole template.
+ *
+ * Build a small catalog inline for tests:
+ *
+ * @code{.cpp}
+ * ItemTemplate potion;
+ * potion.id = 1001;
+ * potion.name = "Minor Health Potion";
+ * potion.type = ItemType::Consumable;
+ * potion.quality = ItemQuality::Common;
+ * potion.maxStackSize = 20;
+ * potion.vendorPrice = 25;
+ *
+ * ItemTemplate sword;
+ * sword.id = 2001;
+ * sword.name = "Iron Longsword";
+ * sword.type = ItemType::Weapon;
+ * sword.quality = ItemQuality::Uncommon;
+ * sword.maxStackSize = 1;
+ * sword.maxDurability = 100;
+ * sword.equipSlot = EquipSlot::MainHand;
+ * sword.statBonuses.minDamage = 15;
+ * sword.statBonuses.maxDamage = 25;
+ * @endcode
+ *
+ * @section tut_inv_inventory Inventory Component
+ *
+ * @code{.cpp}
+ * struct Inventory {
+ *     std::vector<InventorySlot> slots;
+ *     uint32_t capacity = kDefaultInventoryCapacity;
+ *     int64_t currency = 0;
+ *
+ *     void Initialize();                              // allocates slots
+ *     uint32_t AddItem(const ItemTemplate&, uint32_t count);
+ *     bool RemoveItem(uint32_t slotIndex, uint32_t count);
+ *     bool MoveItem(uint32_t fromSlot, uint32_t toSlot);
+ *     std::optional<uint32_t> SplitStack(uint32_t slotIndex, uint32_t count);
+ *     std::optional<uint32_t> FindItem(uint32_t itemId) const;
+ *     uint32_t CountItem(uint32_t itemId) const;
+ *     uint32_t FreeSlots() const;
+ *     const InventorySlot* GetItem(uint32_t slotIndex) const;
+ * };
+ * @endcode
+ *
+ * Call `Initialize()` exactly once after creating an Inventory
+ * component — it sizes the `slots` vector to `capacity`. After that,
+ * use `AddItem` and friends to modify contents.
+ *
+ * `AddItem` uses a two-pass algorithm:
+ *
+ * 1. **Stack pass**: for stackable items, walks existing slots and
+ *    tops off stacks of the same item ID up to `maxStackSize`.
+ * 2. **Place pass**: fills empty slots with the remainder.
+ *
+ * It returns the number of items actually added (may be less than
+ * `addCount` if the inventory is full):
+ *
+ * @code{.cpp}
+ * const uint32_t added = inv.AddItem(potion, 12);
+ * // added may be 12 (fully placed) or smaller (inventory full)
+ * @endcode
+ *
+ * @section tut_inv_slots InventorySlot
+ *
+ * Each slot is a plain struct:
+ *
+ * @code{.cpp}
+ * struct InventorySlot {
+ *     uint32_t itemId = 0;       // 0 = empty
+ *     uint32_t count = 0;
+ *     int32_t durability = kIndestructible;
+ *     int32_t maxDurability = kIndestructible;
+ *     std::vector<Enchant> enchants;
+ *
+ *     bool IsEmpty() const noexcept;
+ *     bool IsBroken() const noexcept;   // durability == 0 && maxDurability > 0
+ *     bool ReduceDurability(int32_t amount) noexcept;  // returns true on break
+ *     StatBonuses GetEnchantBonuses() const;
+ *     void Clear() noexcept;
+ * };
+ * @endcode
+ *
+ * `Enchant` is a small bonus applied to a single slot, optionally
+ * time-limited. Use `InventorySlot::RemoveExpiredEnchants` on a
+ * timer to prune expired enchants.
+ *
+ * @section tut_inv_equipment Equipment Component
+ *
+ * @code{.cpp}
+ * struct Equipment {
+ *     std::array<InventorySlot, kEquipSlotCount> slots{};
+ *
+ *     InventorySlot Equip(EquipSlot slot, InventorySlot item);
+ *     InventorySlot Unequip(EquipSlot slot);
+ *     const InventorySlot* GetEquipped(EquipSlot slot) const;
+ *     StatBonuses CalculateStatBonuses(const std::vector<ItemTemplate>& templates) const;
+ * };
+ * @endcode
+ *
+ * `Equipment` is a fixed-size array — one slot per `EquipSlot` enum
+ * value. Indexing by `static_cast<size_t>(EquipSlot::X)`. `Equip`
+ * returns the previously equipped item (possibly empty) so you can
+ * swap in one call:
+ *
+ * @code{.cpp}
+ * Equipment& eq = equipment.Get(player);
+ *
+ * InventorySlot sword;
+ * sword.itemId = 2001;
+ * sword.durability = 100;
+ * sword.maxDurability = 100;
+ *
+ * InventorySlot previous = eq.Equip(EquipSlot::MainHand, sword);
+ * if (!previous.IsEmpty()) {
+ *     inv.AddItem(itemTemplate[previous.itemId], previous.count);
+ * }
+ * @endcode
+ *
+ * @section tut_inv_bonuses Stat Bonuses from Equipment
+ *
+ * `Equipment::CalculateStatBonuses(templates)` walks every equipped
+ * slot, looks up the template, and accumulates the stat bonuses.
+ * **Broken items (durability 0) contribute nothing** — this is how
+ * the framework enforces that players must repair gear.
+ *
+ * @code{.cpp}
+ * std::vector<ItemTemplate> allTemplates = { /* loaded at startup */ };
+ *
+ * auto bonuses = equipment.Get(player).CalculateStatBonuses(allTemplates);
+ * // bonuses.armor, bonuses.minDamage, bonuses.maxDamage,
+ * // bonuses.attackSpeed, bonuses.attributes[...]
+ * @endcode
+ *
+ * Enchant bonuses on a single slot are returned by
+ * `InventorySlot::GetEnchantBonuses()` and added to the item-level
+ * `StatBonuses` by `CalculateStatBonuses`.
+ *
+ * @section tut_inv_advanced Advanced: Splitting Stacks and Moving Slots
+ *
+ * `SplitStack(srcSlot, count)` moves `count` items from the source
+ * slot into a new empty slot. Returns the new slot index or nullopt
+ * if either the source can't spare the items or no empty slot
+ * exists:
+ *
+ * @code{.cpp}
+ * auto newSlot = inv.SplitStack(potionSlot, 5);
+ * if (!newSlot) {
+ *     // inventory full or source is empty / too small
+ * }
+ * @endcode
+ *
+ * `MoveItem(fromSlot, toSlot)` swaps two slots or merges same-item
+ * stacks. It returns `false` if either index is out of range or
+ * equal. Use this for drag-and-drop UI.
+ *
+ * @section tut_inv_debugging Debugging Tips
+ *
+ * 1. **Print `FreeSlots()` after every mutation.** Inventory bugs
+ *    usually manifest as "I added an item but FreeSlots didn't
+ *    change" — a sign that AddItem landed on an existing stack
+ *    instead of a new slot, which may or may not be what you
+ *    expected.
+ *
+ * 2. **Log item IDs, not pointers.** `InventorySlot` is
+ *    value-moved between Equipment and Inventory. Pointers go
+ *    stale immediately.
+ *
+ * 3. **Assert `template.equipSlot != COUNT` before equipping.**
+ *    Equipping a non-equippable item (e.g., a potion) succeeds
+ *    but creates a weird slot state that breaks CalculateStatBonuses.
+ *
+ * 4. **Unit test `AddItem` with a full inventory.** The return
+ *    value is the number actually added — easy to miss when
+ *    `addCount == 1` and you assume success.
+ *
+ * 5. **Breakpoint on `Clear()`.** Slot clears are the most
+ *    common "where did my item go?" source.
+ *
+ * @section tut_inv_pitfalls Common Pitfalls
+ *
+ * 1. **Forgetting `Initialize()`.** A fresh `Inventory` has
+ *    `slots.empty()`. `AddItem` handles this by calling
+ *    `Initialize` internally, but `FindItem` / `CountItem` do
+ *    not — they return 0 / nullopt on an un-initialized
+ *    inventory.
+ *
+ * 2. **Stacking a non-stackable item.** `IsStackable()` returns
+ *    true only when `maxStackSize > 1`. Calling `AddItem` for a
+ *    weapon with `count = 5` creates 5 separate slots, one per
+ *    weapon instance.
+ *
+ * 3. **Mismatched durability between template and slot.** A
+ *    newly added item inherits its template's `maxDurability`.
+ *    If you later raise the template's `maxDurability`, existing
+ *    slots keep the old value. Either repair to the new max or
+ *    live with the discrepancy.
+ *
+ * 4. **Discarding the `Equip` return value.** The return is the
+ *    previously equipped item. Dropping it loses the item forever.
+ *    Always hand it back to the inventory or explicitly destroy
+ *    it.
+ *
+ * 5. **Broken items still visible.** `IsBroken() == true` items
+ *    display in the UI and are selectable — but
+ *    `CalculateStatBonuses` ignores them. Warn the player with a
+ *    "repair your gear" toast.
+ *
+ * 6. **Currency overflow.** `Inventory::currency` is a signed
+ *    `int64_t`. Subtracting below zero silently underflows.
+ *    Clamp before subtracting: `if (inv.currency >= price)
+ *    inv.currency -= price;`.
+ *
+ * 7. **Serialization of `std::any` enchants.** `Enchant` is a
+ *    plain struct, but enchantment effects are game-specific.
+ *    Define an explicit (de)serializer if you plan to persist
+ *    inventories.
+ *
+ * @section tut_inv_performance Performance Notes
+ *
+ * - **`AddItem` is `O(slots)`** — at most two linear scans of
+ *   the bag. For 40 slots that's 80 comparisons, well under
+ *   a microsecond on any modern CPU.
+ * - **`FindItem` / `CountItem` are also `O(slots)`**. If you
+ *   need per-item-id `O(1)` lookup for crafting or quests,
+ *   build a side-table keyed on `itemId`.
+ * - **`Equipment` is fixed-size** (`kEquipSlotCount = 17`), so
+ *   all Equipment operations are effectively `O(1)`.
+ * - **`CalculateStatBonuses` allocates nothing.** It accumulates
+ *   into a stack-local `StatBonuses`.
+ * - **`SplitStack` is `O(slots)`** — needs an empty slot scan.
+ *   For densely packed inventories this can be the most
+ *   expensive inventory operation.
+ * - **Enchant pruning is amortized `O(enchants)`** via
+ *   `std::erase_if`.
+ *
+ * @section tut_inv_next Next Steps
+ *
+ * - @ref tutorial_game_objects — `Stats` combines with the
+ *   `CalculateStatBonuses` output to produce the player's
+ *   effective stats.
+ * - @ref tutorial_quest — Quest rewards include items that are
+ *   added via `Inventory::AddItem` on turn-in.
+ * - @ref tutorial_database — Persisting an inventory across
+ *   sessions is a common database scenario.
+ * - `include/cgs/game/inventory_components.hpp` — authoritative
+ *   `Inventory` / `Equipment` / `InventorySlot` API.
+ * - `include/cgs/game/inventory_types.hpp` — `EquipSlot`,
+ *   `ItemType`, `ItemQuality` enum layouts.
+ */

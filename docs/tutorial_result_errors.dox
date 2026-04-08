@@ -1,0 +1,359 @@
+/**
+ * @page tutorial_result_errors Tutorial: Result<T> and Error Handling
+ *
+ * @tableofcontents
+ *
+ * This tutorial walks through the `Result<T, E>` pattern used throughout
+ * `common_game_server` to replace exceptions with explicit, type-safe
+ * error propagation. You will learn the difference between the two
+ * error types (`cgs::Error` and `cgs::foundation::GameError`), how to
+ * chain fallible operations without monadic combinators, how to recover
+ * with fallback values, and how to surface categorized errors with
+ * subsystem context for debugging.
+ *
+ * **Compilable version**: `examples/01_result_errors.cpp`
+ * (built with `cmake --preset debug` or `cmake -DCGS_BUILD_EXAMPLES=ON`)
+ *
+ * @section tut_result_motivation Motivation
+ *
+ * Exceptions are convenient for error propagation but have three
+ * properties that make them a poor fit for a 20 Hz game server:
+ *
+ * 1. **Invisible control flow** — you cannot tell from a function
+ *    signature whether it might throw, so every call site must reason
+ *    about every possible exception type that could unwind through it.
+ * 2. **Unbounded cost on the unhappy path** — throwing an exception
+ *    walks the stack, runs destructors, and consults RTTI. The cost is
+ *    proportional to how deep the unwind goes, and in a tight game
+ *    loop that can blow the 50 ms tick budget.
+ * 3. **No composition** — you cannot combine two throwing functions
+ *    without wrapping them in a try/catch, which means error recovery
+ *    logic ends up scattered instead of concentrated at the call site.
+ *
+ * `common_game_server` solves all three by making errors part of the
+ * type system. Every fallible function returns `Result<T, E>`. Callers
+ * must explicitly check or propagate. The type-checker enforces it.
+ *
+ * @section tut_result_setup Setup
+ *
+ * Include the Result header and the game-specific error helpers:
+ *
+ * @code{.cpp}
+ * #include "cgs/core/result.hpp"
+ * #include "cgs/foundation/error_code.hpp"
+ * #include "cgs/foundation/game_error.hpp"
+ * #include "cgs/foundation/game_result.hpp"
+ *
+ * using cgs::foundation::ErrorCode;
+ * using cgs::foundation::GameError;
+ * using cgs::foundation::GameResult;
+ * @endcode
+ *
+ * Link against `cgs::foundation_common` (`cgs_core` is pulled in
+ * transitively). That's the whole setup — no extra initialization,
+ * no global state, no allocator.
+ *
+ * @section tut_result_two_error_types The Two Error Types
+ *
+ * The framework has **two distinct error types** that you will see
+ * throughout the codebase. Understanding the difference is the first
+ * step to using `Result<T>` correctly.
+ *
+ * | Type | Header | Purpose |
+ * |------|--------|---------|
+ * | `cgs::Error` | `cgs/core/result.hpp` | Lightweight default error for library code that does not need subsystem categorization. Carries an `int code` and a `std::string message`. |
+ * | `cgs::foundation::GameError` | `cgs/foundation/game_error.hpp` | Rich error for adapter and game-system methods. Carries an `ErrorCode` enum (categorized by subsystem), a message, and an `std::any` context slot for debugging payloads. |
+ *
+ * `Result<T>` defaults to `cgs::Error`:
+ *
+ * @code{.cpp}
+ * template <typename T, typename E = cgs::Error>
+ * class Result;
+ * @endcode
+ *
+ * `GameResult<T>` is a type alias specialized with `GameError`:
+ *
+ * @code{.cpp}
+ * template <typename T>
+ * using GameResult = cgs::Result<T, GameError>;
+ * @endcode
+ *
+ * **Rule of thumb**: use `GameResult<T>` everywhere you touch a
+ * framework adapter (logger, database, network, monitoring, plugin
+ * manager, game systems). Use the default `Result<T>` only for utility
+ * code that does not have a natural subsystem.
+ *
+ * @section tut_result_basic Basic Result<T> API
+ *
+ * The `Result<T, E>` class is a tagged union of `T` and `E`. Construct
+ * success and failure instances through the static factories:
+ *
+ * @code{.cpp}
+ * auto ok  = GameResult<int>::ok(42);
+ * auto err = GameResult<int>::err(
+ *     GameError(ErrorCode::InvalidArgument, "negative damage"));
+ * @endcode
+ *
+ * Check which state it holds:
+ *
+ * @code{.cpp}
+ * if (ok.hasValue()) {
+ *     int v = ok.value();   // undefined behavior if hasError()
+ * }
+ *
+ * if (err.hasError()) {
+ *     const GameError& e = err.error();
+ *     // e.code(), e.message(), e.subsystem(), e.context<T>()
+ * }
+ *
+ * // Implicit conversion to bool: true on success.
+ * if (!err) {
+ *     handleFailure(err.error());
+ * }
+ * @endcode
+ *
+ * Extract a value-or-default with `valueOr`:
+ *
+ * @code{.cpp}
+ * std::string name =
+ *     GameResult<std::string>::err(GameError(ErrorCode::NotFound, "no key"))
+ *         .valueOr("anonymous");
+ * // name == "anonymous"
+ * @endcode
+ *
+ * **Never call `.value()` without first checking `.hasValue()`** — on
+ * an error-bearing Result, `.value()` is undefined behavior (it
+ * internally does `std::get<T>` on a variant that holds `E`).
+ *
+ * @section tut_result_error_codes Categorized Error Codes
+ *
+ * `GameError::code()` returns an `ErrorCode` enum value drawn from
+ * `cgs/foundation/error_code.hpp`. The enum is organized in
+ * **per-subsystem 256-value hex ranges** so you can tell which
+ * subsystem produced an error just from the numeric value:
+ *
+ * | Range | Subsystem | Example code |
+ * |-------|-----------|--------------|
+ * | `0x0000–0x00FF` | General | `Success`, `InvalidArgument`, `NotFound` |
+ * | `0x0100–0x01FF` | Network | `ConnectionFailed`, `Timeout`, `TlsHandshakeFailed` |
+ * | `0x0200–0x02FF` | Database | `QueryFailed`, `TransactionFailed`, `ConnectionPoolExhausted` |
+ * | `0x0300–0x03FF` | ECS | `EntityNotFound`, `ComponentNotFound` |
+ * | `0x0400–0x04FF` | Plugin | `PluginLoadFailed`, `PluginVersionMismatch` |
+ * | `0x0500–0x05FF` | Auth | `AuthenticationFailed`, `TokenExpired` |
+ * | `0x0600–0x06FF` | Config | `ConfigLoadFailed`, `ConfigKeyNotFound` |
+ * | `0x0700–0x07FF` | Thread | `JobScheduleFailed`, `JobTimeout` |
+ * | `0x0800–0x08FF` | Logger | `LoggerNotInitialized`, `LoggerFlushFailed` |
+ * | `0x0900–0x09FF` | Monitoring | `MetricNotFound` |
+ * | `0x0A00–0x0AFF` | Serialization | `InvalidBinaryData`, `InvalidJsonData` |
+ * | `0x0B00–0x0BFF` | GameServer | `MapInstanceNotFound`, `GameLoopNotRunning` |
+ * | `0x0C00–0x0CFF` | Lobby | `QueueFull`, `PartyFull` |
+ * | `0x0D00–0x0DFF` | DBProxy | `CacheMiss`, `ReplicaUnavailable` |
+ * | `0x0E00–0x0EFF` | Gateway | `ConnectionLimitReached`, `RouteNotFound` |
+ * | `0x0F00–0x0FFF` | Persistence | `WalWriteFailed`, `SnapshotCorrupted` |
+ *
+ * Use `errorSubsystem(code)` to get the subsystem name as a
+ * `std::string_view` for logging:
+ *
+ * @code{.cpp}
+ * GameError err(ErrorCode::ConnectionFailed, "peer refused");
+ * std::cout << errorSubsystem(err.code());  // "Network"
+ * @endcode
+ *
+ * When reporting to end users, **always include both the code and the
+ * subsystem** so triage tools can correlate errors across logs:
+ *
+ * @code{.cpp}
+ * std::cout << "error [" << errorSubsystem(err.code()) << "/"
+ *           << static_cast<std::uint32_t>(err.code())
+ *           << "]: " << err.message() << "\n";
+ * // error [Network/256]: peer refused
+ * @endcode
+ *
+ * @section tut_result_advanced Chaining Fallible Operations
+ *
+ * A real pipeline rarely has a single fallible step. The example
+ * program loads a configuration in three stages:
+ *
+ * 1. `ReadConfig(name)` → `GameResult<std::string>`
+ * 2. `ParseConfig(raw)` → `GameResult<ServerConfig>`
+ * 3. `ValidateConfig(cfg)` → `GameResult<ServerConfig>`
+ *
+ * Each stage can fail independently, and any failure must
+ * short-circuit the remainder.
+ *
+ * **Important**: `Result<T>` does NOT provide monadic combinators like
+ * `and_then`, `map`, or `or_else`. Chaining is done with explicit early
+ * returns. The pattern looks like this:
+ *
+ * @code{.cpp}
+ * GameResult<ServerConfig> LoadAndValidate(std::string_view name) {
+ *     auto raw = ReadConfig(name);
+ *     if (!raw) {
+ *         return GameResult<ServerConfig>::err(raw.error());
+ *     }
+ *
+ *     auto parsed = ParseConfig(raw.value());
+ *     if (!parsed) {
+ *         return GameResult<ServerConfig>::err(parsed.error());
+ *     }
+ *
+ *     return ValidateConfig(std::move(parsed).value());
+ * }
+ * @endcode
+ *
+ * This is verbose but every failure point is visible in the source —
+ * no hidden unwinding, no catch blocks, no resource leaks. If you find
+ * the boilerplate onerous, consider wrapping it in a small helper
+ * macro scoped to a single translation unit:
+ *
+ * @code{.cpp}
+ * #define CGS_TRY(dest, expr)                                         \
+ *     auto _r_##dest = (expr);                                        \
+ *     if (!_r_##dest) {                                               \
+ *         return GameResult<decltype(dest)>::err(_r_##dest.error());  \
+ *     }                                                               \
+ *     auto dest = std::move(_r_##dest).value()
+ *
+ * GameResult<ServerConfig> LoadAndValidate(std::string_view name) {
+ *     CGS_TRY(raw, ReadConfig(name));
+ *     CGS_TRY(parsed, ParseConfig(raw));
+ *     return ValidateConfig(std::move(parsed));
+ * }
+ * @endcode
+ *
+ * **Do not put this macro in a public header.** The framework does
+ * not ship such a helper by design; every adapter contract makes
+ * error propagation explicit. A local helper is fine for application
+ * code, but library code should spell out the early returns.
+ *
+ * @section tut_result_void Void Results
+ *
+ * Some functions do not return a value — they either succeed or fail.
+ * Use `Result<void>` (or `GameResult<void>`) for these:
+ *
+ * @code{.cpp}
+ * GameResult<void> FlushLogs(GameLogger& logger) {
+ *     return logger.flush();
+ * }
+ *
+ * auto r = FlushLogs(logger);
+ * if (!r) {
+ *     std::cerr << "flush failed: " << r.error().message() << "\n";
+ * }
+ * @endcode
+ *
+ * The void specialization does not have a `value()` method — success
+ * just means "the operation completed". Call `hasValue()` or use the
+ * `bool` conversion.
+ *
+ * Construct success and error like this:
+ *
+ * @code{.cpp}
+ * GameResult<void>::ok();
+ * GameResult<void>::err(GameError(ErrorCode::Timeout, "deadline exceeded"));
+ * @endcode
+ *
+ * @section tut_result_debugging Debugging Tips
+ *
+ * 1. **Log subsystem + code + message together.** The subsystem tells
+ *    you *where*, the code tells you *what*, and the message tells you
+ *    *why*. Losing any one of the three makes triage harder.
+ *
+ * 2. **Attach context for complex failures.** `GameError` accepts an
+ *    `std::any` context payload you can retrieve later with
+ *    `error.context<MyType>()`:
+ *
+ *    @code{.cpp}
+ *    struct QueryContext { std::string sql; int paramCount; };
+ *    GameError err(ErrorCode::QueryFailed,
+ *                  "syntax error near ','",
+ *                  QueryContext{"SELECT * FROM ...", 3});
+ *    if (auto* ctx = err.context<QueryContext>()) {
+ *        std::cerr << "failed SQL: " << ctx->sql << "\n";
+ *    }
+ *    @endcode
+ *
+ * 3. **Check `hasContext()` before type-pulling.** `context<T>()`
+ *    returns `nullptr` on both "no context stored" and "wrong type".
+ *    Distinguish with `hasContext()` when debugging.
+ *
+ * 4. **Use `errorSubsystem()` in log aggregators.** If you send
+ *    structured logs to Loki / ELK, add `subsystem` as an indexed
+ *    field. You can then filter to a single subsystem in one query.
+ *
+ * 5. **Breakpoint on `.err(` in a debugger.** Because every failure
+ *    goes through a named static factory, a single breakpoint on the
+ *    source line can show the stack for any `GameResult` error you
+ *    are investigating.
+ *
+ * @section tut_result_pitfalls Common Pitfalls
+ *
+ * 1. **Calling `.value()` on an error.** The variant holds the error,
+ *    so `std::get<T>` throws `std::bad_variant_access` in debug and
+ *    invokes UB in release. Always gate on `hasValue()` first.
+ *
+ * 2. **Copying large `T` values by accident.** `Result<T>` holds `T`
+ *    by value. If `T` is a large struct, returning the Result and
+ *    then calling `.value()` by const reference is free, but
+ *    `auto v = result.value();` makes a copy. Use
+ *    `auto&& v = std::move(result).value();` to extract by move when
+ *    you own the Result.
+ *
+ * 3. **Mixing `cgs::Error` and `GameError`.** You cannot implicitly
+ *    convert one to the other. When interfacing between library code
+ *    that uses `Result<T>` and framework code that uses
+ *    `GameResult<T>`, write a small adapter function that translates
+ *    `cgs::Error::code` to an `ErrorCode`.
+ *
+ * 4. **Forgetting the `[[nodiscard]]` warning.** Most Result-returning
+ *    methods are marked `[[nodiscard]]`. Ignoring one produces a
+ *    compiler warning (and `-Werror` fails the build). Assign the
+ *    result to a variable — don't cast to `(void)` to silence it, you
+ *    are throwing away the failure signal.
+ *
+ * 5. **Assuming Result is thread-safe.** A `Result` object is not
+ *    synchronized. If you share one across threads, provide your own
+ *    mutex. In practice every Result is a local variable in the
+ *    caller's frame, so this rarely matters.
+ *
+ * 6. **Returning `GameResult<void>::ok()` and then checking
+ *    `.value()`.** The void specialization has no `value()` method —
+ *    calling it is a compile error, not a runtime surprise.
+ *
+ * @section tut_result_performance Performance Notes
+ *
+ * - **`Result<T>` is stack-allocated.** It holds `T` and `E` in a
+ *   `std::variant` with no heap indirection. Size is
+ *   `max(sizeof(T), sizeof(E))` plus a discriminator byte.
+ * - **No RTTI, no throw.** The entire Result machinery is
+ *   `noexcept`-friendly (except `std::variant`'s internal
+ *   `std::get_if`, which is noexcept itself).
+ * - **Return-value optimization applies.** Returning a Result by
+ *   value from a function is a free operation under any modern
+ *   compiler — the variant is constructed directly into the
+ *   caller's frame.
+ * - **Movability matters for large `T`.** If `T` is expensive to
+ *   copy, prefer `std::move(result).value()` over `result.value()`.
+ * - **`GameError` carries `std::any`.** The context slot is empty
+ *   by default (zero cost). Populating it allocates only when the
+ *   payload does not fit the small-buffer optimization.
+ * - **Measured cost of a successful Result return on GCC 13 + -O2**
+ *   is indistinguishable from a raw `T` return. Failed Result
+ *   returns cost one additional small allocation (the error message
+ *   string) — comparable to a throw that unwinds zero frames, and
+ *   much cheaper than a deep throw.
+ *
+ * @section tut_result_next Next Steps
+ *
+ * - @ref tutorial_foundation_adapters — All foundation adapters
+ *   return `GameResult<T>` from their fallible methods. This
+ *   tutorial shows how to wire them up.
+ * - @ref tutorial_database — The database adapter is the best
+ *   example of rich error handling: every query, prepared statement,
+ *   and transaction returns `GameResult<T>` with subsystem-specific
+ *   error codes.
+ * - `advanced/FOUNDATION_ADAPTERS.md` — deep-dive on how the
+ *   adapters translate kcenon foundation errors into `GameError`.
+ * - `include/cgs/foundation/error_code.hpp` — the authoritative
+ *   list of all `ErrorCode` values.
+ */

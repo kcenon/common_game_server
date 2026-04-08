@@ -1,0 +1,355 @@
+/**
+ * @page tutorial_networking Tutorial: Network Adapter, Messages, and Signals
+ *
+ * @tableofcontents
+ *
+ * `GameNetworkManager` is the foundation adapter that wraps the
+ * kcenon `network_system` for TCP, UDP, and WebSocket game traffic.
+ * It provides a unified API for binding servers, tracking sessions,
+ * framing binary messages with an opcode header, and dispatching
+ * incoming data to per-opcode handlers. This tutorial walks through
+ * the `NetworkMessage` wire format, per-opcode handler registration,
+ * the `Signal<T>` event bus used for connection lifecycle, and TLS
+ * configuration for production deployments.
+ *
+ * **Compilable version**: `examples/10_networking.cpp` (offline
+ * portions only — binding a real socket requires a peer; that is
+ * covered by the integration test suite).
+ *
+ * @section tut_net_setup Setup
+ *
+ * @code{.cpp}
+ * #include "cgs/foundation/game_network_manager.hpp"
+ * #include "cgs/foundation/signal.hpp"
+ * #include "cgs/foundation/types.hpp"
+ *
+ * using namespace cgs::foundation;
+ * @endcode
+ *
+ * Link against `cgs::foundation_network`.
+ *
+ * @section tut_net_protocols Protocols and Use Cases
+ *
+ * @code{.cpp}
+ * enum class Protocol : uint8_t { TCP, UDP, WebSocket };
+ * @endcode
+ *
+ * | Protocol | When to use |
+ * |---|---|
+ * | `TCP` | Game login, chat, reliable gameplay, inventory transactions |
+ * | `UDP` | Position updates, combat events, anything that tolerates drops |
+ * | `WebSocket` | Browser-based clients, admin panels, metrics streams |
+ *
+ * One `GameNetworkManager` instance can listen on multiple
+ * protocols at the same time. A typical deployment is:
+ *
+ * - TCP on port 8080 for login and persistent state
+ * - UDP on port 8081 for position / action broadcasts
+ * - WebSocket on port 9443 for admin tools
+ *
+ * @section tut_net_message NetworkMessage: The Wire Format
+ *
+ * All application-level traffic is framed as a `NetworkMessage`:
+ *
+ * @code{.cpp}
+ * struct NetworkMessage {
+ *     uint16_t opcode = 0;
+ *     std::vector<uint8_t> payload;
+ *
+ *     std::vector<uint8_t> serialize() const;
+ *     static std::optional<NetworkMessage> deserialize(const uint8_t* data, size_t size);
+ *     static std::optional<NetworkMessage> deserialize(const std::vector<uint8_t>& data);
+ * };
+ * @endcode
+ *
+ * The wire format is length-prefixed:
+ *
+ * ```
+ *  [4 bytes: total length (network order)]
+ *  [2 bytes: opcode (network order)]
+ *  [N bytes: payload]
+ * ```
+ *
+ * - The 4-byte length includes the opcode bytes but not itself.
+ * - Length and opcode are in network byte order, so no surprises
+ *   when a client in a different endianness connects.
+ * - `deserialize` returns `nullopt` for truncated or inconsistent
+ *   data — always check before using the result.
+ *
+ * Construct and serialize:
+ *
+ * @code{.cpp}
+ * NetworkMessage msg;
+ * msg.opcode = 0x0100;  // project-specific
+ * msg.payload.assign(text.begin(), text.end());
+ *
+ * std::vector<uint8_t> wire = msg.serialize();
+ * @endcode
+ *
+ * Deserialize bytes you read from a socket:
+ *
+ * @code{.cpp}
+ * auto decoded = NetworkMessage::deserialize(bytes);
+ * if (!decoded) {
+ *     // malformed — close the session or log and ignore
+ * }
+ * @endcode
+ *
+ * @section tut_net_opcodes Opcodes and Handlers
+ *
+ * Each opcode gets its own callback registered with the manager:
+ *
+ * @code{.cpp}
+ * constexpr uint16_t kOpcodeLogin = 0x0001;
+ * constexpr uint16_t kOpcodeChat = 0x0100;
+ *
+ * GameNetworkManager net;
+ *
+ * net.registerHandler(kOpcodeLogin, [](SessionId sid, const NetworkMessage& msg) {
+ *     // Parse login payload, authenticate, send response.
+ * });
+ *
+ * net.registerHandler(kOpcodeChat, [](SessionId sid, const NetworkMessage& msg) {
+ *     // Broadcast chat text to recipients.
+ * });
+ * @endcode
+ *
+ * `registerHandler` overwrites any previous handler for the same
+ * opcode. Use `unregisterHandler(opcode)` to remove one.
+ *
+ * **Organize opcodes in namespaced ranges.** A common convention:
+ *
+ * | Range | Purpose |
+ * |---|---|
+ * | `0x0000 – 0x00FF` | System / heartbeat / ping |
+ * | `0x0100 – 0x01FF` | Authentication / session lifecycle |
+ * | `0x0200 – 0x02FF` | World state (positions, spawns) |
+ * | `0x0300 – 0x03FF` | Combat events |
+ * | `0x0400 – 0x04FF` | Chat, emotes, social |
+ * | `0xFF00 – 0xFFFF` | Admin / debug tools |
+ *
+ * Centralize them in `include/cgs/protocol/opcodes.hpp` so the
+ * client and the server never drift.
+ *
+ * @section tut_net_signals Signal<T> Event Bus
+ *
+ * `Signal<Args...>` is the thread-safe publish/subscribe primitive
+ * used by every foundation adapter. The network manager exposes
+ * three lifecycle signals:
+ *
+ * @code{.cpp}
+ * class GameNetworkManager {
+ * public:
+ *     Signal<SessionId> onConnected;
+ *     Signal<SessionId> onDisconnected;
+ *     Signal<SessionId, ErrorCode> onError;
+ * };
+ * @endcode
+ *
+ * Subscribe slots before calling `listen`:
+ *
+ * @code{.cpp}
+ * net.onConnected.connect([](SessionId sid) {
+ *     CGS_LOG_INFO(LogCategory::Network, "session connected");
+ * });
+ * net.onDisconnected.connect([](SessionId sid) {
+ *     CGS_LOG_INFO(LogCategory::Network, "session disconnected");
+ * });
+ * net.onError.connect([](SessionId sid, ErrorCode code) {
+ *     CGS_LOG_WARN(LogCategory::Network, "session error");
+ * });
+ * @endcode
+ *
+ * `connect` returns a `SlotId` you can use to unsubscribe:
+ *
+ * @code{.cpp}
+ * auto slotId = net.onConnected.connect(handler);
+ * // ...
+ * net.onConnected.disconnect(slotId);
+ * @endcode
+ *
+ * `Signal` uses `std::shared_mutex` internally so emission is
+ * reader-concurrent. Slots run on the thread that called `emit`
+ * (typically a network I/O thread) — marshal to the game thread
+ * if you need thread affinity.
+ *
+ * @section tut_net_listen Listening and Stopping
+ *
+ * Bind to a port and start accepting connections:
+ *
+ * @code{.cpp}
+ * auto result = net.listen(8080, Protocol::TCP);
+ * if (!result) {
+ *     CGS_LOG_ERROR(LogCategory::Network, result.error().message());
+ *     return EXIT_FAILURE;
+ * }
+ * @endcode
+ *
+ * Common failure modes:
+ *
+ * | Error | Cause |
+ * |---|---|
+ * | `ListenFailed` | Port already in use, permission denied |
+ * | `TlsNotSupported` | TLS requested on UDP or WebSocket (TCP only) |
+ * | `InvalidArgument` | Port == 0 or other bad input |
+ *
+ * Shut down gracefully:
+ *
+ * @code{.cpp}
+ * net.stop(Protocol::TCP);   // one protocol at a time
+ * net.stopAll();             // all protocols
+ * @endcode
+ *
+ * `stop` returns `GameResult<void>`; always check it if you care
+ * about clean shutdown telemetry.
+ *
+ * @section tut_net_tls TLS Configuration
+ *
+ * Production deployments must use TLS for login and chat traffic.
+ * The TLS overload of `listen` takes a `TlsConfig`:
+ *
+ * @code{.cpp}
+ * TlsConfig tls;
+ * tls.certPath = "/etc/cgs/server.crt";
+ * tls.keyPath = "/etc/cgs/server.key";
+ * tls.caPath = "/etc/cgs/ca.crt";       // optional, for mTLS
+ * tls.verifyPeer = false;               // true for mutual TLS
+ *
+ * auto result = net.listen(8443, Protocol::TCP, tls);
+ * @endcode
+ *
+ * TLS is currently supported only on `Protocol::TCP`. Requesting
+ * TLS on UDP or WebSocket returns `ErrorCode::TlsNotSupported`.
+ *
+ * `TlsConfig::isValid()` verifies that `certPath` and `keyPath`
+ * are both set. Call it before passing to `listen` to get a
+ * readable error instead of a mysterious failure deep in OpenSSL.
+ *
+ * The framework enforces **TLS 1.3 minimum** and disables weak
+ * cipher suites — there is no knob to downgrade. If you need
+ * 1.2 compatibility, don't use this adapter.
+ *
+ * @section tut_net_sessions Session Tracking
+ *
+ * Each accepted connection gets a `SessionId` (strong typedef
+ * over `uint64_t`). Look up per-session metadata:
+ *
+ * @code{.cpp}
+ * auto info = net.sessionInfo(sid);
+ * if (info) {
+ *     std::cout << protocolName(info->protocol)
+ *               << " from " << info->remoteAddress << "\n";
+ * }
+ * @endcode
+ *
+ * `SessionInfo` carries the protocol, remote address string, and
+ * connection/last-activity timestamps. Use them for idle
+ * detection and for log correlation.
+ *
+ * Send to a single session or broadcast:
+ *
+ * @code{.cpp}
+ * net.send(sid, message);       // one recipient
+ * net.broadcast(message);        // every connected session
+ * net.close(sid);                // force-disconnect one
+ * @endcode
+ *
+ * `sessionCount()` returns the total across all protocols — useful
+ * for metrics dashboards.
+ *
+ * @section tut_net_debugging Debugging Tips
+ *
+ * 1. **Log the opcode on every incoming message.** Simple line
+ *    like `CGS_LOG_DEBUG(LogCategory::Network, std::to_string(msg.opcode))`
+ *    exposes protocol violations instantly.
+ *
+ * 2. **Verify the wire format with `xxd`.** The 4-byte length
+ *    and 2-byte opcode should match what `serialize()` produced.
+ *    If a client and the server disagree on the length, you
+ *    have an endianness or framing bug.
+ *
+ * 3. **Trace `onDisconnected` reasons.** Losing a session
+ *    silently is a common source of "players get kicked
+ *    randomly" reports. Pair every disconnect with an `onError`
+ *    log if applicable.
+ *
+ * 4. **Inspect `sessionCount()` over time.** A steady growth
+ *    without corresponding `onConnected` slots firing means
+ *    slots got disconnected without your code noticing.
+ *
+ * 5. **Put an assert in the TLS path for production.** Accidentally
+ *    running the non-TLS `listen` overload in production is
+ *    a data-leak risk. Add `assert(tls.isValid())` at boot time.
+ *
+ * @section tut_net_pitfalls Common Pitfalls
+ *
+ * 1. **Forgetting to check `deserialize` for `nullopt`.**
+ *    Malformed data will crash a naive implementation that
+ *    unwraps unconditionally. Always validate and reject.
+ *
+ * 2. **Thread-unsafe handler state.** Handlers can run on any
+ *    I/O thread. Capture shared state by shared-pointer and
+ *    protect it with a mutex, or marshal to the game thread
+ *    via a queue.
+ *
+ * 3. **Busy-loop in a slot.** Signal slots run synchronously on
+ *    the emitting thread. A slot that waits on a future blocks
+ *    every other slot for the same signal. Keep slots tiny and
+ *    offload work.
+ *
+ * 4. **Assuming opcodes are unique globally.** Different game
+ *    modes can reuse the same opcode space. If you multiplex
+ *    game modes on one GameNetworkManager, namespace the
+ *    opcodes or use a dispatch table keyed on (mode, opcode).
+ *
+ * 5. **Back-pressure ignored.** `send` returns a result even
+ *    when the queue is full. Always check and slow down the
+ *    producer — otherwise memory grows unboundedly.
+ *
+ * 6. **Serialization versioning.** Changing the payload of an
+ *    opcode without bumping a version tag breaks every client
+ *    that connects with the old format. Embed a version byte
+ *    at the start of each payload.
+ *
+ * 7. **WebSocket text vs. binary framing.** `NetworkMessage` is
+ *    binary. If you use the WebSocket protocol, the framework
+ *    wraps it in binary frames; a JavaScript client must
+ *    receive as `ArrayBuffer`, not as a string.
+ *
+ * @section tut_net_performance Performance Notes
+ *
+ * - **`serialize` / `deserialize` allocate once** — a single
+ *   `std::vector<uint8_t>`. Avoid doing them in tight inner
+ *   loops; build messages once and broadcast.
+ * - **Signal emission is `O(slots)`** with a shared-mutex read
+ *   lock. ~30 ns per slot invocation in release builds.
+ * - **`send` is async internally** — it copies the message
+ *   into a per-session queue and returns immediately. The
+ *   actual write happens on the I/O thread.
+ * - **`broadcast` is `O(sessions)`** per call — consider
+ *   grouping recipients by interest management (see
+ *   @ref tutorial_spatial_world) to avoid broadcasting to
+ *   everyone.
+ * - **TLS handshake costs ~50 ms** per connection on a
+ *   reasonable CPU. Warm clients that reconnect frequently
+ *   should use session resumption.
+ * - **Opcode dispatch is `O(log n)`** via the handler map
+ *   under the hood. For hot paths with < 32 opcodes, the
+ *   linear alternative is often faster due to cache effects;
+ *   benchmark before micro-optimizing.
+ *
+ * @section tut_net_next Next Steps
+ *
+ * - @ref tutorial_result_errors — Every network call returns
+ *   `GameResult<T>`.
+ * - @ref tutorial_foundation_adapters — Register
+ *   `GameNetworkManager` in a `ServiceLocator` for DI access.
+ * - @ref tutorial_spatial_world — Interest management reduces
+ *   broadcast traffic on large worlds.
+ * - `advanced/PROTOCOL_SPECIFICATION.md` — Authoritative list
+ *   of opcode ranges and payload layouts used by the built-in
+ *   microservices.
+ * - `include/cgs/foundation/game_network_manager.hpp` —
+ *   authoritative API.
+ * - `include/cgs/foundation/signal.hpp` — generic `Signal<T>`.
+ */

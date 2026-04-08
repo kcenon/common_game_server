@@ -89,9 +89,30 @@
  *
  * @section tutorials Tutorials
  *
+ * **Framework basics**
  * - @subpage tutorial_ecs - Building with the Entity-Component System
  * - @subpage tutorial_plugin - Authoring a custom plugin
  * - @subpage tutorial_service - Running and configuring microservices
+ *
+ * **Core patterns**
+ * - @subpage tutorial_result_errors - Result<T>, GameError, and categorized error codes
+ * - @subpage tutorial_foundation_adapters - Foundation adapters and ServiceLocator
+ *
+ * **Game logic**
+ * - @subpage tutorial_game_objects - Transform, Identity, Stats, Movement components
+ * - @subpage tutorial_spatial_world - SpatialIndex, zones, and interest management
+ * - @subpage tutorial_combat - Combat system, damage types, auras, spell casting
+ * - @subpage tutorial_ai_behavior - AI behavior trees, blackboards, patrol/aggro/flee
+ * - @subpage tutorial_inventory - Inventory and equipment slots with stat bonuses
+ * - @subpage tutorial_quest - Quest state machine, objectives, and rewards
+ *
+ * **Persistence and networking**
+ * - @subpage tutorial_database - GameDatabase, prepared statements, transactions
+ * - @subpage tutorial_networking - NetworkMessage wire format, signals, TLS
+ *
+ * Every tutorial has a runnable companion program under
+ * `examples/NN_<topic>.cpp` that you can build with
+ * `cmake --preset debug` (adds `CGS_BUILD_EXAMPLES=ON` automatically).
  *
  * @section getting_help Getting Help
  *

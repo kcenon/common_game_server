@@ -1,0 +1,308 @@
+/**
+ * @page tutorial_ai_behavior Tutorial: AI and Behavior Trees
+ *
+ * @tableofcontents
+ *
+ * `common_game_server` ships a lightweight, header-only behavior
+ * tree framework for NPC AI. This tutorial walks through the core
+ * node types (Sequence, Selector, Parallel, Action, Condition, and
+ * the decorator nodes), the per-entity `Blackboard` for sharing
+ * data between nodes, the `AIBrain` component that attaches a tree
+ * to an ECS entity, and the patrol → aggro → flee pattern that
+ * most MMO NPCs use.
+ *
+ * **Compilable version**: `examples/06_ai_behavior.cpp`
+ *
+ * @section tut_ai_setup Setup
+ *
+ * Include the behavior tree header, the AI types, and the
+ * `AIBrain` component:
+ *
+ * @code{.cpp}
+ * #include "cgs/game/ai_components.hpp"
+ * #include "cgs/game/ai_system.hpp"
+ * #include "cgs/game/ai_types.hpp"
+ * #include "cgs/game/behavior_tree.hpp"
+ *
+ * using namespace cgs::game;
+ * @endcode
+ *
+ * Link against `cgs::game_ai_system`.
+ *
+ * @section tut_ai_mental_model Mental Model
+ *
+ * A **behavior tree** is an ordered tree of `BTNode` objects. Each
+ * tick, the root node is asked for a status (`Success`, `Failure`,
+ * or `Running`) and the tree recursively evaluates children. Unlike
+ * a finite state machine, a BT does not store "where am I" in the
+ * nodes — the tree is stateless at the whole-tree level (individual
+ * composite nodes remember which child they were running).
+ *
+ * Three fundamental composite types:
+ *
+ * | Type | Rule |
+ * |---|---|
+ * | **Sequence** | Runs children left-to-right. Succeeds when all succeed. Fails on first failure. Returns Running when a child is Running. |
+ * | **Selector** | Runs children left-to-right. Succeeds on first success. Fails when all fail. Returns Running when a child is Running. |
+ * | **Parallel** | Ticks all children every call. Policy decides whether `RequireAll` or `RequireOne` triggers Success. |
+ *
+ * Two leaf types:
+ *
+ * | Type | Purpose |
+ * |---|---|
+ * | **Condition** | Wraps a predicate `bool(BTContext&)`. Returns Success/Failure. |
+ * | **Action** | Wraps an action `BTStatus(BTContext&)`. Returns any of the three statuses. |
+ *
+ * Two decorator types (single child):
+ *
+ * | Type | Purpose |
+ * |---|---|
+ * | **Inverter** | Flips child Success ↔ Failure |
+ * | **Repeater** | Re-runs the child N times (or forever) |
+ *
+ * @section tut_ai_bt_status BTStatus and the Tick Loop
+ *
+ * Every node returns `BTStatus`:
+ *
+ * @code{.cpp}
+ * enum class BTStatus : uint8_t {
+ *     Success,  // node completed successfully
+ *     Failure,  // node failed
+ *     Running   // node still in progress (resume next tick)
+ * };
+ * @endcode
+ *
+ * `Running` is the "continuation" state — when a child returns
+ * Running, its parent returns Running too, and the AI system moves
+ * on to other NPCs. The next tick resumes from the same child.
+ * This is how long-running actions (e.g., "walk to waypoint") work
+ * without blocking the game loop.
+ *
+ * @section tut_ai_building Building a Tree
+ *
+ * Trees are built bottom-up with `std::unique_ptr<BTNode>`:
+ *
+ * @code{.cpp}
+ * auto root = std::make_unique<BTSelector>();
+ *
+ * auto fleeSeq = std::make_unique<BTSequence>();
+ * fleeSeq->AddChild(std::make_unique<BTCondition>([](BTContext& ctx) {
+ *     const int* hp = ctx.blackboard->Get<int>("health");
+ *     return hp != nullptr && *hp < 30;
+ * }));
+ * fleeSeq->AddChild(std::make_unique<BTAction>([](BTContext& ctx) {
+ *     // move away from threat ...
+ *     return BTStatus::Success;
+ * }));
+ *
+ * root->AddChild(std::move(fleeSeq));
+ * // ... more branches ...
+ * @endcode
+ *
+ * Condition lambdas have signature `bool(BTContext&)`, actions have
+ * signature `BTStatus(BTContext&)`. Both receive a `BTContext` with
+ * access to the entity handle, `deltaTime`, and the `Blackboard`.
+ *
+ * @section tut_ai_blackboard The Blackboard
+ *
+ * A `Blackboard` is a type-erased key-value store (`std::any` under
+ * the hood) for sharing state between nodes. Each `AIBrain` has its
+ * own blackboard:
+ *
+ * @code{.cpp}
+ * Blackboard bb;
+ * bb.Set<int>("health", 85);
+ * bb.Set<float>("enemy_distance", 4.2f);
+ * bb.Set<std::vector<Vector3>>("waypoints", route);
+ *
+ * if (int* hp = bb.Get<int>("health")) {
+ *     // use *hp
+ * }
+ * @endcode
+ *
+ * `Get<T>` returns `nullptr` when:
+ * - The key is absent
+ * - The key exists but holds a different type
+ *
+ * Always null-check before dereferencing. Use `Has(key)` for
+ * existence-only tests, and `Erase(key)` / `Clear()` to remove.
+ *
+ * **Common blackboard keys** (by convention, not enforced):
+ *
+ * | Key | Type | Set by | Read by |
+ * |---|---|---|---|
+ * | `"health"` | `int` | Combat system callback | Flee condition |
+ * | `"target"` | `Entity` | Aggro scan | Attack action |
+ * | `"enemy_distance"` | `float` | Targeting tick | Aggro condition |
+ * | `"waypoints"` | `std::vector<Vector3>` | Spawn config | Patrol action |
+ * | `"waypoint"` | `int` | Patrol action | Patrol action |
+ * | `"home_position"` | `Vector3` | AIBrain init | Leash action |
+ *
+ * @section tut_ai_brain AIBrain Component
+ *
+ * @code{.cpp}
+ * struct AIBrain {
+ *     std::shared_ptr<BTNode> behaviorTree;  // shared across NPCs
+ *     Blackboard blackboard;                  // per-entity state
+ *     AIState state = AIState::Idle;
+ *     float timeSinceLastTick = 0.0f;
+ *     float tickInterval = 0.0f;              // 0 = system default
+ *     Vector3 homePosition;
+ *     Entity target;
+ * };
+ * @endcode
+ *
+ * `behaviorTree` is a `shared_ptr` so many NPCs of the same type can
+ * share one immutable tree — tree construction is expensive, so
+ * build it once at content-load time and point every NPC of that
+ * type at the same root. The per-entity state lives in the
+ * `Blackboard`.
+ *
+ * `AIState` is a coarse high-level classification used for logging
+ * and debugging: `Idle`, `Patrolling`, `Chasing`, `Attacking`,
+ * `Fleeing`, `Dead`. The tree itself is free to ignore it.
+ *
+ * @section tut_ai_system AISystem and Throttling
+ *
+ * `AISystem` ticks every NPC's behavior tree, but not on every
+ * frame. Each `AIBrain` has a `timeSinceLastTick` accumulator and
+ * a `tickInterval`. The system only calls `Tick` when the
+ * accumulator exceeds the interval. Default is
+ * `kDefaultAITickInterval = 0.1f` (10 Hz), which is more than
+ * enough for most NPC logic and cuts AI CPU cost to 1/5 of a
+ * full-frequency update.
+ *
+ * Set a per-entity override for time-critical NPCs:
+ *
+ * @code{.cpp}
+ * auraHolders.Get(boss).tickInterval = 0.02f;  // 50 Hz for the raid boss
+ * @endcode
+ *
+ * @section tut_ai_pattern The Patrol-Aggro-Flee Pattern
+ *
+ * Most MMO NPCs follow a priority-ordered behavior: flee first if
+ * critically injured, attack second if an enemy is close, patrol
+ * otherwise. Encode this with a top-level Selector:
+ *
+ * ```
+ * Selector (root)
+ *   ├── Sequence ("flee when low HP")
+ *   │     ├── Condition: health < 30
+ *   │     └── Action:    MoveAwayFromThreat
+ *   ├── Sequence ("chase & attack nearby enemy")
+ *   │     ├── Condition: enemy within aggro range
+ *   │     └── Action:    AttackTarget
+ *   └── Action ("patrol waypoint")
+ *         └── MoveToNextWaypoint
+ * ```
+ *
+ * The Selector tries branches in order. Flee wins when health is
+ * low. Attack wins when flee fails and a target is close. Patrol
+ * is the unconditional fallback. The example program in
+ * `examples/06_ai_behavior.cpp` is exactly this tree, ticked
+ * through six scenarios.
+ *
+ * @section tut_ai_debugging Debugging Tips
+ *
+ * 1. **Log status returns.** Add a decorator wrapper that logs the
+ *    child's status before returning it — this is the fastest way
+ *    to see which branch the tree took this tick.
+ *
+ * 2. **Print the blackboard on demand.** When an NPC is stuck in a
+ *    weird state, dump every key and its type. Because `Blackboard`
+ *    is type-erased, you need to know the types in advance — keep
+ *    a dev-only registry if you find yourself debugging AI often.
+ *
+ * 3. **Breakpoint on `BTAction::Tick`.** Every action is a lambda,
+ *    but the base class dispatches through `BTAction::Tick`. One
+ *    breakpoint catches every action invocation.
+ *
+ * 4. **Visualize with Graphviz.** Walk the tree and emit a DOT file
+ *    at server startup. Composite nodes become edges, leaves
+ *    become boxes labeled with their type. A 20-node tree renders
+ *    legibly and catches "why is this branch unreachable" bugs.
+ *
+ * 5. **Use `AIState` for log filtering.** When chasing an AI bug,
+ *    grep the log by the NPC's current `AIState`. If a boss is
+ *    stuck in `Fleeing` forever, you'll see it immediately.
+ *
+ * @section tut_ai_pitfalls Common Pitfalls
+ *
+ * 1. **Infinite Running loops.** A Running action that never
+ *    progresses starves the rest of the Selector. Always give
+ *    actions a timeout or a convergence condition and flip to
+ *    Success when they reach it.
+ *
+ * 2. **Selector oscillation.** If two branches can both succeed
+ *    and the predicate flip-flops (e.g., "enemy at 10.01m → attack,
+ *    enemy at 9.99m → attack anyway"), the NPC jitters. Use
+ *    hysteresis: different predicates for "start chasing" and
+ *    "stop chasing".
+ *
+ * 3. **Mutating the tree structure at runtime.** `BTNode::Tick`
+ *    is not re-entrant. Adding or removing children during a tick
+ *    corrupts the composite's `currentChild_` cursor. Build the
+ *    tree once; mutate the blackboard instead.
+ *
+ * 4. **Sharing mutable state in the tree.** Tree nodes are shared
+ *    across NPCs (via `shared_ptr<BTNode>`) but the blackboard is
+ *    per-entity. If a lambda captures state by reference, every
+ *    NPC sees the same state — usually not what you want. Put
+ *    per-entity data in the blackboard.
+ *
+ * 5. **Blackboard type mismatches.** `Set<int>("hp", 100)` stores
+ *    an `int`; `Get<float>("hp")` returns `nullptr`. The types
+ *    must match exactly. Consider a namespaced key convention
+ *    like `"ai.hp"` + `"combat.hp"` when two subsystems want
+ *    different types.
+ *
+ * 6. **Forgetting to Reset after a branch switch.** When the
+ *    Selector moves from branch A to branch B, it calls `Reset()`
+ *    on branch A. If A's action has side effects (e.g., an
+ *    animation request), the Reset must undo them. Override
+ *    `BTNode::Reset` in your action subclass when needed.
+ *
+ * 7. **`Running` forever because the condition never refreshes.**
+ *    A Sequence that returns Running on a child stays in that
+ *    child until it completes. If the parent's precondition
+ *    becomes false mid-action, the Sequence still completes the
+ *    action. Guard long actions with in-action bailouts.
+ *
+ * @section tut_ai_performance Performance Notes
+ *
+ * - **Tree evaluation is `O(nodes)`** in the worst case. In
+ *   practice, early-exit on Success/Failure means most ticks
+ *   touch only a handful of nodes. A 20-node tree evaluates in
+ *   a few microseconds.
+ * - **Lambda captures cost nothing at dispatch time** (virtual
+ *   call + `std::function` trampoline). If you need absolute
+ *   minimum overhead, subclass `BTAction` with a compile-time
+ *   known function.
+ * - **Shared trees save memory.** For 1,000 identical NPCs,
+ *   sharing one tree costs 1× the tree allocation + 1,000×
+ *   blackboards instead of 1,000× trees + 1,000× blackboards.
+ * - **Throttling is the biggest win.** Default 10 Hz ticking
+ *   cuts CPU cost to 20% of a per-frame implementation. For
+ *   NPCs that don't need to react instantly, push the interval
+ *   to 5 Hz (0.2 s) or lower.
+ * - **Blackboard lookups are `O(1)`** hash operations. Cache the
+ *   pointer across multiple accesses within the same lambda
+ *   instead of calling `Get<T>(key)` repeatedly.
+ * - **`BTAction` virtual call + `std::function` invoke**
+ *   benchmarks at ~20 ns on an M2 Mac. Negligible unless you
+ *   build pathologically deep trees.
+ *
+ * @section tut_ai_next Next Steps
+ *
+ * - @ref tutorial_combat — AI targeting reads the `ThreatList`
+ *   maintained by `CombatSystem`. Wire the two together.
+ * - @ref tutorial_spatial_world — AI aggro scans use
+ *   `SpatialIndex::QueryRadius` to find nearby targets.
+ * - @ref tutorial_game_objects — `AIBrain` lives on game
+ *   objects; Transform and Movement drive the NPC's actual
+ *   motion once the tree decides where to go.
+ * - `include/cgs/game/behavior_tree.hpp` — authoritative BT API.
+ * - `include/cgs/game/ai_components.hpp` — `AIBrain` structure.
+ * - `include/cgs/game/ai_types.hpp` — `AIState`, `BTStatus`,
+ *   and tuning constants.
+ */

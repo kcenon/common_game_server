@@ -21,13 +21,14 @@
         {
             "name": "debug",
             "displayName": "Debug",
-            "description": "Debug build with tests and coverage enabled",
+            "description": "Debug build with tests, coverage, and tutorial examples enabled",
             "inherits": "default",
             "binaryDir": "${sourceDir}/build-debug",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CGS_BUILD_TESTS": "ON",
                 "CGS_BUILD_BENCHMARKS": "ON",
+                "CGS_BUILD_EXAMPLES": "ON",
                 "CGS_ENABLE_COVERAGE": "ON"
             }
         },
@@ -67,14 +68,15 @@
         {
             "name": "ci",
             "displayName": "CI Build",
-            "description": "Configuration for continuous integration (RelWithDebInfo + tests + benchmarks)",
+            "description": "Configuration for continuous integration (RelWithDebInfo + tests + benchmarks + examples)",
             "inherits": "default",
             "binaryDir": "${sourceDir}/build-ci",
             "cacheVariables": {
                 "CMAKE_BUILD_TYPE": "RelWithDebInfo",
                 "CGS_BUILD_TESTS": "ON",
                 "CGS_BUILD_BENCHMARKS": "ON",
-                "CGS_BUILD_SERVICES": "ON"
+                "CGS_BUILD_SERVICES": "ON",
+                "CGS_BUILD_EXAMPLES": "ON"
             }
         }
     ],

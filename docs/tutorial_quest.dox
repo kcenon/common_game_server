@@ -1,0 +1,327 @@
+/**
+ * @page tutorial_quest Tutorial: Quest System and Objectives
+ *
+ * @tableofcontents
+ *
+ * Quests are the content engine of most MMOs — they give players
+ * direction, reward progression, and hook the combat / exploration /
+ * crafting systems together. `common_game_server` provides a
+ * data-driven quest system with templates, per-player quest logs,
+ * a 5-state quest state machine, pluggable objective types, and
+ * reward distribution hooks. This tutorial walks through every
+ * piece end-to-end.
+ *
+ * **Compilable version**: `examples/08_quest.cpp`
+ *
+ * @section tut_quest_setup Setup
+ *
+ * @code{.cpp}
+ * #include "cgs/ecs/component_storage.hpp"
+ * #include "cgs/ecs/entity_manager.hpp"
+ * #include "cgs/game/quest_components.hpp"
+ * #include "cgs/game/quest_system.hpp"
+ * #include "cgs/game/quest_types.hpp"
+ *
+ * using namespace cgs::game;
+ * @endcode
+ *
+ * Link against `cgs::game_quest_system`.
+ *
+ * @section tut_quest_state_machine The Quest State Machine
+ *
+ * Each quest a player takes moves through five states:
+ *
+ * ```
+ *  Available
+ *      |  Accept()
+ *      v
+ *  Accepted  ────────────────────┐
+ *      |  all objectives done    |  timeout / abandon
+ *      v                         v
+ *  ObjectivesComplete          Failed
+ *      |  TurnIn()
+ *      v
+ *  TurnedIn
+ * ```
+ *
+ * | State | Meaning |
+ * |---|---|
+ * | `Available` | Prerequisites satisfied; the quest can be accepted |
+ * | `Accepted` | Player has accepted and objectives are being tracked |
+ * | `ObjectivesComplete` | Every objective is fulfilled; awaits turn-in |
+ * | `TurnedIn` | Rewards granted; the quest is finished |
+ * | `Failed` | Timed out or abandoned; cannot be resumed |
+ *
+ * @section tut_quest_template QuestTemplate: Static Content Data
+ *
+ * `QuestTemplate` is the static definition loaded once per server
+ * boot:
+ *
+ * @code{.cpp}
+ * struct QuestTemplate {
+ *     uint32_t id = 0;
+ *     std::string name;
+ *     std::string description;
+ *     uint32_t level = 0;
+ *     std::vector<uint32_t> prerequisites;
+ *     std::optional<uint32_t> chainNext;
+ *     std::vector<QuestObjective> objectives;
+ *     QuestReward rewards;
+ *     QuestFlags flags = QuestFlags::None;
+ *     float timeLimitSeconds = 0.0f;   // 0 = no limit
+ * };
+ * @endcode
+ *
+ * `prerequisites` is a list of quest IDs the player must have
+ * completed. `chainNext` unlocks the next quest in a chain on
+ * turn-in. `flags` uses a bitmask:
+ *
+ * | Flag | Meaning |
+ * |---|---|
+ * | `Repeatable` | Can be accepted again after turn-in |
+ * | `Daily` | Resets daily |
+ * | `Weekly` | Resets weekly |
+ * | `Shareable` | Party members can share progress |
+ * | `AutoAccept` | Auto-accepted when prerequisites met |
+ * | `Timed` | Has a time limit (use `timeLimitSeconds`) |
+ *
+ * Combine with bitwise OR and test with `HasQuestFlag`:
+ *
+ * @code{.cpp}
+ * wolfQuest.flags = QuestFlags::Daily | QuestFlags::Shareable;
+ *
+ * if (HasQuestFlag(wolfQuest.flags, QuestFlags::Daily)) {
+ *     // schedule reset at next server day-rollover
+ * }
+ * @endcode
+ *
+ * @section tut_quest_objectives Objectives
+ *
+ * @code{.cpp}
+ * struct QuestObjective {
+ *     ObjectiveType type = ObjectiveType::Kill;
+ *     uint32_t targetId = 0;
+ *     int32_t current = 0;
+ *     int32_t required = 1;
+ *     bool completed = false;
+ *
+ *     void AddProgress(int32_t amount) noexcept;
+ *     bool IsComplete() const noexcept;
+ * };
+ * @endcode
+ *
+ * `ObjectiveType` enumerates the built-in objectives:
+ *
+ * | Type | `targetId` meaning |
+ * |---|---|
+ * | `Kill` | Creature entry ID |
+ * | `Collect` | Item ID |
+ * | `Explore` | Zone ID |
+ * | `Interact` | Game object ID |
+ * | `Escort` | NPC entry ID |
+ * | `Custom` | Plugin-defined |
+ *
+ * Plugins can extend the system with `Custom` objectives and hook
+ * their own progress triggers — everything else reuses the built-in
+ * types without code changes.
+ *
+ * Each quest can have up to `kMaxObjectivesPerQuest = 8` objectives.
+ *
+ * @section tut_quest_log QuestLog Component
+ *
+ * Every player carries a `QuestLog`:
+ *
+ * @code{.cpp}
+ * struct QuestLog {
+ *     std::vector<QuestEntry> activeQuests;
+ *     std::unordered_set<uint32_t> completedQuestIds;
+ *     uint32_t maxActiveQuests = kMaxActiveQuests;  // 25
+ *
+ *     bool Accept(const QuestTemplate&);
+ *     bool Abandon(uint32_t questId);
+ *     bool TurnIn(uint32_t questId);
+ *     QuestEntry* GetQuest(uint32_t questId);
+ *     bool HasQuest(uint32_t questId) const;
+ *     bool IsCompleted(uint32_t questId) const;
+ *     bool CanAccept(const QuestTemplate&) const;
+ * };
+ * @endcode
+ *
+ * `Accept` performs three checks before adding the quest:
+ *
+ * 1. The log is not already at `maxActiveQuests` capacity.
+ * 2. The quest is not already in `activeQuests`.
+ * 3. `CanAccept(tmpl)` — prerequisites + not-completed (unless
+ *    `Repeatable`) + level requirement.
+ *
+ * On success, a fresh `QuestEntry` is appended with the objectives
+ * copied from the template.
+ *
+ * @section tut_quest_progress Tracking Progress
+ *
+ * Progress can be recorded two ways:
+ *
+ * **Option A: Direct `UpdateObjective` call** (simple cases):
+ *
+ * @code{.cpp}
+ * auto* entry = log.GetQuest(questId);
+ * entry->UpdateObjective(ObjectiveType::Kill, /*targetId*/ 3001, /*amount*/ 1);
+ * @endcode
+ *
+ * `UpdateObjective` walks the entry's objectives, finds the ones
+ * whose `(type, targetId)` match, advances `current` by `amount`,
+ * and returns `true` if any objective was updated. When every
+ * objective becomes complete, the entry's state flips to
+ * `ObjectivesComplete` automatically.
+ *
+ * **Option B: Queue a `QuestEvent`** (systems integration):
+ *
+ * @code{.cpp}
+ * struct QuestEvent {
+ *     Entity player;
+ *     QuestEventType type = QuestEventType::Kill;
+ *     uint32_t targetId = 0;
+ *     int32_t count = 1;
+ *     bool processed = false;
+ * };
+ * @endcode
+ *
+ * Other systems (CombatSystem on creature death, InventorySystem on
+ * item pickup, WorldSystem on zone entry) emit `QuestEvent`
+ * components which `QuestSystem` routes to the correct player's
+ * log each tick. This is the decoupled production path — your
+ * combat code does not need to know about quests.
+ *
+ * @section tut_quest_turnin Turn-In and Rewards
+ *
+ * When objectives are complete the player returns to the quest
+ * giver and the game calls:
+ *
+ * @code{.cpp}
+ * if (log.TurnIn(wolfQuest.id)) {
+ *     // Distribute rewards manually.
+ *     // QuestLog::TurnIn only flips state and records completion —
+ *     // actually granting XP / currency / items is your responsibility.
+ *     stats.Get(player).experience += wolfQuest.rewards.experience;
+ *     inventory.Get(player).currency += wolfQuest.rewards.currency;
+ *     for (auto [itemId, count] : wolfQuest.rewards.items) {
+ *         inventory.Get(player).AddItem(templates[itemId], count);
+ *     }
+ * }
+ * @endcode
+ *
+ * `TurnIn` returns `false` if the quest is not in state
+ * `ObjectivesComplete`. It sets state to `TurnedIn` and inserts the
+ * quest ID into `completedQuestIds`, so future `CanAccept` checks
+ * honor the "already done" rule.
+ *
+ * @section tut_quest_chains Chain Quests
+ *
+ * Quest chains are implemented by `QuestTemplate::chainNext`. When
+ * a quest turns in, your game code looks up `chainNext` and offers
+ * the next quest to the player:
+ *
+ * @code{.cpp}
+ * if (log.TurnIn(q.id) && q.chainNext.has_value()) {
+ *     const auto& nextTemplate = templates[*q.chainNext];
+ *     log.Accept(nextTemplate);  // auto-accept the next link
+ * }
+ * @endcode
+ *
+ * Alternatively, set `QuestFlags::AutoAccept` on the chain link so
+ * the system offers it automatically.
+ *
+ * @section tut_quest_debugging Debugging Tips
+ *
+ * 1. **Log state transitions.** Any time a quest moves between
+ *    states (Accept, all-objectives-complete, TurnIn, Abandon),
+ *    emit a `CGS_LOG_INFO(LogCategory::Core, ...)` with the
+ *    player ID and quest ID. Saves hours of "why is this quest
+ *    stuck" debugging.
+ *
+ * 2. **Print `objective.current / required`** when a player
+ *    complains they can't turn in a quest. The issue is almost
+ *    always one objective short.
+ *
+ * 3. **Verify `(type, targetId)` matching.** Objective progress
+ *    updates match on the pair exactly. An off-by-one in the
+ *    creature entry ID silently no-ops — the objective stays
+ *    at 0/5 forever.
+ *
+ * 4. **Check `completedQuestIds` for phantom completions.** A
+ *    quest you abandoned mid-progress should not be in the
+ *    completed set. If it is, you called `TurnIn` somewhere you
+ *    shouldn't have.
+ *
+ * 5. **Trace QuestEvent processing.** If you use Option B (event
+ *    queue), the most common bug is QuestEvent components that
+ *    never reach the player's log. Add a counter in QuestSystem
+ *    for events-processed and compare against events-queued.
+ *
+ * @section tut_quest_pitfalls Common Pitfalls
+ *
+ * 1. **Mutating `QuestEntry::objectives` directly.** Always use
+ *    `UpdateObjective` or the `QuestObjective::AddProgress`
+ *    helper so the completion state flags update correctly.
+ *
+ * 2. **Forgetting to grant rewards.** `TurnIn` does NOT
+ *    automatically distribute XP, currency, or items. Your
+ *    game code must do that step. An easy safety net is a
+ *    wrapper function `TurnInAndReward(log, stats, inv, q)`.
+ *
+ * 3. **Re-accepting a non-repeatable quest.** `CanAccept` checks
+ *    `completedQuestIds` — but only if the template does NOT
+ *    have `QuestFlags::Repeatable`. Mis-setting the flag can
+ *    let players farm the same quest.
+ *
+ * 4. **`maxActiveQuests` overflow.** Default is 25. Going over
+ *    makes `Accept` return `false` silently. UI should warn
+ *    the player and refuse to show more accept dialogs.
+ *
+ * 5. **Daily/Weekly resets.** `QuestFlags::Daily` is a tag — the
+ *    framework does not implement the reset job. You must
+ *    schedule a daily task that iterates every player's
+ *    `completedQuestIds` and removes daily quest IDs.
+ *
+ * 6. **Objective types with invalid targetId = 0.** Some tools
+ *    export quests with missing target IDs. `UpdateObjective`
+ *    matches on `targetId == 0` and may update unintended
+ *    objectives. Validate templates at load time.
+ *
+ * 7. **Timed quests with `timeLimitSeconds == 0`.**
+ *    `QuestFlags::Timed` but zero limit means "no limit" — the
+ *    timeout never fires. Reject such templates at load time or
+ *    strip the flag.
+ *
+ * @section tut_quest_performance Performance Notes
+ *
+ * - **`Accept` is `O(activeQuests + prerequisites)`**. With 25
+ *   active quests and single-digit prerequisites, this is a
+ *   handful of comparisons per accept.
+ * - **`UpdateObjective` is `O(activeQuests × objectives)`** in
+ *   the pathological case, but in practice most events match
+ *   0–1 objectives and early exit.
+ * - **`completedQuestIds` uses `unordered_set`** — `O(1)`
+ *   membership check.
+ * - **`QuestEvent` processing is batched** — all events for a
+ *   tick are drained in one `QuestSystem::Execute` pass.
+ * - **Memory per active quest is ~256 bytes** (the objectives
+ *   vector dominates). 25 active quests × 256 B = 6 KB per
+ *   player, trivial.
+ * - **Quest templates are shared static data.** Allocate once
+ *   at boot and keep a `std::vector<QuestTemplate>` or
+ *   `std::unordered_map<uint32_t, QuestTemplate>` for lookup.
+ *
+ * @section tut_quest_next Next Steps
+ *
+ * - @ref tutorial_inventory — Quest item rewards land in the
+ *   player's inventory via `Inventory::AddItem`.
+ * - @ref tutorial_combat — `CombatSystem` can emit
+ *   `QuestEvent` components for every kill.
+ * - @ref tutorial_database — Quest logs need to persist across
+ *   logins — the database adapter is the natural home.
+ * - `include/cgs/game/quest_components.hpp` — authoritative
+ *   `QuestLog` / `QuestEntry` / `QuestObjective` API.
+ * - `include/cgs/game/quest_types.hpp` — state machine and
+ *   flag layouts.
+ */

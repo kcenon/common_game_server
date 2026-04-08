@@ -191,8 +191,88 @@ Link checking (planned):
 markdown-link-check docs/**/*.md
 ```
 
+## Deep Tutorial Template
+
+Doxygen tutorials under `docs/tutorial_*.dox` follow a fixed
+structure so readers can skim any of them with identical
+expectations. Every new tutorial must hit the following sections in
+order, and should be **at least 300 lines** total:
+
+1. **Page header + `@tableofcontents`** — `@page tutorial_<topic>`
+   and a one-paragraph framing that states what the reader will
+   learn and points at the companion `examples/NN_<topic>.cpp`.
+2. **`@section <prefix>_setup`** — required `#include`s, `using`
+   declarations, and the CMake target to link against.
+3. **Basic sections** — walk through the core API with small
+   snippets. Break into several `@section` blocks keyed by topic
+   (e.g., "The Four Core Components", "Spawning an Entity").
+4. **Advanced section(s)** — patterns a reader would not guess
+   from reading the headers alone. At least one.
+5. **`@section <prefix>_debugging Debugging Tips`** — numbered
+   list of 3–5 concrete diagnostic patterns. What to log, what
+   to assert, what to breakpoint.
+6. **`@section <prefix>_pitfalls Common Pitfalls`** — numbered
+   list of 5–7 mistakes with the symptom and the fix. If a
+   reader gets stuck, they should find their problem listed here.
+7. **`@section <prefix>_performance Performance Notes`** —
+   bullet list of measured or well-reasoned performance claims.
+   Include absolute numbers when available ("~20 ns per call on
+   an M2 Mac"). This is what distinguishes a deep tutorial from
+   a shallow API walkthrough.
+8. **`@section <prefix>_next Next Steps`** — at least 2
+   cross-references to sibling tutorials via `@ref tutorial_*`,
+   at least 1 link to an `advanced/*.md` deep-dive, and links
+   to the authoritative headers under `include/cgs/`.
+
+### Critical rule: `@subpage` only in `mainpage.dox`
+
+The tutorial cross-linking in "Next Steps" uses `@ref`, **not**
+`@subpage`. Using `@subpage` between sibling tutorials creates a
+cyclic page tree and causes Doxygen to hang indefinitely (this
+froze CI for 15+ minutes during PR #133). The only place
+`@subpage` is legal for tutorials is inside `docs/mainpage.dox`.
+
+The repo includes a regression guard — this must return nothing:
+
+```bash
+grep -l "@subpage" docs/tutorial_*.dox
+```
+
+### Companion example pattern
+
+Every tutorial must be backed by a runnable program under
+`examples/NN_<topic>.cpp` that:
+
+- Compiles with `cmake --preset debug` (adds
+  `CGS_BUILD_EXAMPLES=ON` automatically).
+- Exits with code 0 on success.
+- Uses only real API signatures — never invent symbols. Read the
+  actual headers under `include/cgs/` before writing `@code{.cpp}`
+  blocks.
+- Avoids external I/O (databases, sockets, files) unless you can
+  ship a deterministic mock. Examples run in CI without
+  infrastructure.
+- Lives in the `cgs_add_example` call in `examples/CMakeLists.txt`
+  plus the `cgs_examples` aggregate target.
+
+Cross-link from the tutorial: add a short sentence like
+"Compilable version: `examples/NN_<topic>.cpp`" right after the
+opening paragraph.
+
+### Length and tone
+
+- **Length**: 300+ lines total. Do not close the issue until the
+  deep-tutorial requirements above are satisfied.
+- **Tone**: imperative ("Include the header", "Write a..."),
+  friendly but terse. No marketing language.
+- **Code style**: minimal examples that compile against the real
+  API. Prefer named constants over magic numbers in the body text.
+
 ## See Also
 
 - [`CONTRIBUTING.md`](CONTRIBUTING.md) — Contribution workflow
 - [`CI_CD_GUIDE.md`](CI_CD_GUIDE.md) — How CI processes docs
 - [`templates/`](templates/) — Markdown templates
+- [`../../examples/README.md`](../../examples/README.md) — Runnable
+  tutorial companion programs
+- [`../mainpage.dox`](../mainpage.dox) — Doxygen subpage index

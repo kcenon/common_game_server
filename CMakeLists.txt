@@ -18,6 +18,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Build options
 option(CGS_BUILD_TESTS "Build unit and integration tests" ON)
 option(CGS_BUILD_BENCHMARKS "Build performance benchmarks" OFF)
+option(CGS_BUILD_EXAMPLES "Build tutorial example programs under examples/" OFF)
 option(CGS_ENABLE_SANITIZERS "Enable address and undefined behavior sanitizers" OFF)
 option(CGS_HOT_RELOAD "Enable plugin hot reload (development only)" OFF)
 option(CGS_BUILD_SERVICES "Build service executables" OFF)
@@ -117,6 +118,11 @@ if(CGS_BUILD_BENCHMARKS)
     else()
         message(STATUS "Google Benchmark not found - benchmarks will not be built")
     endif()
+endif()
+
+# Tutorial examples
+if(CGS_BUILD_EXAMPLES)
+    add_subdirectory(examples)
 endif()
 
 # Install rules

@@ -1,0 +1,319 @@
+/**
+ * @page tutorial_spatial_world Tutorial: Spatial Index, Zones, and Interest Management
+ *
+ * @tableofcontents
+ *
+ * A multiplayer server answers questions like "who is near the
+ * player?" hundreds of times per second. Naively iterating every
+ * entity is `O(N²)` and scales poorly past a few hundred actors.
+ * `common_game_server` provides a **grid-based spatial index** that
+ * turns these queries into cache-friendly `O(log N)` (and often
+ * `O(1)`) lookups, plus a **zone system** with bitmask flags that
+ * encodes PvP rules, safe zones, and area-of-effect triggers. This
+ * tutorial walks through both.
+ *
+ * **Compilable version**: `examples/04_spatial_world.cpp`
+ *
+ * @section tut_spat_setup Setup
+ *
+ * Include the spatial-index and world headers alongside the ECS core:
+ *
+ * @code{.cpp}
+ * #include "cgs/ecs/component_storage.hpp"
+ * #include "cgs/ecs/entity_manager.hpp"
+ * #include "cgs/game/components.hpp"       // Transform
+ * #include "cgs/game/math_types.hpp"       // Vector3
+ * #include "cgs/game/spatial_index.hpp"    // SpatialIndex
+ * #include "cgs/game/world_components.hpp" // Zone, MapMembership, VisibilityRange
+ * #include "cgs/game/world_types.hpp"      // MapType, ZoneType, ZoneFlags
+ *
+ * using namespace cgs::game;
+ * @endcode
+ *
+ * Link against `cgs::game_world_system` (it pulls in the spatial index).
+ *
+ * @section tut_spat_index The Spatial Index
+ *
+ * `SpatialIndex` is a sparse uniform grid keyed on `(x, z)` world
+ * coordinates. Only occupied cells exist in memory, so a 1 km²
+ * world with 10,000 actors consumes roughly 10,000 × 2 hash entries,
+ * not a full grid. Three operations mutate the index:
+ *
+ * @code{.cpp}
+ * SpatialIndex index(/* cellSize */ 32.0f);   // kDefaultCellSize
+ *
+ * index.Insert(entity, position);             // first placement
+ * index.Update(entity, newPosition);          // after movement
+ * index.Remove(entity);                       // on destroy
+ * @endcode
+ *
+ * `Update` is smart: if the entity stays in the same cell, no hash
+ * table churn happens — it only updates the stored coordinate. If
+ * the entity crosses a cell boundary, the old cell's bucket is
+ * rewritten and the new cell's bucket is appended to. This makes
+ * the index efficient for slow-moving actors (most NPCs) and only
+ * slightly more expensive for fast movers (projectiles).
+ *
+ * Three query methods are available:
+ *
+ * @code{.cpp}
+ * // All entities within a radius of a world point (exact filter).
+ * std::vector<Entity> nearby = index.QueryRadius(center, 15.0f);
+ *
+ * // All entities in the single cell containing a world point.
+ * std::vector<Entity> cellBucket = index.QueryPosition(worldPos);
+ *
+ * // All entities in a specific grid cell by integer coords.
+ * std::vector<Entity> exact = index.QueryCell(gridX, gridY);
+ * @endcode
+ *
+ * `QueryRadius` is the most common — it scans the cells that
+ * intersect the query circle and then applies exact distance
+ * filtering, so false positives from the grid rounding are removed.
+ *
+ * @section tut_spat_cell_size Choosing the Cell Size
+ *
+ * Cell size is a tuning knob, not a set-and-forget constant:
+ *
+ * | Cell size | Effect |
+ * |---|---|
+ * | **Too small** (< average visibility range / 4) | Many cells to visit per query. Hash-map overhead dominates. |
+ * | **Too large** (> average visibility range × 2) | Queries return large candidate sets that must be filtered. |
+ * | **Sweet spot** (≈ visibility range) | One query touches ~3×3 = 9 cells on average. Minimizes total work. |
+ *
+ * Default `kDefaultCellSize = 32.0f` assumes a default visibility
+ * range of `kDefaultVisibilityRange = 100.0f`. If your game uses
+ * different values, benchmark both extremes and pick the value that
+ * minimizes per-query latency at your expected population.
+ *
+ * @section tut_spat_zones Zones and Flags
+ *
+ * A zone is a rectangular (or composite) region of a map that
+ * carries gameplay rules. Zones are represented as ECS components:
+ *
+ * @code{.cpp}
+ * struct Zone {
+ *     uint32_t zoneId = 0;
+ *     ZoneType type = ZoneType::Normal;
+ *     ZoneFlags flags = ZoneFlags::None;
+ *     cgs::ecs::Entity mapEntity;  // the owning map instance
+ * };
+ * @endcode
+ *
+ * `ZoneType` is a coarse classification (`Normal`, `PvP`, `Safe`,
+ * `Contested`). `ZoneFlags` is a bitmask for per-rule toggles:
+ *
+ * | Flag | Meaning |
+ * |---|---|
+ * | `NoCombat` | All damage is rejected |
+ * | `NoMount` | Mounts are forcibly dismounted |
+ * | `NoFly` | Flying mounts cannot take off |
+ * | `Sanctuary` | Full protection (no combat, no dueling) |
+ * | `Resting` | Grants rested XP bonus to players here |
+ * | `FreeForAll` | Faction rules disabled, everyone is a target |
+ * | `Indoor` | No weather effects, no sky rendering |
+ *
+ * Combine flags with bitwise OR and test with `HasFlag`:
+ *
+ * @code{.cpp}
+ * Zone sanctuary;
+ * sanctuary.zoneId = 1;
+ * sanctuary.type = ZoneType::Safe;
+ * sanctuary.flags = ZoneFlags::NoCombat
+ *                 | ZoneFlags::Sanctuary
+ *                 | ZoneFlags::Resting;
+ *
+ * if (HasFlag(sanctuary.flags, ZoneFlags::NoCombat)) {
+ *     // Reject the damage event.
+ * }
+ * @endcode
+ *
+ * Combat, AI, and movement systems query their entity's current
+ * zone on each tick via `WorldSystem::GetEntityZoneFlags(entity)`.
+ *
+ * @section tut_spat_map_membership Map Instances and Membership
+ *
+ * `MapInstance` tags an entity as a "map anchor" — the logical
+ * owner of a spatial index:
+ *
+ * @code{.cpp}
+ * struct MapInstance {
+ *     uint32_t mapId = 0;
+ *     uint32_t instanceId = 0;  // distinguishes parallel copies
+ *     MapType type = MapType::OpenWorld;
+ * };
+ * @endcode
+ *
+ * Every actor carries a `MapMembership` pointing at its current map
+ * entity:
+ *
+ * @code{.cpp}
+ * struct MapMembership {
+ *     cgs::ecs::Entity mapEntity;
+ *     uint32_t zoneId = 0;
+ * };
+ * @endcode
+ *
+ * `WorldSystem` maintains a `std::unordered_map<Entity, SpatialIndex>`
+ * keyed on the map entity, so multiple map instances coexist in the
+ * same process without interfering.
+ *
+ * `TransferEntity(e, targetMap, destPos)` atomically updates the
+ * Transform, swaps the MapMembership, removes from the old index,
+ * and inserts into the new one:
+ *
+ * @code{.cpp}
+ * auto result = worldSystem.TransferEntity(player, dungeonMap, spawnPoint);
+ * if (result != TransitionResult::Success) {
+ *     // Handle InvalidMap / InvalidZone / EntityNotFound
+ * }
+ * @endcode
+ *
+ * @section tut_spat_interest Interest Management
+ *
+ * In a live MMO, sending every position update to every client is
+ * bandwidth-prohibitive. **Interest management** only sends updates
+ * about entities a given viewer can actually perceive. It is built
+ * on top of the spatial index and the `VisibilityRange` component:
+ *
+ * @code{.cpp}
+ * struct VisibilityRange {
+ *     float range = kDefaultVisibilityRange;  // 100.0f default
+ * };
+ * @endcode
+ *
+ * `WorldSystem::GetVisibleEntities(viewer)` returns the set of
+ * entities within the viewer's visibility range AND in the same
+ * map instance:
+ *
+ * @code{.cpp}
+ * std::vector<Entity> visible = worldSystem.GetVisibleEntities(player);
+ * // Send position updates only for entities in `visible`.
+ * @endcode
+ *
+ * For custom AI aggro ranges, query the spatial index directly
+ * with a different radius:
+ *
+ * @code{.cpp}
+ * const auto aggroed = index.QueryRadius(npcPos, npcAggroRange);
+ * @endcode
+ *
+ * @section tut_spat_advanced Advanced: Moving Entities Through the Index
+ *
+ * When an entity moves every tick, you have two choices for keeping
+ * the index in sync:
+ *
+ * **Option A — WorldSystem synchronization (recommended)**. Attach
+ * a Transform + MapMembership to every actor and let `WorldSystem`
+ * synchronize the index each tick. This is the default mode; you
+ * never touch `SpatialIndex` directly:
+ *
+ * @code{.cpp}
+ * WorldSystem worldSystem(transforms, memberships, mapInstances,
+ *                         visibilityRanges, zones);
+ * worldSystem.Execute(0.05f);  // syncs every tracked Transform
+ * @endcode
+ *
+ * **Option B — Manual update**. If you have a custom movement
+ * system and want to minimize extra work, call `index.Update(e, pos)`
+ * yourself whenever you mutate the Transform. This bypasses the
+ * WorldSystem's per-tick sync and saves redundant work, at the
+ * cost of one more place where you must remember to update.
+ *
+ * Do NOT mix the two modes on the same entities — pick one per
+ * actor class to avoid double-updates or stale cells.
+ *
+ * @section tut_spat_debugging Debugging Tips
+ *
+ * 1. **`index.Size()` must match your alive-entity count.** If it
+ *    drifts, you forgot to `Remove()` destroyed entities. Put a
+ *    temporary assert in your destroy pipeline.
+ *
+ * 2. **Print cell coordinates in logs.** Use
+ *    `index.WorldToCell(pos)` to get the `CellCoord` for a
+ *    position, and log it alongside player IDs when debugging
+ *    "wrong bucket" issues.
+ *
+ * 3. **QueryRadius returning fewer entities than expected?** The
+ *    index uses X and Z only — Y is ignored. If your entities are
+ *    stacked vertically, they share the same cell and the same
+ *    query result. Use a custom filter after the query for
+ *    height-aware logic.
+ *
+ * 4. **Grid cell thrashing.** An entity that zigzags back and
+ *    forth across a cell boundary every tick rewrites two hash
+ *    buckets per tick. For such entities, consider a larger cell
+ *    size or snap movement to larger deltas.
+ *
+ * 5. **Trace all `WorldSystem::TransferEntity` calls.** Map
+ *    transitions are the most bug-prone operation — they touch
+ *    Transform, MapMembership, and two different SpatialIndexes.
+ *    Log every transition with player ID, from-map, to-map.
+ *
+ * @section tut_spat_pitfalls Common Pitfalls
+ *
+ * 1. **Insert without Remove.** If you skip `Remove()` in your
+ *    destroy path, the index grows forever and eventually returns
+ *    handles to dead entities from queries. Always Remove before
+ *    or after `em.Destroy`.
+ *
+ * 2. **Ignoring Y.** The grid is 2D. A projectile 200 units above
+ *    an actor is still in the same cell. Filter on `y` after
+ *    calling `QueryRadius` if vertical separation matters for
+ *    your game.
+ *
+ * 3. **Cell size = visibility range.** Tempting but wrong. With
+ *    a cell size equal to your visibility range, queries touch
+ *    a 2×2 cell window and return lots of near-duplicates. Aim
+ *    for cell size ≈ query radius — not visibility range.
+ *
+ * 4. **Rebuilding the index every tick.** Calling `Clear` + bulk
+ *    `Insert` each tick defeats the purpose of incremental
+ *    updates. Always `Update` individual entities unless the
+ *    whole map genuinely resets (e.g., a PvP arena round ends).
+ *
+ * 5. **Using one SpatialIndex across multiple maps.** Each map
+ *    instance needs its own index. Mixing them creates
+ *    false-positive query hits and mis-targets damage events.
+ *    `WorldSystem` handles this correctly via the per-map map.
+ *
+ * 6. **ZoneFlags as a ZoneType.** `ZoneType` is a coarse
+ *    classification (`PvP`, `Safe`, etc.). `ZoneFlags` is the
+ *    bitmask of detailed rules. Don't conflate them: a zone can
+ *    be `ZoneType::Normal` with `ZoneFlags::NoCombat` set.
+ *
+ * @section tut_spat_performance Performance Notes
+ *
+ * - **Insert / Update / Remove are `O(1)`** hash operations.
+ *   Measured at ~50 ns per call on an M2 Mac.
+ * - **QueryRadius visits ~`(2r/cellSize)²` cells** and filters
+ *   each bucket exactly. For radius=100, cellSize=32 it touches
+ *   ~9 cells.
+ * - **Memory per tracked entity is ~48 bytes** (one
+ *   `unordered_map<Entity, CellCoord>` entry plus a slot in the
+ *   cell bucket). For 10,000 entities that's ~500 KB — trivial.
+ * - **The grid is sparse**, so a 10 km² world with 1,000 actors
+ *   uses 1,000 buckets, not `(10000/32)² = 97,656` empty slots.
+ * - **Thread safety is NOT provided.** If multiple threads
+ *   update the index, wrap it in a `std::shared_mutex` and take
+ *   exclusive on writes.
+ * - **Batch queries beat individual queries.** If you need
+ *   results for 100 players in one tick, call QueryRadius 100
+ *   times inside a single function so the hash tables stay in
+ *   L1 cache between calls.
+ * - **`Update` on a non-moved entity is ~20 ns** (short-circuits
+ *   on same cell). No allocations.
+ *
+ * @section tut_spat_next Next Steps
+ *
+ * - @ref tutorial_game_objects — You must understand Transform
+ *   and ComponentStorage before driving the spatial index.
+ * - @ref tutorial_combat — Combat relies on spatial queries to
+ *   find AoE targets and aggro lists.
+ * - @ref tutorial_ai_behavior — AI uses `QueryRadius` inside
+ *   BTAction nodes to pick targets.
+ * - `advanced/ECS_DEEP_DIVE.md` — System parallelism and
+ *   dependency scheduling.
+ * - `include/cgs/game/spatial_index.hpp` — authoritative API.
+ * - `include/cgs/game/world_types.hpp` — full `ZoneFlags` enum.
+ */

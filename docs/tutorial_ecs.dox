@@ -1,0 +1,153 @@
+/**
+ * @page tutorial_ecs Tutorial: Entity-Component System
+ *
+ * @tableofcontents
+ *
+ * This tutorial walks through using the `cgs::ecs` namespace to model game
+ * entities, define components, and write systems.
+ *
+ * @section tut_ecs_setup Setup
+ *
+ * Include the ECS umbrella header:
+ *
+ * @code{.cpp}
+ * #include <cgs/ecs/entity_manager.hpp>
+ * #include <cgs/ecs/system_scheduler.hpp>
+ *
+ * using namespace cgs::ecs;
+ * @endcode
+ *
+ * @section tut_ecs_define Defining Components
+ *
+ * Components are POD-like structs:
+ *
+ * @code{.cpp}
+ * struct Position {
+ *     float x{0.0f};
+ *     float y{0.0f};
+ * };
+ *
+ * struct Velocity {
+ *     float dx{0.0f};
+ *     float dy{0.0f};
+ * };
+ *
+ * struct Health {
+ *     int current{100};
+ *     int max{100};
+ * };
+ * @endcode
+ *
+ * Keep components small and trivially-copyable. Avoid pointers, virtual
+ * methods, and complex constructors.
+ *
+ * @section tut_ecs_create Creating Entities
+ *
+ * @code{.cpp}
+ * EntityManager em;
+ *
+ * auto player = em.create();
+ * em.add<Position>(player, {10.0f, 20.0f});
+ * em.add<Velocity>(player, {1.0f, 0.0f});
+ * em.add<Health>(player);  // default-initialized
+ *
+ * auto enemy = em.create();
+ * em.add<Position>(enemy, {50.0f, 50.0f});
+ * em.add<Health>(enemy, {50, 50});
+ * @endcode
+ *
+ * @section tut_ecs_query Querying Entities
+ *
+ * Iterate over entities with specific component combinations:
+ *
+ * @code{.cpp}
+ * // Move all entities that have both Position and Velocity
+ * em.query<Position, Velocity>().each([](auto& pos, const auto& vel) {
+ *     pos.x += vel.dx;
+ *     pos.y += vel.dy;
+ * });
+ *
+ * // Damage all entities with Health
+ * em.query<Health>().each([](auto& h) {
+ *     h.current = std::max(0, h.current - 1);
+ * });
+ * @endcode
+ *
+ * Use `par_each` instead of `each` to run iterations in parallel:
+ *
+ * @code{.cpp}
+ * em.query<Position, Velocity>().par_each([](auto& pos, const auto& vel) {
+ *     pos.x += vel.dx;
+ *     pos.y += vel.dy;
+ * });
+ * @endcode
+ *
+ * @section tut_ecs_systems Defining Systems
+ *
+ * A System is a class with an `update` method:
+ *
+ * @code{.cpp}
+ * class MovementSystem {
+ * public:
+ *     void update(EntityManager& em, float dt) {
+ *         em.query<Position, Velocity>().each([dt](auto& pos, const auto& vel) {
+ *             pos.x += vel.dx * dt;
+ *             pos.y += vel.dy * dt;
+ *         });
+ *     }
+ * };
+ *
+ * class DamageSystem {
+ * public:
+ *     void update(EntityManager& em, float dt) {
+ *         em.query<Health>().each([](auto& h) {
+ *             if (h.current <= 0) {
+ *                 // mark for removal in next tick
+ *             }
+ *         });
+ *     }
+ * };
+ * @endcode
+ *
+ * @section tut_ecs_scheduler Scheduling Systems
+ *
+ * The `SystemScheduler` runs systems in dependency order with parallelism
+ * where allowed:
+ *
+ * @code{.cpp}
+ * SystemScheduler sched;
+ * sched.add<MovementSystem>();
+ * sched.add<DamageSystem>().depends_on<MovementSystem>();
+ *
+ * // Per-tick:
+ * sched.tick(em, 0.05f);  // dt = 50 ms (20 Hz)
+ * @endcode
+ *
+ * Systems with no `depends_on` clauses run in parallel.
+ *
+ * @section tut_ecs_destroy Destroying Entities
+ *
+ * @code{.cpp}
+ * em.destroy(enemy);
+ * // The entity ID is recycled with a new version; old references become invalid.
+ *
+ * if (!em.valid(enemy)) {
+ *     log("entity destroyed");
+ * }
+ * @endcode
+ *
+ * @section tut_ecs_perf Performance Tips
+ *
+ * - **Keep components POD-like** for cache-friendly iteration
+ * - **Use `par_each`** for systems with no inter-entity dependencies
+ * - **Profile with `tests/benchmark/ECS_*`** before optimizing
+ * - **Avoid creating/destroying entities mid-iteration** — defer to tick boundary
+ * - **Group related components** in queries to minimize sparse-set overhead
+ *
+ * @section tut_ecs_next Next Steps
+ *
+ * - @subpage tutorial_plugin — Use ECS in a plugin
+ * - @subpage tutorial_service — Run ECS inside the GameServer
+ * - advanced/ECS_DEEP_DIVE.md — Internal data structures and tradeoffs
+ * - ADR-002 — Why ECS instead of OOP
+ */

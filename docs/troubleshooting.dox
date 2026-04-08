@@ -1,0 +1,128 @@
+/**
+ * @page troubleshooting Troubleshooting
+ *
+ * @tableofcontents
+ *
+ * @section trouble_build Build Issues
+ *
+ * @subsection trouble_yaml_cpp yaml-cpp not found
+ *
+ * **Symptom**: CMake fails with `Could not find a package configuration file
+ * provided by "yaml-cpp"`.
+ *
+ * **Cause**: Conan dependencies were not installed into the build folder
+ * before running CMake.
+ *
+ * **Fix**:
+ * @code{.bash}
+ * conan install . --output-folder=build --build=missing -s build_type=Release
+ * cmake --preset conan-release
+ * @endcode
+ *
+ * @subsection trouble_kcenon_fetch kcenon dependencies fail to fetch
+ *
+ * **Symptom**: `FetchContent` fails to clone `common_system`, `thread_system`,
+ * etc., from GitHub.
+ *
+ * **Cause**: Your network blocks GitHub or you are offline.
+ *
+ * **Fix**: Use the vcpkg preset which fetches from the vcpkg registry, or
+ * pre-clone the kcenon repos and point `cmake/kcenon_deps.cmake` to local
+ * paths via `FETCHCONTENT_SOURCE_DIR_*` environment variables.
+ *
+ * @subsection trouble_clang_format clang-format mismatch
+ *
+ * **Symptom**: CI fails with formatting differences.
+ *
+ * **Cause**: Local clang-format version differs from the CI version (21.1.8).
+ *
+ * **Fix**: Install clang-format 21+ locally and run:
+ * @code{.bash}
+ * find include/cgs src -name '*.hpp' -o -name '*.cpp' | xargs clang-format -i
+ * @endcode
+ *
+ * @subsection trouble_sanitizer_link Sanitizer link errors
+ *
+ * **Symptom**: Linker fails with `undefined reference to __asan_*` when
+ * using the `asan` preset.
+ *
+ * **Cause**: The C++ runtime was not built with sanitizer support, or the
+ * compiler version does not match the sanitizer runtime.
+ *
+ * **Fix**: Use the same compiler family for the entire build (don't mix
+ * GCC and Clang), and ensure libasan is installed (Ubuntu:
+ * `sudo apt install libasan6`).
+ *
+ * @section trouble_runtime Runtime Issues
+ *
+ * @subsection trouble_plugin_load Plugin fails to load
+ *
+ * **Symptom**: `PluginManager::load(...)` returns `error_code::plugin_load_failed`
+ * or `error_code::plugin_abi_mismatch`.
+ *
+ * **Cause**:
+ * - The shared library does not export `cgs_create_plugin`
+ * - The plugin was compiled with a different C++ standard library (libstdc++ vs libc++)
+ * - The `PLUGIN_ABI_VERSION` macro does not match
+ *
+ * **Fix**:
+ * - Verify the plugin source defines `extern "C" GamePlugin* cgs_create_plugin()`
+ * - Rebuild the plugin with the same compiler and C++ standard library as the server
+ * - Check that both server and plugin use the same `<cgs/plugin/plugin_manager.hpp>` version
+ *
+ * @subsection trouble_db_connect Database connection refused
+ *
+ * **Symptom**: DBProxy logs `error_code::network_error` when starting.
+ *
+ * **Cause**: PostgreSQL is not reachable at the configured host/port.
+ *
+ * **Fix**:
+ * - Verify PostgreSQL is running: `pg_isready -h <host> -p <port>`
+ * - Check the DBProxy YAML config (`config/dbproxy.yaml`) for correct host, port, credentials
+ * - Verify firewall rules allow the DBProxy node to reach PostgreSQL
+ *
+ * @subsection trouble_tick_overrun World tick budget exceeded
+ *
+ * **Symptom**: GameServer logs `tick budget exceeded: 65 ms (target 50 ms)`.
+ *
+ * **Cause**: The world contains too many entities, or a system is too slow.
+ *
+ * **Fix**:
+ * - Profile with `tests/benchmark/ECS_*` to identify the slow system
+ * - Use `par_each` instead of `each` in the slow system's query
+ * - Reduce entity count or split into multiple GameServer replicas
+ * - Verify CPU is not contended (check `cgroups`/`taskset` settings)
+ *
+ * @subsection trouble_jwt_invalid JWT verification fails
+ *
+ * **Symptom**: AuthServer rejects valid tokens with `error_code::permission_denied`.
+ *
+ * **Cause**: The public key in `jwt_public.pem` does not match the private key
+ * used to sign the token.
+ *
+ * **Fix**:
+ * - Regenerate keys: `openssl genrsa -out jwt_private.pem 2048 && openssl rsa -in jwt_private.pem -pubout -out jwt_public.pem`
+ * - Update both AuthServer and Gateway with the new keys
+ * - Restart all services
+ *
+ * @section trouble_test Test Issues
+ *
+ * @subsection trouble_test_discovery Tests not discovered by ctest
+ *
+ * **Symptom**: `ctest` reports "No tests were found".
+ *
+ * **Cause**: `CGS_BUILD_TESTS` is OFF, or tests were not built.
+ *
+ * **Fix**:
+ * @code{.bash}
+ * cmake --preset conan-release -DCGS_BUILD_TESTS=ON
+ * cmake --build --preset conan-release
+ * ctest --preset conan-release --output-on-failure
+ * @endcode
+ *
+ * @section trouble_more Still Stuck?
+ *
+ * - Read the @ref faq
+ * - Search GitHub Issues: https://github.com/kcenon/common_game_server/issues
+ * - Open a new issue with the build log and `cmake --version` output
+ */

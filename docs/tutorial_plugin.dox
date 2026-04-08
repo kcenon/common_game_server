@@ -1,0 +1,186 @@
+/**
+ * @page tutorial_plugin Tutorial: Authoring a Custom Plugin
+ *
+ * @tableofcontents
+ *
+ * This tutorial walks through writing, building, and loading a custom
+ * `cgs::plugin::GamePlugin`.
+ *
+ * @section tut_plugin_overview Overview
+ *
+ * A plugin is a shared library (`.so`/`.dll`/`.dylib`) that exports a
+ * factory function returning a `GamePlugin*`. The plugin lifecycle has
+ * three callbacks: `on_load`, `on_tick`, `on_unload`.
+ *
+ * @section tut_plugin_skeleton Skeleton
+ *
+ * Create `my_plugin.cpp`:
+ *
+ * @code{.cpp}
+ * #include <cgs/plugin/game_plugin.hpp>
+ * #include <cgs/plugin/plugin_context.hpp>
+ *
+ * using namespace cgs::plugin;
+ * using cgs::core::Result;
+ *
+ * class MyPlugin : public GamePlugin {
+ * public:
+ *     std::string_view name() const override { return "MyPlugin"; }
+ *     std::string_view version() const override { return "1.0.0"; }
+ *
+ *     std::vector<std::string> dependencies() const override {
+ *         return {};  // no other plugins required
+ *     }
+ *
+ *     Result<void> on_load(PluginContext& ctx) override {
+ *         logger_ = &ctx.foundation().logger();
+ *         logger_->info("MyPlugin loaded");
+ *         return {};
+ *     }
+ *
+ *     Result<void> on_tick(float dt) override {
+ *         tick_count_++;
+ *         if (tick_count_ % 200 == 0) {
+ *             logger_->info("tick {}", tick_count_);
+ *         }
+ *         return {};
+ *     }
+ *
+ *     Result<void> on_unload() override {
+ *         logger_->info("MyPlugin unloading");
+ *         return {};
+ *     }
+ *
+ * private:
+ *     IGameLogger* logger_{nullptr};
+ *     int tick_count_{0};
+ * };
+ *
+ * extern "C" GamePlugin* cgs_create_plugin() {
+ *     return new MyPlugin();
+ * }
+ * @endcode
+ *
+ * @section tut_plugin_build Building
+ *
+ * Add to your `CMakeLists.txt`:
+ *
+ * @code{.cmake}
+ * add_library(my_plugin SHARED my_plugin.cpp)
+ * target_link_libraries(my_plugin PRIVATE cgs::cgs_core)
+ * set_target_properties(my_plugin PROPERTIES
+ *     LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/plugins
+ *     PREFIX "lib"
+ * )
+ * @endcode
+ *
+ * Build:
+ * @code{.bash}
+ * cmake --build build --target my_plugin
+ * # Output: build/plugins/libmy_plugin.so (or .dylib / .dll)
+ * @endcode
+ *
+ * @section tut_plugin_load Loading the Plugin
+ *
+ * From the GameServer or any process holding a `GameFoundation`:
+ *
+ * @code{.cpp}
+ * #include <cgs/plugin/plugin_manager.hpp>
+ *
+ * using namespace cgs::plugin;
+ *
+ * GameFoundation foundation = GameFoundation::create_default();
+ * PluginManager pm(foundation);
+ *
+ * auto handle = pm.load("plugins/libmy_plugin.so");
+ * if (!handle) {
+ *     foundation.logger().error("plugin load failed: {}", handle.error());
+ *     return 1;
+ * }
+ *
+ * // Run a few ticks
+ * for (int i = 0; i < 1000; ++i) {
+ *     pm.tick_all(0.05f);
+ * }
+ *
+ * pm.unload(handle.value());
+ * @endcode
+ *
+ * @section tut_plugin_state Persisting State Across Hot Reload
+ *
+ * If you build with `-DCGS_HOT_RELOAD=ON`, plugins can survive a reload
+ * by implementing `serialize` and `deserialize`:
+ *
+ * @code{.cpp}
+ * class StatefulPlugin : public GamePlugin {
+ * public:
+ *     // ... lifecycle methods ...
+ *
+ *     std::vector<std::byte> serialize() const override {
+ *         std::vector<std::byte> buf(sizeof(state_));
+ *         std::memcpy(buf.data(), &state_, sizeof(state_));
+ *         return buf;
+ *     }
+ *
+ *     Result<void> deserialize(std::span<const std::byte> data) override {
+ *         if (data.size() != sizeof(state_)) {
+ *             return cgs::core::error{error_code::invalid_argument, "size mismatch"};
+ *         }
+ *         std::memcpy(&state_, data.data(), sizeof(state_));
+ *         return {};
+ *     }
+ *
+ * private:
+ *     struct PluginState { int counter{0}; float timer{0.0f}; };
+ *     PluginState state_;
+ * };
+ * @endcode
+ *
+ * The framework calls `serialize` before unload and `deserialize` after the
+ * new version is loaded. State is held in framework-managed memory during
+ * the swap.
+ *
+ * @section tut_plugin_dependencies Plugin Dependencies
+ *
+ * If your plugin depends on another plugin, declare it:
+ *
+ * @code{.cpp}
+ * std::vector<std::string> dependencies() const override {
+ *     return {"PhysicsPlugin", "AudioPlugin"};
+ * }
+ * @endcode
+ *
+ * The `PluginManager` resolves dependencies and loads plugins in order.
+ * Circular dependencies are detected and rejected.
+ *
+ * @section tut_plugin_events Plugin-to-Plugin Communication
+ *
+ * Plugins communicate via the shared event bus:
+ *
+ * @code{.cpp}
+ * // In on_load:
+ * ctx.event_bus().subscribe<PlayerJoinedEvent>([this](const auto& ev) {
+ *     logger_->info("player joined: {}", ev.player_id);
+ * });
+ *
+ * // Publish from anywhere:
+ * ctx.event_bus().publish(PlayerJoinedEvent{.player_id = 42});
+ * @endcode
+ *
+ * @section tut_plugin_security Production Considerations
+ *
+ * - **Hot reload is dev-only**. Production builds disable it via
+ *   `-DCGS_HOT_RELOAD=OFF`.
+ * - **Plugin signing** is not yet implemented. Production deployments must
+ *   restrict the `plugins/` directory to trusted operators.
+ * - **Crashes in plugins crash the host**. Plugins should never panic;
+ *   return `error_code` instead.
+ *
+ * @section tut_plugin_next Next Steps
+ *
+ * - @subpage tutorial_ecs — Use ECS components inside a plugin
+ * - @subpage tutorial_service — Run plugins inside the GameServer
+ * - guides/PLUGIN_DEVELOPMENT_GUIDE.md — Comprehensive plugin guide
+ * - ADR-003 — Plugin hot reload design rationale
+ * - src/plugins/mmorpg/ — Reference MMORPG plugin
+ */

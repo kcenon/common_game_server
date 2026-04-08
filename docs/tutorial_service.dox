@@ -1,0 +1,191 @@
+/**
+ * @page tutorial_service Tutorial: Running Microservices
+ *
+ * @tableofcontents
+ *
+ * This tutorial walks through configuring and running the 5 microservices
+ * shipped with `common_game_server`.
+ *
+ * @section tut_service_overview Overview
+ *
+ * The framework provides 5 microservices:
+ *
+ * | Service | Purpose | Default Port |
+ * | --- | --- | --- |
+ * | AuthServer | JWT authentication, sessions | 8000 |
+ * | GatewayServer | Client routing, load balancing | 8080 |
+ * | GameServer | World simulation, game tick loop | 9000 |
+ * | LobbyServer | Matchmaking, parties | 9100 |
+ * | DBProxy | DB connection pool | 5432 |
+ *
+ * Each service is a standalone executable.
+ *
+ * @section tut_service_build Building Services
+ *
+ * Configure with `CGS_BUILD_SERVICES=ON`:
+ *
+ * @code{.bash}
+ * cmake --preset conan-release -DCGS_BUILD_SERVICES=ON
+ * cmake --build --preset conan-release -j$(nproc)
+ * @endcode
+ *
+ * Output (under `build/Release/bin/`):
+ * - `auth_server`
+ * - `gateway_server`
+ * - `game_server`
+ * - `lobby_server`
+ * - `dbproxy`
+ *
+ * @section tut_service_config Configuration
+ *
+ * Each service reads a YAML config file. Templates are under `config/`:
+ *
+ * @code{.yaml}
+ * # config/auth.yaml
+ * server:
+ *   host: 0.0.0.0
+ *   port: 8000
+ *   thread_count: 4
+ *
+ * jwt:
+ *   private_key: config/keys/jwt_private.pem
+ *   public_key: config/keys/jwt_public.pem
+ *   issuer: common_game_server
+ *   audience: game_clients
+ *   ttl_seconds: 3600
+ *
+ * rate_limit:
+ *   requests_per_second: 100
+ *   burst: 200
+ *
+ * logging:
+ *   level: info
+ *   format: json
+ * @endcode
+ *
+ * Detailed schema: see guides/CONFIGURATION_GUIDE.md
+ *
+ * @section tut_service_start Starting Services
+ *
+ * Local development (single machine):
+ *
+ * @code{.bash}
+ * # Generate JWT keys (one-time)
+ * openssl genrsa -out config/keys/jwt_private.pem 2048
+ * openssl rsa -in config/keys/jwt_private.pem -pubout -out config/keys/jwt_public.pem
+ *
+ * # Start services in separate terminals (or use a process supervisor)
+ * ./build/Release/bin/auth_server     --config config/auth.yaml
+ * ./build/Release/bin/gateway_server  --config config/gateway.yaml
+ * ./build/Release/bin/game_server     --config config/game.yaml
+ * ./build/Release/bin/lobby_server    --config config/lobby.yaml
+ * ./build/Release/bin/dbproxy         --config config/dbproxy.yaml
+ * @endcode
+ *
+ * Or use Docker Compose for the full stack:
+ *
+ * @code{.bash}
+ * cd deploy
+ * docker compose up --build
+ * @endcode
+ *
+ * @section tut_service_health Health Checks
+ *
+ * Every service exposes health and readiness probes:
+ *
+ * @code{.bash}
+ * curl http://localhost:8000/health    # liveness
+ * curl http://localhost:8000/ready     # readiness
+ * curl http://localhost:9090/metrics   # Prometheus metrics
+ * @endcode
+ *
+ * Use these endpoints in Kubernetes liveness/readiness probes:
+ *
+ * @code{.yaml}
+ * livenessProbe:
+ *   httpGet:
+ *     path: /health
+ *     port: 8000
+ *   initialDelaySeconds: 10
+ *   periodSeconds: 30
+ * readinessProbe:
+ *   httpGet:
+ *     path: /ready
+ *     port: 8000
+ *   initialDelaySeconds: 5
+ *   periodSeconds: 10
+ * @endcode
+ *
+ * @section tut_service_stop Graceful Shutdown
+ *
+ * All services handle SIGINT and SIGTERM gracefully:
+ *
+ * 1. Stop accepting new connections
+ * 2. Drain in-flight requests
+ * 3. Flush pending writes (DB, logs)
+ * 4. Save state snapshots (GameServer)
+ * 5. Close all connections
+ * 6. Exit with code 0
+ *
+ * Force-shutdown timeout: 30 seconds (configurable). After that, the service
+ * exits with code 1.
+ *
+ * @section tut_service_kubernetes Kubernetes Deployment
+ *
+ * The `deploy/k8s/` directory contains Deployment, Service, HPA, PDB, and
+ * StatefulSet manifests for all 5 services:
+ *
+ * @code{.bash}
+ * kubectl apply -f deploy/k8s/base/
+ * kubectl get pods -n game-server
+ * @endcode
+ *
+ * Detailed deployment guide: guides/DEPLOYMENT_GUIDE.md
+ *
+ * @section tut_service_observability Observability
+ *
+ * - **Logs**: structured JSON to stdout, collected by Fluent Bit / Loki
+ * - **Metrics**: Prometheus scrape on port 9090, dashboards in `deploy/monitoring/`
+ * - **Tracing**: OpenTelemetry hooks (Beta) — emit to Jaeger or Tempo
+ * - **Correlation IDs**: generated at the gateway, propagated via gRPC headers
+ *
+ * @section tut_service_writing Writing Your Own Service
+ *
+ * To add a custom service, use the shared `service_runner` template:
+ *
+ * @code{.cpp}
+ * #include <cgs/service/service_runner.hpp>
+ *
+ * struct MyServiceConfig {
+ *     uint16_t port;
+ *     std::string upstream_host;
+ * };
+ *
+ * class MyService : public cgs::service::service_base<MyServiceConfig> {
+ * public:
+ *     using service_base::service_base;
+ *
+ *     Result<void> start() override {
+ *         // ... start logic ...
+ *         return {};
+ *     }
+ *
+ *     Result<void> stop() override {
+ *         // ... drain and shutdown ...
+ *         return {};
+ *     }
+ * };
+ *
+ * int main(int argc, char** argv) {
+ *     return cgs::service::run<MyService>(argc, argv);
+ * }
+ * @endcode
+ *
+ * @section tut_service_next Next Steps
+ *
+ * - @subpage tutorial_ecs — Add ECS systems to GameServer
+ * - @subpage tutorial_plugin — Load plugins into GameServer
+ * - guides/CONFIGURATION_GUIDE.md — YAML configuration reference
+ * - guides/DEPLOYMENT_GUIDE.md — Production deployment
+ * - ADR-004 — Why these 5 services
+ */

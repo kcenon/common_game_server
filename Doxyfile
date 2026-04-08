@@ -13,6 +13,16 @@ INPUT                  = include/cgs \
                          docs/tutorial_ecs.dox \
                          docs/tutorial_plugin.dox \
                          docs/tutorial_service.dox \
+                         docs/tutorial_result_errors.dox \
+                         docs/tutorial_foundation_adapters.dox \
+                         docs/tutorial_game_objects.dox \
+                         docs/tutorial_spatial_world.dox \
+                         docs/tutorial_combat.dox \
+                         docs/tutorial_ai_behavior.dox \
+                         docs/tutorial_inventory.dox \
+                         docs/tutorial_quest.dox \
+                         docs/tutorial_database.dox \
+                         docs/tutorial_networking.dox \
                          docs/faq.dox \
                          docs/troubleshooting.dox
 FILE_PATTERNS          = *.h *.hpp *.md *.dox

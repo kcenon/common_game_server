@@ -1,0 +1,48 @@
+common_game_server
+Copyright 2025-2026 kcenon
+
+Licensed under the BSD 3-Clause License. See LICENSE for the full text.
+
+---
+
+This product bundles or depends on the following third-party software, each
+licensed under its respective terms. See LICENSE-THIRD-PARTY for the complete
+list and SOUP.md for the structured Bill of Materials.
+
+## Apache-2.0 Notices
+
+The following dependencies are licensed under the Apache License, Version 2.0:
+
+### google-benchmark (1.9.1)
+   Copyright 2015 Google Inc.
+   https://github.com/google/benchmark
+
+   Licensed under the Apache License, Version 2.0 (the "License");
+   you may not obtain a copy of the License at:
+   http://www.apache.org/licenses/LICENSE-2.0
+
+   Unless required by applicable law or agreed to in writing, software
+   distributed under the License is distributed on an "AS IS" BASIS,
+   WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+   See the License for the specific language governing permissions and
+   limitations under the License.
+
+## BSD-3-Clause Notices
+
+The following dependencies are licensed under the BSD 3-Clause License:
+
+- googletest (1.15.0) — Copyright 2008, Google Inc.
+- All kcenon ecosystem libraries (common_system, thread_system, logger_system,
+  network_system, database_system, monitoring_system, container_system) —
+  Copyright 2025-2026 kcenon
+
+## MIT Notices
+
+The following dependencies are licensed under the MIT License:
+
+- yaml-cpp (0.8.0) — Copyright (c) 2008-2015 Jesse Beder
+
+---
+
+Full license texts are reproduced in each upstream project's LICENSE file
+and are accessible via the package manager (Conan/vcpkg) used to fetch them.

@@ -3,21 +3,29 @@
 [![CI](https://github.com/kcenon/common_game_server/actions/workflows/ci.yml/badge.svg)](https://github.com/kcenon/common_game_server/actions/workflows/ci.yml)
 [![Code Coverage](https://github.com/kcenon/common_game_server/actions/workflows/coverage.yml/badge.svg)](https://github.com/kcenon/common_game_server/actions/workflows/coverage.yml)
 [![API Docs](https://github.com/kcenon/common_game_server/actions/workflows/docs.yml/badge.svg)](https://github.com/kcenon/common_game_server/actions/workflows/docs.yml)
+[![License](https://img.shields.io/badge/license-BSD%203--Clause-blue.svg)](LICENSE)
+[![Language](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://en.cppreference.com/w/cpp/20)
 
-A unified, production-ready game server framework built with C++20, combining proven patterns from multiple game server implementations.
+> 한국어 문서: [README.kr.md](README.kr.md)
+
+A unified, production-ready C++20 game server framework combining proven
+patterns from multiple game server implementations. Built as the **Tier 3
+application layer** of the [kcenon ecosystem](docs/ECOSYSTEM.md).
 
 ## Key Features
 
-- **Entity-Component System (ECS)**: Data-oriented design with parallel execution and component queries
-- **Plugin Architecture**: Hot-reloadable plugins with dependency resolution and event communication
-- **Microservices**: 5 horizontally scalable services (Auth, Gateway, Game, Lobby, DBProxy)
-- **7 Foundation Adapters**: Logging, networking, database, threading, monitoring, serialization, and common utilities
-- **Game Logic Systems**: Object, Combat, World, AI (BehaviorTree), Quest, and Inventory systems
-- **Security**: JWT RS256 signing, TLS 1.3, input validation, SQL parameterization
-- **Reliability**: WAL + snapshots, circuit breaker, graceful shutdown, chaos testing
-- **Cloud-Native**: Kubernetes-ready with HPA, StatefulSet, PDB, Prometheus/Grafana integration
-- **Structured Logging**: JSON log output with correlation IDs
-- **Doxygen API Documentation**: Auto-generated from source comments
+- **Entity-Component System (ECS)** — Data-oriented design with parallel execution and component queries
+- **Plugin Architecture** — Hot-reloadable plugins with dependency resolution and event communication
+- **Microservices** — 5 horizontally scalable services (Auth, Gateway, Game, Lobby, DBProxy)
+- **7 Foundation Adapters** — Logging, networking, database, threading, monitoring, serialization, common utilities
+- **Game Logic Systems** — Object, Combat, World, AI (BehaviorTree), Quest, Inventory
+- **Security** — JWT RS256 signing, TLS 1.3, input validation, SQL parameterization
+- **Reliability** — WAL + snapshots, circuit breaker, graceful shutdown, chaos testing
+- **Cloud-Native** — Kubernetes-ready with HPA, StatefulSet, PDB, Prometheus/Grafana
+- **Structured Logging** — JSON output with correlation IDs
+- **Doxygen API Docs** — Auto-generated from source comments
+
+See [`docs/FEATURES.md`](docs/FEATURES.md) for the complete feature matrix.
 
 ## Architecture
 
@@ -40,11 +48,28 @@ A unified, production-ready game server framework built with C++20, combining pr
 |  Layer 2: FOUNDATION ADAPTER LAYER                                 |
 |           Result<T,E> pattern, no exceptions                       |
 +-------------------------------------------------------------------+
-|  Layer 1: 7 FOUNDATION SYSTEMS                                      |
+|  Layer 1: 7 KCENON FOUNDATION SYSTEMS                              |
 |           common, thread, logger, network, database, container,    |
 |           monitoring                                               |
 +-------------------------------------------------------------------+
 ```
+
+Detailed architecture: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
+
+## Ecosystem Position
+
+`common_game_server` is the **Tier 3 application layer** of the kcenon
+ecosystem and consumes the entire kcenon foundation stack.
+
+```
+Tier 0  common_system        ◀── foundation interfaces
+Tier 1  thread_system, container_system
+Tier 2  logger_system, monitoring_system, database_system, network_system
+Tier 3  common_game_server   ◀── this project
+```
+
+Full ecosystem map: [`docs/ECOSYSTEM.md`](docs/ECOSYSTEM.md) ·
+Dependencies: [`DEPENDENCY_MATRIX.md`](DEPENDENCY_MATRIX.md)
 
 ## Performance Targets
 
@@ -57,34 +82,35 @@ A unified, production-ready game server framework built with C++20, combining pr
 | Database Latency | <50ms p99 |
 | Plugin Load Time | <100ms |
 
+Detailed benchmarks: [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md)
+
 ## Technology Stack
 
 | Component | Technology |
 |-----------|------------|
 | Language | C++20 |
 | Build System | CMake 3.20+ with presets |
-| Package Manager | Conan 2 |
+| Package Manager | Conan 2 (or vcpkg) |
 | Database | PostgreSQL 14+ |
 | Container | Docker + Docker Compose |
 | Orchestration | Kubernetes (HPA, StatefulSet, PDB) |
 | Monitoring | Prometheus + Grafana |
 | Code Style | clang-format 21 (Google-based) |
-| Documentation | Doxygen |
+| Documentation | Doxygen 1.12.0 |
 
-## Prerequisites
+## Getting Started
 
-- C++20 compatible compiler (GCC 11+, Clang 14+, MSVC 2022+)
+### Prerequisites
+
+- C++20 compiler (GCC 11+, Clang 14+, MSVC 2022+, Apple Clang 14+)
 - CMake 3.20 or higher
 - Conan 2 package manager
 - PostgreSQL 14+ (for database features)
 - Docker (optional, for containerized deployment)
 
-## Getting Started
-
 ### Build from Source
 
 ```bash
-# Clone the repository
 git clone https://github.com/kcenon/common_game_server.git
 cd common_game_server
 
@@ -99,24 +125,14 @@ cmake --build --preset conan-release -j$(nproc 2>/dev/null || sysctl -n hw.ncpu)
 ctest --preset conan-release --output-on-failure
 ```
 
-### Debug Build (Linux)
+Step-by-step tutorial: [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) ·
+Full build guide: [`docs/guides/BUILD_GUIDE.md`](docs/guides/BUILD_GUIDE.md)
+
+### Run a Service
 
 ```bash
-conan install . --output-folder=build --build=missing -s build_type=Debug
-cmake --preset conan-debug
-cmake --build --preset conan-debug -j$(nproc)
-```
-
-### Running Services
-
-```bash
-# Start the auth service
 ./build/bin/auth_server --config config/auth.yaml
-
-# Start the gateway service
 ./build/bin/gateway_server --config config/gateway.yaml
-
-# Start the game server
 ./build/bin/game_server --config config/game.yaml
 ```
 
@@ -133,69 +149,7 @@ docker compose up --build
 kubectl apply -f deploy/k8s/base/
 ```
 
-## CI/CD Pipeline
-
-The project runs 6 automated workflows on every push and pull request:
-
-| Workflow | Description | Trigger |
-|----------|-------------|---------|
-| **CI** | Lint (clang-format) → Build & Test (3 configs) | push, PR |
-| **Code Coverage** | lcov coverage report | push, PR |
-| **API Docs** | Doxygen documentation generation | push, PR |
-| **Benchmarks** | Performance benchmark suite | manual |
-| **Load Test** | CCU validation scripts | manual |
-| **Chaos Tests** | Fault injection & resilience testing | manual |
-
-```
-lint (clang-format 21.1.8)
-  └─> build & test (ubuntu-24.04 Debug)
-  └─> build & test (ubuntu-24.04 Release)
-  └─> build & test (macos-14 Release)
-coverage (lcov)
-docs (doxygen)
-```
-
-## Project Structure
-
-```
-common_game_server/
-├── include/cgs/              # Public headers
-│   ├── core/                 # Core types and utilities
-│   ├── ecs/                  # ECS (entity, component, scheduler, query)
-│   ├── foundation/           # Foundation adapter interfaces
-│   ├── game/                 # Game logic (combat, world, AI, quest, inventory)
-│   ├── plugin/               # Plugin interfaces and hot reload
-│   └── service/              # Service types (auth, gateway, lobby, etc.)
-├── src/                      # Implementation
-│   ├── ecs/                  # ECS implementation
-│   ├── foundation/           # 8 foundation adapters
-│   ├── game/                 # 6 game logic systems
-│   ├── plugins/              # Plugin manager, hot reload, MMORPG plugin
-│   └── services/             # 5 microservices + shared runner
-├── tests/                    # Test suites
-│   ├── unit/                 # Unit tests
-│   ├── integration/          # Integration tests
-│   ├── benchmark/            # Performance benchmarks
-│   ├── load/                 # Load testing scripts
-│   └── chaos/                # Chaos/fault injection tests
-├── deploy/                   # Deployment configuration
-│   ├── docker/               # Dockerfiles for each service
-│   ├── k8s/                  # Kubernetes manifests (HPA, PDB, StatefulSet)
-│   ├── monitoring/           # Prometheus + Grafana dashboards
-│   ├── config/               # Service configuration files
-│   └── docker-compose.yml    # Local full-stack development
-├── docs/                     # Documentation
-│   ├── reference/            # Reference documentation
-│   ├── PRD.md                # Product Requirements Document
-│   ├── SRS.md                # Software Requirements Specification
-│   ├── SDS.md                # Software Design Specification
-│   ├── ARCHITECTURE.md       # Technical architecture design
-│   └── PERFORMANCE_REPORT.md # Benchmark results
-├── .clang-format             # Code style (Google-based, 4-space indent)
-├── .clang-tidy               # Static analysis checks
-├── Doxyfile                  # API documentation configuration
-└── conanfile.py              # Conan dependency definition
-```
+Production deployment: [`docs/guides/DEPLOYMENT_GUIDE.md`](docs/guides/DEPLOYMENT_GUIDE.md)
 
 ## Microservices
 
@@ -209,53 +163,65 @@ common_game_server/
 
 ## Documentation
 
-| Document | Description |
-|----------|-------------|
-| [PRD](docs/PRD.md) | Product Requirements Document |
-| [SRS](docs/SRS.md) | Software Requirements Specification (126 requirements) |
-| [SDS](docs/SDS.md) | Software Design Specification (29 modules) |
-| [Architecture](docs/ARCHITECTURE.md) | Technical architecture design |
-| [Performance Report](docs/PERFORMANCE_REPORT.md) | Benchmark results and analysis |
-| [Integration Strategy](docs/INTEGRATION_STRATEGY.md) | Integration approach |
-| [Roadmap](docs/ROADMAP.md) | Implementation timeline |
+| Category | Document |
+|---|---|
+| Index | [`docs/README.md`](docs/README.md) |
+| Quick start | [`docs/GETTING_STARTED.md`](docs/GETTING_STARTED.md) |
+| Features | [`docs/FEATURES.md`](docs/FEATURES.md) |
+| Architecture | [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) |
+| API reference | [`docs/API_REFERENCE.md`](docs/API_REFERENCE.md) · [Quick reference](docs/API_QUICK_REFERENCE.md) |
+| Benchmarks | [`docs/BENCHMARKS.md`](docs/BENCHMARKS.md) |
+| Production quality | [`docs/PRODUCTION_QUALITY.md`](docs/PRODUCTION_QUALITY.md) |
+| Project structure | [`docs/PROJECT_STRUCTURE.md`](docs/PROJECT_STRUCTURE.md) |
+| Roadmap | [`docs/ROADMAP.md`](docs/ROADMAP.md) |
+| Changelog | [`CHANGELOG.md`](CHANGELOG.md) |
+| Ecosystem | [`docs/ECOSYSTEM.md`](docs/ECOSYSTEM.md) |
+| ADR records | [`docs/adr/`](docs/adr/) |
 
-### Reference Documentation
+### How-to guides
+[Build](docs/guides/BUILD_GUIDE.md) ·
+[Deployment](docs/guides/DEPLOYMENT_GUIDE.md) ·
+[Configuration](docs/guides/CONFIGURATION_GUIDE.md) ·
+[Testing](docs/guides/TESTING_GUIDE.md) ·
+[Plugin development](docs/guides/PLUGIN_DEVELOPMENT_GUIDE.md) ·
+[Troubleshooting](docs/guides/TROUBLESHOOTING.md) ·
+[FAQ](docs/guides/FAQ.md)
 
-| Document | Description |
-|----------|-------------|
-| [ECS Design](docs/reference/ECS_DESIGN.md) | Entity-Component System details |
-| [Plugin System](docs/reference/PLUGIN_SYSTEM.md) | Plugin architecture and hot reload |
-| [Foundation Adapters](docs/reference/FOUNDATION_ADAPTERS.md) | Adapter patterns |
-| [Protocol Design](docs/reference/PROTOCOL_DESIGN.md) | Network protocol specification |
-| [Database Schema](docs/reference/DATABASE_SCHEMA.md) | Database design |
-| [Coding Standards](docs/reference/CODING_STANDARDS.md) | Code style guidelines |
-| [Testing Strategy](docs/reference/TESTING_STRATEGY.md) | Testing approach |
-| [Deployment Guide](docs/reference/DEPLOYMENT_GUIDE.md) | Production deployment |
-| [Configuration Guide](docs/reference/CONFIGURATION_GUIDE.md) | Configuration options |
+### Advanced topics
+[ECS deep dive](docs/advanced/ECS_DEEP_DIVE.md) ·
+[Foundation adapters](docs/advanced/FOUNDATION_ADAPTERS.md) ·
+[Protocol specification](docs/advanced/PROTOCOL_SPECIFICATION.md) ·
+[Database schema](docs/advanced/DATABASE_SCHEMA.md)
 
-## Milestones
+## CI/CD Pipeline
 
-| Milestone | Description | Status |
-|-----------|-------------|--------|
-| M1: Foundation | Project bootstrap + 7 foundation adapters | Done |
-| M2: Core ECS | Component storage, entity management, scheduling, queries, parallel execution | Done |
-| M3: Game Logic | Object, Combat, World, AI, Quest, Inventory systems | Done |
-| M4: Services | Auth, Gateway, Game, Lobby, DBProxy microservices | Done |
-| M5: Plugin | Event communication, hot reload, MMORPG plugin | Done |
-| M6: Production | Performance, scalability (K8s), reliability, security, code quality | Done |
+The project runs 6 automated workflows on every push and pull request:
+
+| Workflow | Description | Trigger |
+|----------|-------------|---------|
+| **CI** | Lint (clang-format) → Build & Test (3 configs) | push, PR |
+| **Code Coverage** | lcov coverage report | push, PR |
+| **API Docs** | Doxygen documentation generation | push, PR |
+| **Benchmarks** | Performance benchmark suite | manual |
+| **Load Test** | CCU validation scripts | manual |
+| **Chaos Tests** | Fault injection & resilience testing | manual |
+
+CI guide: [`docs/contributing/CI_CD_GUIDE.md`](docs/contributing/CI_CD_GUIDE.md)
 
 ## Contributing
 
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feat/issue-N-description`)
-3. Format your code (`clang-format -i <files>` using version 21+)
-4. Commit your changes following [Conventional Commits](https://www.conventionalcommits.org/)
-5. Push to the branch (`git push origin feat/issue-N-description`)
-6. Open a Pull Request
+We welcome contributions! See [`CONTRIBUTING.md`](CONTRIBUTING.md) for the
+development workflow, coding standards, and PR process.
+
+- **Code of Conduct** — [`CODE_OF_CONDUCT.md`](CODE_OF_CONDUCT.md)
+- **Security policy** — [`SECURITY.md`](SECURITY.md)
+- **Versioning** — [`VERSIONING.md`](VERSIONING.md)
+- **Coding standards** — [`docs/contributing/CODING_STANDARDS.md`](docs/contributing/CODING_STANDARDS.md)
 
 ### Code Style
 
-This project uses clang-format (Google-based style, 4-space indent, 100-column limit). CI enforces formatting on every pull request. To check locally:
+This project uses clang-format 21+ (Google-based, 4-space indent, 100-column
+limit). CI enforces formatting on every PR. To check locally:
 
 ```bash
 find include/cgs src -name '*.hpp' -o -name '*.cpp' | xargs clang-format --dry-run --Werror
@@ -271,5 +237,6 @@ git config blame.ignoreRevsFile .git-blame-ignore-revs
 
 ## License
 
-This project is licensed under the BSD 3-Clause License - see the [LICENSE](LICENSE) file for details.
-
+This project is licensed under the BSD 3-Clause License — see [LICENSE](LICENSE)
+for details. Third-party dependency licenses: [LICENSE-THIRD-PARTY](LICENSE-THIRD-PARTY)
+and [NOTICES](NOTICES).

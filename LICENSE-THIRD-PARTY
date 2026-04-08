@@ -1,0 +1,54 @@
+# Third-Party Licenses
+
+This file enumerates the third-party dependencies bundled with or required by
+`common_game_server` and their respective licenses.
+
+`common_game_server` itself is licensed under the [BSD 3-Clause License](LICENSE).
+
+---
+
+## Runtime Dependencies (Conan-managed)
+
+| Package | Version | License | Source |
+|---------|---------|---------|--------|
+| yaml-cpp | 0.8.0 | MIT | https://github.com/jbeder/yaml-cpp |
+
+## Development & Test Dependencies
+
+| Package | Version | License | Source |
+|---------|---------|---------|--------|
+| googletest (gtest) | 1.15.0 | BSD-3-Clause | https://github.com/google/googletest |
+| google-benchmark | 1.9.1 | Apache-2.0 | https://github.com/google/benchmark |
+
+## Ecosystem Dependencies (kcenon, FetchContent / vcpkg)
+
+The following kcenon ecosystem libraries are pulled in via
+`cmake/kcenon_deps.cmake`. Each ships with its own LICENSE file.
+
+| Library | License | Source |
+|---------|---------|--------|
+| common_system | BSD-3-Clause | https://github.com/kcenon/common_system |
+| thread_system | BSD-3-Clause | https://github.com/kcenon/thread_system |
+| logger_system | BSD-3-Clause | https://github.com/kcenon/logger_system |
+| network_system | BSD-3-Clause | https://github.com/kcenon/network_system |
+| database_system | BSD-3-Clause | https://github.com/kcenon/database_system |
+| monitoring_system | BSD-3-Clause | https://github.com/kcenon/monitoring_system |
+| container_system | BSD-3-Clause | https://github.com/kcenon/container_system |
+
+## Notes
+
+- All third-party dependencies are dynamically resolved at build time and are
+  not vendored in this repository.
+- Transitive dependencies of the above packages may carry additional licenses;
+  consult each package's documentation for the full transitive license tree.
+- This file is updated whenever a dependency is added, removed, or version-
+  bumped. See [`SOUP.md`](docs/SOUP.md) for the structured Bill of Materials.
+
+## Compliance
+
+`common_game_server` complies with the obligations of all listed licenses:
+
+- **MIT / BSD-3-Clause**: License notices preserved in source distribution
+- **Apache-2.0**: NOTICE file maintained at [`NOTICES`](NOTICES)
+
+For inquiries regarding license compliance, contact: kcenon@naver.com

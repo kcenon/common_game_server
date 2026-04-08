@@ -45,6 +45,48 @@
 | [`guides/TROUBLESHOOTING.md`](guides/TROUBLESHOOTING.md) | 일반적인 문제와 해결책 |
 | [`guides/FAQ.md`](guides/FAQ.md) | 자주 묻는 질문 |
 
+## 튜토리얼 (Doxygen 페이지)
+
+실행 가능한 튜토리얼은 `docs/tutorial_*.dox` 아래에 있으며 퍼블리시된
+Doxygen 사이트로 렌더링됩니다. 각 튜토리얼은 `cmake --preset debug`로
+빌드할 수 있는 [`../examples/`](../examples/) 동반 프로그램을 갖고 있습니다.
+
+**프레임워크 기초**
+
+| 튜토리얼 | 주제 |
+|---|---|
+| `tutorial_ecs.dox` | Entity-Component System 사용법 |
+| `tutorial_plugin.dox` | 플러그인 작성 스켈레톤 |
+| `tutorial_service.dox` | 마이크로서비스 실행 및 설정 |
+
+**핵심 패턴**
+
+| 튜토리얼 | 주제 |
+|---|---|
+| `tutorial_result_errors.dox` | `Result<T>`, `GameError`, 분류된 에러 코드 |
+| `tutorial_foundation_adapters.dox` | 파운데이션 어댑터와 `ServiceLocator` |
+
+**게임 로직**
+
+| 튜토리얼 | 주제 |
+|---|---|
+| `tutorial_game_objects.dox` | `Transform`, `Identity`, `Stats`, `Movement` |
+| `tutorial_spatial_world.dox` | `SpatialIndex`, 존, 관심 관리 |
+| `tutorial_combat.dox` | 전투 시스템, 데미지 타입, 오라, 스펠 캐스팅 |
+| `tutorial_ai_behavior.dox` | AI 행동 트리와 블랙보드 |
+| `tutorial_inventory.dox` | 인벤토리와 장비 슬롯 |
+| `tutorial_quest.dox` | 퀘스트 상태 머신과 목표 |
+
+**영속성과 네트워킹**
+
+| 튜토리얼 | 주제 |
+|---|---|
+| `tutorial_database.dox` | `GameDatabase`, 프리페어드 스테이트먼트, 트랜잭션 |
+| `tutorial_networking.dox` | `NetworkMessage`, 시그널, TLS |
+
+동반 실행 프로그램은 [`../examples/README.md`](../examples/README.md)를
+참조하세요.
+
 ## 심화 주제
 
 | 문서 | 설명 |

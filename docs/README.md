@@ -45,6 +45,49 @@ preserved under [`archive/sdlc/`](archive/sdlc/) for reference.
 | [`guides/TROUBLESHOOTING.md`](guides/TROUBLESHOOTING.md) | Common issues and solutions |
 | [`guides/FAQ.md`](guides/FAQ.md) | Frequently asked questions |
 
+## Tutorials (Doxygen pages)
+
+Runnable tutorials live under `docs/tutorial_*.dox` and render into
+the published Doxygen site. Each has a companion program under
+[`../examples/`](../examples/) that you can build with
+`cmake --preset debug`.
+
+**Framework basics**
+
+| Tutorial | Topic |
+|---|---|
+| `tutorial_ecs.dox` | Entity-Component System walkthrough |
+| `tutorial_plugin.dox` | Plugin authoring skeleton |
+| `tutorial_service.dox` | Running and configuring microservices |
+
+**Core patterns**
+
+| Tutorial | Topic |
+|---|---|
+| `tutorial_result_errors.dox` | `Result<T>`, `GameError`, categorized error codes |
+| `tutorial_foundation_adapters.dox` | Foundation adapters and `ServiceLocator` |
+
+**Game logic**
+
+| Tutorial | Topic |
+|---|---|
+| `tutorial_game_objects.dox` | `Transform`, `Identity`, `Stats`, `Movement` |
+| `tutorial_spatial_world.dox` | `SpatialIndex`, zones, and interest management |
+| `tutorial_combat.dox` | Combat system, damage types, auras, spell casting |
+| `tutorial_ai_behavior.dox` | AI behavior trees and blackboards |
+| `tutorial_inventory.dox` | Inventory and equipment slots |
+| `tutorial_quest.dox` | Quest state machine and objectives |
+
+**Persistence and networking**
+
+| Tutorial | Topic |
+|---|---|
+| `tutorial_database.dox` | `GameDatabase`, prepared statements, transactions |
+| `tutorial_networking.dox` | `NetworkMessage`, signals, TLS |
+
+See [`../examples/README.md`](../examples/README.md) for the
+corresponding runnable programs.
+
 ## Advanced Topics
 
 | Document | Description |

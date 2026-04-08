@@ -146,8 +146,8 @@
  *
  * @section tut_ecs_next Next Steps
  *
- * - @subpage tutorial_plugin — Use ECS in a plugin
- * - @subpage tutorial_service — Run ECS inside the GameServer
+ * - @ref tutorial_plugin — Use ECS in a plugin
+ * - @ref tutorial_service — Run ECS inside the GameServer
  * - advanced/ECS_DEEP_DIVE.md — Internal data structures and tradeoffs
  * - ADR-002 — Why ECS instead of OOP
  */

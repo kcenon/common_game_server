@@ -178,8 +178,8 @@
  *
  * @section tut_plugin_next Next Steps
  *
- * - @subpage tutorial_ecs — Use ECS components inside a plugin
- * - @subpage tutorial_service — Run plugins inside the GameServer
+ * - @ref tutorial_ecs — Use ECS components inside a plugin
+ * - @ref tutorial_service — Run plugins inside the GameServer
  * - guides/PLUGIN_DEVELOPMENT_GUIDE.md — Comprehensive plugin guide
  * - ADR-003 — Plugin hot reload design rationale
  * - src/plugins/mmorpg/ — Reference MMORPG plugin

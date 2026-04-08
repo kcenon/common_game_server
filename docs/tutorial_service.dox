@@ -183,8 +183,8 @@
  *
  * @section tut_service_next Next Steps
  *
- * - @subpage tutorial_ecs — Add ECS systems to GameServer
- * - @subpage tutorial_plugin — Load plugins into GameServer
+ * - @ref tutorial_ecs — Add ECS systems to GameServer
+ * - @ref tutorial_plugin — Load plugins into GameServer
  * - guides/CONFIGURATION_GUIDE.md — YAML configuration reference
  * - guides/DEPLOYMENT_GUIDE.md — Production deployment
  * - ADR-004 — Why these 5 services

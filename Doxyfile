@@ -5,7 +5,7 @@
 PROJECT_NAME           = "common_game_server"
 PROJECT_NUMBER         = "0.1.0"
 PROJECT_BRIEF          = "Unified Game Server Framework — Tier 3 of the kcenon ecosystem"
-OUTPUT_DIRECTORY       = documents
+OUTPUT_DIRECTORY       = docs/api
 CREATE_SUBDIRS         = NO
 OUTPUT_LANGUAGE        = English
 BRIEF_MEMBER_DESC      = YES
@@ -25,7 +25,7 @@ TOC_INCLUDE_HEADINGS   = 6
 AUTOLINK_SUPPORT       = YES
 BUILTIN_STL_SUPPORT    = YES
 SUBGROUPING            = YES
-NUM_PROC_THREADS       = 1
+NUM_PROC_THREADS       = 0
 TIMESTAMP              = NO
 
 # Extraction settings
@@ -50,18 +50,20 @@ SHOW_FILES             = YES
 SHOW_NAMESPACES        = YES
 
 # Warning settings
-QUIET                  = NO
+QUIET                  = YES
 WARNINGS               = YES
-WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_UNDOCUMENTED   = NO
 WARN_IF_DOC_ERROR      = YES
-WARN_NO_PARAMDOC       = YES
+WARN_NO_PARAMDOC       = NO
 WARN_AS_ERROR          = NO
-WARN_IF_INCOMPLETE_DOC = YES
+WARN_IF_INCOMPLETE_DOC = NO
 WARN_FORMAT            = "$file:$line: $text"
 
 # Input settings
+# Parse public headers + markdown entry points. Do not include ./src to avoid
+# pulling in implementation files, which dramatically slows generation without
+# benefit for API documentation.
 INPUT                  = ./include/cgs \
-                         ./src \
                          ./README.md \
                          ./docs/mainpage.dox \
                          ./docs/tutorial_ecs.dox \
@@ -85,7 +87,9 @@ EXCLUDE                = ./build \
                          ./build-debug \
                          ./build-release \
                          ./documents \
+                         ./docs/api \
                          ./docs/archive \
+                         ./docs/doxygen-awesome-css \
                          ./tests
 EXCLUDE_SYMLINKS       = NO
 EXCLUDE_PATTERNS       = */CMakeFiles/* \
@@ -97,13 +101,16 @@ EXCLUDE_PATTERNS       = */CMakeFiles/* \
 USE_MDFILE_AS_MAINPAGE =
 
 # Source browsing
+# REFERENCED_BY_RELATION / REFERENCES_RELATION build cross-reference tables for
+# every symbol and can make generation exponentially slow on large codebases.
+# Keep them OFF — the cost is not worth the marginal UX benefit.
 SOURCE_BROWSER         = YES
-INLINE_SOURCES         = YES
+INLINE_SOURCES         = NO
 STRIP_CODE_COMMENTS    = YES
-REFERENCED_BY_RELATION = YES
-REFERENCES_RELATION    = YES
+REFERENCED_BY_RELATION = NO
+REFERENCES_RELATION    = NO
 REFERENCES_LINK_SOURCE = YES
-SOURCE_TOOLTIPS        = YES
+SOURCE_TOOLTIPS        = NO
 VERBATIM_HEADERS       = YES
 
 # Index

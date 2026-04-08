@@ -119,6 +119,20 @@ target_link_libraries(cgs_example_10_networking PRIVATE
     cgs::foundation_network
 )
 
+# ── Tutorial 11: Client-side — server+client loopback round-trip ───────────
+#
+# Unlike example 10 (server-only offline demo), this example performs a
+# real socket round-trip by running a GameNetworkManager server AND a
+# kcenon::network::facade::tcp_facade client inside the same process.
+# It links network_system directly to get access to the facade headers
+# and the callback_adapter observer.
+cgs_add_example(cgs_example_11_client 11_client.cpp)
+target_link_libraries(cgs_example_11_client PRIVATE
+    cgs::foundation_common
+    cgs::foundation_network
+    network_system
+)
+
 # Convenience aggregate target: `cmake --build build-debug --target cgs_examples`
 # builds all example binaries in one step.
 add_custom_target(cgs_examples
@@ -133,4 +147,5 @@ add_custom_target(cgs_examples
         cgs_example_08_quest
         cgs_example_09_database
         cgs_example_10_networking
+        cgs_example_11_client
 )

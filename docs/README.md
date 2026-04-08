@@ -83,7 +83,8 @@ the published Doxygen site. Each has a companion program under
 | Tutorial | Topic |
 |---|---|
 | `tutorial_database.dox` | `GameDatabase`, prepared statements, transactions |
-| `tutorial_networking.dox` | `NetworkMessage`, signals, TLS |
+| `tutorial_networking.dox` | Server-side `NetworkMessage`, signals, TLS |
+| `tutorial_client.dox` | Client-side loopback round-trip with `kcenon::network` facades |
 
 See [`../examples/README.md`](../examples/README.md) for the
 corresponding runnable programs.

@@ -65,17 +65,28 @@ cmake --build build-debug --target cgs_examples
 | 08 | `08_quest.cpp` | [`../docs/tutorial_quest.dox`](../docs/tutorial_quest.dox) | Accept a 2-objective wolf quest, advance progress, turn in, verify re-accept is blocked |
 | 09 | `09_database.cpp` | [`../docs/tutorial_database.dox`](../docs/tutorial_database.dox) | `PreparedStatement` name binding, `DatabaseConfig`, `GameResult<void>` connect-error handling |
 | 10 | `10_networking.cpp` | [`../docs/tutorial_networking.dox`](../docs/tutorial_networking.dox) | `NetworkMessage` serialize / deserialize round-trip, `Signal<SessionId>` connect/emit/disconnect |
+| 11 | `11_client.cpp` | [`../docs/tutorial_client.dox`](../docs/tutorial_client.dox) | Server + client loopback in one process: `tcp_facade::create_client`, `callback_adapter` observer, ping/pong round-trip |
 
 ## Examples that skip I/O
 
-Two examples (`09_database` and `10_networking`) deliberately stop
-short of real I/O because they would otherwise require a running
-PostgreSQL instance or a live network peer. Each exercises every
-offline part of the API (construction, configuration, parameter
-binding, signal dispatch) and the companion tutorials show the
-online usage patterns in source snippets. Live-network and
-live-database coverage lives in the integration test suite under
-`tests/`.
+- **`09_database.cpp`** deliberately stops short of real queries
+  because it would otherwise require a running PostgreSQL
+  instance. It exercises the offline parts of the API
+  (`DatabaseConfig`, `PreparedStatement` binding, `resolve()`,
+  connect error handling) and the companion tutorial shows the
+  online usage patterns in source snippets.
+- **`10_networking.cpp`** focuses on server-only offline patterns:
+  `NetworkMessage::serialize` / `deserialize` round-trips,
+  `Signal<SessionId>` subscription, per-opcode handler registration.
+  It does not bind a real socket.
+
+**`11_client.cpp`** is different — it performs a REAL socket
+round-trip by running both a `GameNetworkManager` server and a
+`kcenon::network::facade::tcp_facade` client inside the same
+process on a fixed loopback port. No external infrastructure is
+needed because the traffic never leaves `127.0.0.1`, so the
+example is CI-deterministic. Live database coverage still lives
+in the integration test suite under `tests/`.
 
 ## Authoring new examples
 

@@ -1,3 +1,7 @@
+> Status: archived 2026-09. No further maintenance; kept for reference.
+>
+> Performance figures and feature claims in this README were written during active development and have not been re-verified.
+
 # Common Game Server
 
 [![CI](https://github.com/kcenon/common_game_server/actions/workflows/ci.yml/badge.svg)](https://github.com/kcenon/common_game_server/actions/workflows/ci.yml)
